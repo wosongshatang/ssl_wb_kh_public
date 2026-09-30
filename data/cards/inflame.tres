@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card_data.gd" id="1_carddata"]
+
+[resource]
+script = ExtResource("1_carddata")
+id = &"inflame"
+display_name = "燃烧"
+description = "获得 2 点力量。"
+cost = 1
+type = 2
+rarity = 1
+damage = 0
+block = 0
+draw = 0
+gain_energy = 0
+self_hp_loss = 0
+apply_to_self = {
+"strength": 2
+}
+apply_to_target = {}
+exhaust = false

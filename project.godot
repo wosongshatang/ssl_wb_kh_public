@@ -35,6 +35,7 @@ window/size/viewport_height=720
 [gui]
 
 theme/custom_font="res://assets/fonts/cjk_system_font.tres"
+theme/custom_theme="res://assets/theme/game_theme.tres"
 
 [physics]
 

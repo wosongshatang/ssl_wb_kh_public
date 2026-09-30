@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"shrine_of_war"
+title = "战神神坛"
+description = "一座插满断刃的石台，刃口朝上。低语在你耳边响起：接受，或是拒绝。"
+option_a_label = "接受神恩"
+option_a_effect = 6
+option_a_value = 5
+option_b_label = "砸毁神坛"
+option_b_effect = 3
+option_b_value = 60

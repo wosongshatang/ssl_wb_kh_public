@@ -19,9 +19,26 @@ enum CardType {
 @export var description: String = ""
 @export_range(0, 5, 1) var cost: int = 1
 @export var type: CardType = CardType.ATTACK
+## 稀有度：0 普通 / 1 罕见 / 2 稀有。只影响奖励池权重，不影响数值。
+@export_range(0, 2, 1) var rarity: int = 0
+
+# ══ 效果字段 ════════════════════════════════════════════════
+# 效果按**字段**驱动，不按类型分支（decisions.md D16）。
+# 这样才能写出「攻防一体」牌（铁斩波：5 伤 + 5 格挡）与「打伤害顺便上减益」牌。
+
 @export var damage: int = 0
 @export var block: int = 0
-## 打出后进入消耗区而非弃牌堆（阶段 5 法师线用，先留字段）
+## 抽牌数
+@export var draw: int = 0
+## 获得能量
+@export var gain_energy: int = 0
+## 对自己造成生命流失（**无视格挡**）
+@export var self_hp_loss: int = 0
+## 施加给自己的 Power：{power_id: 层数}，例 {"strength": 2}
+@export var apply_to_self: Dictionary = {}
+## 施加给目标敌人的 Power：{power_id: 层数}，例 {"vulnerable": 2}
+@export var apply_to_target: Dictionary = {}
+## 打出后进入消耗区而非弃牌堆（阶段 5 法师线用）
 @export var exhaust: bool = false
 
 

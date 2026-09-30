@@ -81,19 +81,7 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 	_log("打出「%s」（剩余能量 %d）" % [card.display_name, player.energy])
 
 	player.notify_card_played(card)
-
-	# 效果按**字段**驱动而非按类型分支——这样「攻防一体」牌（铁斩波：5 伤 + 5 格挡）
-	# 才写得出来。type 字段仍然保留，因为鏖战者（每张攻击牌）、风行者（首张攻击牌）
-	# 这类终职需要按类型统计。
-	if card.damage > 0:
-		var victim: Creature = target if target != null else first_alive_enemy()
-		if victim != null:
-			_deal_damage(player, victim, card.damage)
-	if card.block > 0:
-		var gained: int = player.gain_block(card.block, card)
-		_log("  获得 %d 格挡（当前 %d）" % [gained, player.block])
-	if card.type == CardData.CardType.POWER:
-		_log("  能力牌在阶段 3 暂未实现")
+	_resolve_card_effects(card, target)
 
 	if card.exhaust:
 		deck.add_to_exhaust(card)
@@ -147,6 +135,57 @@ func _on_battle_finished(player_won: bool) -> void:
 
 func _on_flow_phase_changed(next_phase: TurnFlow.Phase) -> void:
 	phase_changed.emit(next_phase)
+
+
+# ── 意图执行 ────────────────────────────────────────────────
+
+## 结算一张牌的全部效果。
+##
+## 效果按**字段**驱动而非按类型分支（decisions.md D16）——否则「攻防一体」牌
+## （铁斩波：5 伤 + 5 格挡）与「打伤害顺便上减益」牌都写不出来。
+## `type` 仍是标签（鏖战者按攻击牌计数、风行者复制首张攻击牌），但不是分派依据。
+##
+## 结算顺序固定：**伤害 → 格挡 → 施加 Power → 抽牌 → 能量 → 自伤**。
+## 自伤放最后：万一自伤致死，前面的收益已经结算完，行为可预期。
+func _resolve_card_effects(card: CardData, target: Creature) -> void:
+	# 伤害与减益作用于**同一个**目标——不能各算一次 first_alive_enemy()，
+	# 否则打死了第一个敌人后，减益会莫名其妙落到第二个敌人身上。
+	var victim: Creature = target if target != null else first_alive_enemy()
+
+	if card.damage > 0 and victim != null:
+		_deal_damage(player, victim, card.damage)
+
+	if card.block > 0:
+		var gained: int = player.gain_block(card.block, card)
+		_log("  获得 %d 格挡（当前 %d）" % [gained, player.block])
+
+	_apply_powers(player, card.apply_to_self, "自己")
+
+	if victim != null and victim.is_alive():
+		_apply_powers(victim, card.apply_to_target, victim.display_name)
+
+	if card.draw > 0:
+		var drawn: Array[CardData] = deck.draw(card.draw)
+		_log("  抽 %d 张牌" % drawn.size())
+
+	if card.gain_energy > 0:
+		player.gain_energy(card.gain_energy)
+		_log("  获得 %d 点能量（当前 %d）" % [card.gain_energy, player.energy])
+
+	if card.self_hp_loss > 0:
+		player.take_damage(card.self_hp_loss, null, DamageType.HP_LOSS)
+		_log("  失去 %d 点生命（无视格挡）" % card.self_hp_loss)
+
+
+func _apply_powers(receiver: Creature, table: Dictionary, label: String) -> void:
+	for raw_id: Variant in table:
+		var power_id := StringName(str(raw_id))
+		var amount: int = int(table[raw_id])
+		var power := PowerFactory.create(power_id, amount)
+		if power == null:
+			continue
+		receiver.apply_power(power)
+		_log("  %s 获得 %s ×%d" % [label, power.display_name, amount])
 
 
 # ── 意图执行 ────────────────────────────────────────────────

@@ -63,12 +63,18 @@ func remove_card(card_id: StringName) -> bool:
 
 ## 展开成实际的 CardData 列表（从 ContentRegistry 查表）。
 ## 查不到的 id 会被跳过并告警——不要让一个手滑的 id 静默变成空牌。
+##
+## ⚠️ **每张牌都 duplicate() 一份**，不能直接返回注册表里的共享实例。
+## 理由：`ContentRegistry` 里的卡是全局单例，一副牌组里 5 张「打击」如果共用
+## 同一个对象，那么「升级某一张牌」「神化某一张牌」会连带改掉全部 5 张——
+## 而且跨局都会受影响（注册表在整个进程里只加载一次）。
+## 阶段 3 的卡都是只读的，暂时看不出问题；阶段 6 的卡牌升级一上就爆。
 func build_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []
 	for id: StringName in deck_card_ids:
-		var card: Variant = ContentRegistry.get_card(id)
-		if card is CardData:
-			deck.append(card as CardData)
+		var source: Variant = ContentRegistry.get_card(id)
+		if source is CardData:
+			deck.append((source as CardData).duplicate() as CardData)
 		else:
 			push_warning("RunState.build_deck: 找不到卡牌 %s，已跳过" % id)
 	return deck

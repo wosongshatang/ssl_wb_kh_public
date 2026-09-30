@@ -29,6 +29,15 @@ FAILED=0
 PASS_MARK="✓"
 FAIL_MARK="✗"
 
+# ── ⓪ 资源导入 ──────────────────────────────────────────────────
+# 新增 .gd（尤其带 class_name 的）或 .tres 之后**必须先导入**，
+# 否则 .godot/global_script_class_cache.cfg 不更新，引用新类的脚本会整体编译失败，
+# 报一个毫无线索的错：「Nonexistent function 'new' in base 'GDScript'」。
+# 让门禁自己保证这一点，比依赖「记得先 import」可靠。
+echo "── ⓪ 资源导入 ──────────────────────────────────────────"
+"$GODOT" --headless --import --path "$PROJECT_DIR" > /dev/null 2>&1
+echo "$PASS_MARK 资源导入完成"
+
 # ── ① 脚本解析检查 ────────────────────────────────────────────────
 echo "── ① 脚本解析检查 ──────────────────────────────────────"
 PARSE_OUT="$("$GODOT" --headless --quit --path "$PROJECT_DIR" 2>&1 \
@@ -54,7 +63,7 @@ echo "── ② 目录结构完整性 ─────────────�
 STRUCT_FAIL=0
 for d in scripts/core scripts/battle scripts/pipeline scripts/identity \
          scripts/cards scripts/creatures scripts/relics scripts/map scripts/ui scripts/content \
-         data/cards data/relics data/jobs data/enemies data/acts \
+         data/cards data/relics data/jobs data/enemies data/acts data/events \
          scenes/boot scenes/map scenes/battle scenes/ui tests tools docs; do
   if [ ! -d "$PROJECT_DIR/$d" ]; then
     echo "  $FAIL_MARK 缺少目录：$d"

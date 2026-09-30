@@ -14,6 +14,7 @@ var _player: Player
 var _enemy: Enemy
 var _run: RunState
 var _node_kind: int = MapNode.Kind.COMBAT
+var _reward_panel: CardRewardPanel = null
 
 
 func _ready() -> void:
@@ -103,7 +104,7 @@ func _on_end_turn_pressed() -> void:
 
 
 func _on_back_pressed() -> void:
-	if _battle != null and _battle.is_over():
+	if _battle != null and _battle.is_over() and not _run.is_over:
 		get_tree().change_scene_to_file("res://scenes/map/map.tscn")
 	else:
 		# 战斗中途退出：保留存档（当前节点已标记为已访问）
@@ -142,24 +143,69 @@ func _on_phase_changed(next_phase: TurnFlow.Phase) -> void:
 
 func _on_battle_ended(player_won: bool) -> void:
 	_run.sync_from_creature(_player)
+	ui.set_actions_enabled(false)
 
-	if player_won:
-		var gold: int = _gold_reward()
-		_run.add_gold(gold)
-		ui.append_log("获得 %d 金币。" % gold)
-
-		if _node_kind == MapNode.Kind.BOSS:
-			_run.finish(true)
-			SaveManager.delete_save()
-			ui.append_log("═══ 第 1 幕完成 ═══")
-		else:
-			SaveManager.save_run(_run, GameState.map)
-	else:
+	if not player_won:
 		_run.finish(false)
 		SaveManager.delete_save()
+		_go_to_game_over()
+		return
 
-	ui.set_actions_enabled(false)
-	ui.set_back_label("返回地图" if player_won else "返回启动页")
+	var gold: int = _gold_reward()
+	_run.add_gold(gold)
+	ui.append_log("获得 %d 金币。" % gold)
+
+	if _node_kind == MapNode.Kind.BOSS:
+		_run.finish(true)
+		SaveManager.delete_save()
+		_go_to_game_over()
+		return
+
+	_offer_card_reward()
+
+
+# ── 战后三选一 ──────────────────────────────────────────────
+
+func _offer_card_reward() -> void:
+	var pool := CardPool.new(RandomNumberGenerator.new())
+	var offers: Array[CardData] = pool.roll()
+
+	if offers.is_empty():
+		# 卡池为空时不能把玩家卡在这里——直接结束流程
+		push_warning("BattleScene: 卡池为空，跳过卡牌奖励")
+		_finish_battle_flow()
+		return
+
+	_reward_panel = CardRewardPanel.new()
+	_reward_panel.setup("选择一张牌加入牌组", offers)
+	_reward_panel.card_chosen.connect(_on_reward_card_chosen)
+	_reward_panel.skipped.connect(_on_reward_skipped)
+	add_child(_reward_panel)
+
+
+func _on_reward_card_chosen(card_id: StringName) -> void:
+	_run.add_card(card_id)
+	var card: Variant = ContentRegistry.get_card(card_id)
+	if card is CardData:
+		ui.append_log("「%s」加入牌组。" % (card as CardData).display_name)
+	_finish_battle_flow()
+
+
+func _on_reward_skipped() -> void:
+	ui.append_log("放弃了卡牌奖励。")
+	_finish_battle_flow()
+
+
+func _finish_battle_flow() -> void:
+	if _reward_panel != null:
+		_reward_panel.queue_free()
+		_reward_panel = null
+	SaveManager.save_run(_run, GameState.map)
+	ui.set_back_label("返回地图")
+
+
+func _go_to_game_over() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/game_over.tscn")
 
 
 func _gold_reward() -> int:

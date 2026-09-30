@@ -15,6 +15,7 @@ var _relics: Dictionary = {}
 var _jobs: Dictionary = {}
 var _enemies: Dictionary = {}
 var _acts: Dictionary = {}
+var _events: Dictionary = {}
 
 
 func _ready() -> void:
@@ -28,6 +29,7 @@ func load_all() -> void:
 	_jobs = _load_dir("jobs")
 	_enemies = _load_dir("enemies")
 	_acts = _load_dir("acts")
+	_events = _load_dir("events")
 
 
 ## 扫描一个数据子目录，按 Resource.id 建索引
@@ -56,6 +58,23 @@ func get_card(id: StringName) -> Variant:
 	return _cards.get(String(id))
 
 
+## 全部卡牌（奖励池 / 商店抽卡用）。返回的是资源引用，不要修改它们。
+func all_cards() -> Array[CardData]:
+	var out: Array[CardData] = []
+	for key: Variant in _cards:
+		var card: Variant = _cards[key]
+		if card is CardData:
+			out.append(card as CardData)
+	return out
+
+
+func all_card_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key: Variant in _cards:
+		out.append(StringName(str(key)))
+	return out
+
+
 func get_relic(id: StringName) -> Variant:
 	return _relics.get(String(id))
 
@@ -72,6 +91,10 @@ func get_act(id: StringName) -> Variant:
 	return _acts.get(String(id))
 
 
+func get_event(id: StringName) -> Variant:
+	return _events.get(String(id))
+
+
 ## 供调试 / 内容盘点：各分类已注册数量
 func summary() -> Dictionary:
 	return {
@@ -80,4 +103,5 @@ func summary() -> Dictionary:
 		"jobs": _jobs.size(),
 		"enemies": _enemies.size(),
 		"acts": _acts.size(),
+		"events": _events.size(),
 	}
