@@ -10,6 +10,7 @@ extends SceneTree
 
 const SCENES: Array[String] = [
 	"res://scenes/boot/main.tscn",
+	"res://scenes/map/map.tscn",
 	"res://scenes/battle/battle_log.tscn",
 ]
 

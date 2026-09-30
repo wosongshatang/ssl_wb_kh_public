@@ -55,7 +55,7 @@ STRUCT_FAIL=0
 for d in scripts/core scripts/battle scripts/pipeline scripts/identity \
          scripts/cards scripts/creatures scripts/relics scripts/map scripts/ui scripts/content \
          data/cards data/relics data/jobs data/enemies data/acts \
-         scenes/boot tests tools docs; do
+         scenes/boot scenes/map scenes/battle scenes/ui tests tools docs; do
   if [ ! -d "$PROJECT_DIR/$d" ]; then
     echo "  $FAIL_MARK 缺少目录：$d"
     STRUCT_FAIL=1
@@ -101,8 +101,9 @@ FORBIDDEN="BattleManager|DamagePipeline|DamageInfo|IntentResolver|TurnFlow|Battl
 LAYER_HITS=""
 for f in "$PROJECT_DIR"/scripts/ui/*.gd; do
   [ -f "$f" ] || continue
-  # 逐 token 匹配（用词边界，避免误伤注释里提到类名的情况——注释也算提示，一并暴露）
-  HIT="$(grep -nE "$FORBIDDEN" "$f" || true)"
+  # 先剥掉注释再匹配。注释里提一句类名不是依赖；
+  # 而误报会让人干脆关掉这道门禁——那比没有门禁更糟。
+  HIT="$(sed -E 's/#.*$//' "$f" | grep -nE "$FORBIDDEN" || true)"
   if [ -n "$HIT" ]; then
     LAYER_HITS="$LAYER_HITS$(basename "$f"): $HIT"$'\n'
   fi

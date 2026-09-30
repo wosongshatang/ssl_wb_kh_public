@@ -220,6 +220,15 @@ func heal(amount: int) -> void:
 		health_changed.emit(hp, max_hp)
 
 
+## 直接把生命设为指定值（跨场景同步单局血量用）。
+## ⚠️ 走这里而不是直接写 `hp = x`，是为了保证 health_changed **一定**被发出——
+## 否则 UI 会显示一个过期的血量，而且不会有任何报错。
+func set_hp(value: int) -> void:
+	hp = clampi(value, 0, max_hp)
+	is_dead = hp <= 0
+	health_changed.emit(hp, max_hp)
+
+
 # ══ 能量 ════════════════════════════════════════════════════
 
 func can_afford(cost: int) -> bool:

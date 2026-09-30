@@ -82,17 +82,18 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 
 	player.notify_card_played(card)
 
-	match card.type:
-		CardData.CardType.ATTACK:
-			var victim: Creature = target if target != null else first_alive_enemy()
-			if victim != null:
-				_deal_damage(player, victim, card.damage)
-		CardData.CardType.SKILL:
-			if card.block > 0:
-				var gained: int = player.gain_block(card.block, card)
-				_log("  获得 %d 格挡（当前 %d）" % [gained, player.block])
-		CardData.CardType.POWER:
-			_log("  能力牌在阶段 2 暂未实现")
+	# 效果按**字段**驱动而非按类型分支——这样「攻防一体」牌（铁斩波：5 伤 + 5 格挡）
+	# 才写得出来。type 字段仍然保留，因为鏖战者（每张攻击牌）、风行者（首张攻击牌）
+	# 这类终职需要按类型统计。
+	if card.damage > 0:
+		var victim: Creature = target if target != null else first_alive_enemy()
+		if victim != null:
+			_deal_damage(player, victim, card.damage)
+	if card.block > 0:
+		var gained: int = player.gain_block(card.block, card)
+		_log("  获得 %d 格挡（当前 %d）" % [gained, player.block])
+	if card.type == CardData.CardType.POWER:
+		_log("  能力牌在阶段 3 暂未实现")
 
 	if card.exhaust:
 		deck.add_to_exhaust(card)

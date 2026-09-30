@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card_data.gd" id="1_carddata"]
+
+[resource]
+script = ExtResource("1_carddata")
+id = &"iron_wave"
+display_name = "铁斩波"
+description = "造成 5 点伤害，并获得 5 点格挡。"
+cost = 1
+type = 0
+damage = 5
+block = 5
+exhaust = false

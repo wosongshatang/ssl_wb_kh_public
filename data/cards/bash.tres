@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card_data.gd" id="1_carddata"]
+
+[resource]
+script = ExtResource("1_carddata")
+id = &"bash"
+display_name = "重击"
+description = "造成 8 点伤害。"
+cost = 2
+type = 0
+damage = 8
+block = 0
+exhaust = false

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card_data.gd" id="1_carddata"]
+
+[resource]
+script = ExtResource("1_carddata")
+id = &"shrug_it_off"
+display_name = "甩脱"
+description = "获得 8 点格挡。"
+cost = 1
+type = 1
+damage = 0
+block = 8
+exhaust = false

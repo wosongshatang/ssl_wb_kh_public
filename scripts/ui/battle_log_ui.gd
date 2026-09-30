@@ -51,3 +51,8 @@ func set_actions_enabled(enabled: bool) -> void:
 	attack_button.disabled = not enabled
 	defend_button.disabled = not enabled
 	end_turn_button.disabled = not enabled
+
+
+## 返回按钮的语义随战斗阶段变化（战斗中途 = 退出；战斗结束 = 回地图）
+func set_back_label(text: String) -> void:
+	back_button.text = text

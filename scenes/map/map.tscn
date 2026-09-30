@@ -1,0 +1,85 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/map_scene.gd" id="1_map_scene"]
+[ext_resource type="Script" path="res://scripts/ui/map_ui.gd" id="2_map_ui"]
+
+[node name="MapScene" type="Node"]
+script = ExtResource("1_map_scene")
+
+[node name="MapUI" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_map_ui")
+
+[node name="Background" type="ColorRect" parent="MapUI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.078, 0.078, 0.098, 1)
+
+[node name="Margin" type="MarginContainer" parent="MapUI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="MapUI/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderLabel" type="Label" parent="MapUI/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.902, 0.831, 0.6, 1)
+theme_override_font_sizes/font_size = 22
+text = "三律界 · 地图"
+
+[node name="StatusLabel" type="Label" parent="MapUI/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.95, 1)
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="RowsContainer" type="VBoxContainer" parent="MapUI/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="HintLabel" type="Label" parent="MapUI/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.66, 0.72, 1)
+theme_override_font_sizes/font_size = 14
+text = ""
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="MapUI/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SaveExitButton" type="Button" parent="MapUI/Margin/VBox/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "保存并返回启动页"
+
+[node name="AbandonButton" type="Button" parent="MapUI/Margin/VBox/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "放弃本局"

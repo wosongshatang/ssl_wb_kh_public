@@ -1,20 +1,24 @@
 extends Control
-## BootScreen —— 启动画面 / 主场景入口
+## 启动画面 / 主菜单
 ##
-## Phase 0 职责：证明工程能跑起来（显示版本与骨架就绪状态）。
-## 阶段 3 起会被替换为真正的主菜单（新游戏 / 继续 / 设置）。
+## 阶段 3 起：这里是「一局」的入口——新游戏 / 继续游戏。
+## 具体流程编排在 MapScene 与 BattleScene（组合根），本类只负责按钮与状态展示。
 
 const GAME_TITLE: String = "弑神律"
-const BUILD_STAGE: String = "阶段 0 · 骨架就绪"
+const BUILD_STAGE: String = "阶段 3 · 单局骨架"
 
 @onready var title_label: Label = %TitleLabel
 @onready var stage_label: Label = %StageLabel
 @onready var content_label: Label = %ContentLabel
-@onready var enter_battle_button: Button = %EnterBattleButton
+@onready var new_game_button: Button = %NewGameButton
+@onready var continue_button: Button = %ContinueButton
+@onready var debug_battle_button: Button = %DebugBattleButton
 
 
 func _ready() -> void:
-	enter_battle_button.pressed.connect(_on_enter_battle_pressed)
+	new_game_button.pressed.connect(_on_new_game_pressed)
+	continue_button.pressed.connect(_on_continue_pressed)
+	debug_battle_button.pressed.connect(_on_debug_battle_pressed)
 
 	title_label.text = GAME_TITLE
 	stage_label.text = BUILD_STAGE
@@ -27,10 +31,32 @@ func _ready() -> void:
 		counts["enemies"],
 		counts["acts"],
 	]
+
+	# 没有存档时「继续游戏」直接置灰——比点了没反应好
+	continue_button.disabled = not SaveManager.has_save()
+
 	print("[Boot] %s —— %s" % [GAME_TITLE, BUILD_STAGE])
 	print("[Boot] Godot %s" % Engine.get_version_info()["string"])
 	print("[Boot] 引擎版本 4.6 / 渲染后端 GL Compatibility")
 
 
-func _on_enter_battle_pressed() -> void:
+func _on_new_game_pressed() -> void:
+	GameState.start_new_run(&"warrior", randi())
+	get_tree().change_scene_to_file("res://scenes/map/map.tscn")
+
+
+func _on_continue_pressed() -> void:
+	var restored: Array = SaveManager.restore()
+	if restored.size() != 2:
+		content_label.text = "存档无法读取，已按「无存档」处理。"
+		continue_button.disabled = true
+		return
+
+	GameState.adopt_run(restored[0] as RunState, restored[1] as MapManager)
+	get_tree().change_scene_to_file("res://scenes/map/map.tscn")
+
+
+func _on_debug_battle_pressed() -> void:
+	if GameState.run == null:
+		GameState.start_new_run(&"warrior", randi())
 	get_tree().change_scene_to_file("res://scenes/battle/battle_log.tscn")

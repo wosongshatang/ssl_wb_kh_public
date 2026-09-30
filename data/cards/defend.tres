@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card_data.gd" id="1_carddata"]
+
+[resource]
+script = ExtResource("1_carddata")
+id = &"defend"
+display_name = "防御"
+description = "获得 5 点格挡。"
+cost = 1
+type = 1
+damage = 0
+block = 5
+exhaust = false

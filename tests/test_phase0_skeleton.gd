@@ -33,15 +33,17 @@ func test_event_bus_exposes_run_lifecycle_signals() -> void:
 # ── GameState：转职路径（设计文档 §2.1「不可逆、不可重选」）──
 
 func test_reset_run_clears_everything() -> void:
-	GameState.character_class = CHARACTER_WARRIOR
+	## 阶段 3 起：单局资源存在 RunState 里，GameState 只保留身份与侵蚀状态
 	GameState.advance_job(JOB_SHIELD_GUARD)
 	GameState.add_divinity(40)
+	GameState.run = RunState.new()
 
 	GameState.reset_run()
 
-	assert_eq(GameState.character_class, &"", "选角应被清空")
 	assert_eq(GameState.job_path.size(), 0, "转职路径应被清空")
 	assert_eq(GameState.divinity, 0, "神性应归零")
+	assert_null(GameState.run, "单局状态应被清空")
+	assert_null(GameState.map, "地图应被清空")
 
 
 func test_advance_job_appends_in_order() -> void:
