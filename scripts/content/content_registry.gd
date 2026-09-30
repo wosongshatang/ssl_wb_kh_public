@@ -16,6 +16,7 @@ var _jobs: Dictionary = {}
 var _enemies: Dictionary = {}
 var _acts: Dictionary = {}
 var _events: Dictionary = {}
+var _potions: Dictionary = {}
 
 
 func _ready() -> void:
@@ -30,6 +31,7 @@ func load_all() -> void:
 	_enemies = _load_dir("enemies")
 	_acts = _load_dir("acts")
 	_events = _load_dir("events")
+	_potions = _load_dir("potions")
 
 
 ## 扫描一个数据子目录，按 Resource.id 建索引
@@ -109,6 +111,17 @@ func get_event(id: StringName) -> Variant:
 	return _events.get(String(id))
 
 
+func get_potion(id: StringName) -> Variant:
+	return _potions.get(String(id))
+
+
+func all_potion_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key: Variant in _potions:
+		out.append(StringName(str(key)))
+	return out
+
+
 ## 供调试 / 内容盘点：各分类已注册数量
 func summary() -> Dictionary:
 	return {
@@ -118,4 +131,5 @@ func summary() -> Dictionary:
 		"enemies": _enemies.size(),
 		"acts": _acts.size(),
 		"events": _events.size(),
+		"potions": _potions.size(),
 	}

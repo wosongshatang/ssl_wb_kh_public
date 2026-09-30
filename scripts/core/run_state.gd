@@ -18,9 +18,15 @@ var max_hp: int = DEFAULT_MAX_HP
 var gold: int = STARTING_GOLD
 var deck_card_ids: Array[StringName] = []
 var relics: Array[StringName] = []
+## 药水栏（最多 MAX_POTIONS 个）
+var potions: Array[StringName] = []
+## 本局累计游玩秒数
+var play_seconds: float = 0.0
 var rng_seed: int = 0
 var is_over: bool = false
 var victory: bool = false
+
+const MAX_POTIONS: int = 3
 
 
 func start_new_run(character: StringName, seed_value: int) -> void:
@@ -33,6 +39,8 @@ func start_new_run(character: StringName, seed_value: int) -> void:
 	gold = STARTING_GOLD
 	deck_card_ids = _starting_deck_for(character)
 	relics = _starting_relics_for(character)
+	potions.clear()
+	play_seconds = 0.0
 	is_over = false
 	victory = false
 
@@ -59,6 +67,31 @@ func _starting_relics_for(character: StringName) -> Array[StringName]:
 
 func add_card(card_id: StringName) -> void:
 	deck_card_ids.append(card_id)
+
+
+# ── 药水 ────────────────────────────────────────────────────
+
+## 加一瓶药水。药水栏满了返回 false（调用方据此提示"药水栏已满"）。
+func add_potion(potion_id: StringName) -> bool:
+	if potions.size() >= MAX_POTIONS:
+		return false
+	potions.append(potion_id)
+	return true
+
+
+func consume_potion(slot_index: int) -> StringName:
+	if slot_index < 0 or slot_index >= potions.size():
+		return &""
+	return potions[slot_index]
+
+
+func remove_potion_at(slot_index: int) -> void:
+	if slot_index >= 0 and slot_index < potions.size():
+		potions.remove_at(slot_index)
+
+
+func is_potion_bar_full() -> bool:
+	return potions.size() >= MAX_POTIONS
 
 
 func remove_card(card_id: StringName) -> bool:
@@ -141,6 +174,10 @@ func to_dict() -> Dictionary:
 	for id: StringName in relics:
 		relic_ids.append(String(id))
 
+	var potion_ids: Array[String] = []
+	for id: StringName in potions:
+		potion_ids.append(String(id))
+
 	return {
 		"version": SAVE_FORMAT_VERSION,
 		"character_class": String(character_class),
@@ -151,6 +188,8 @@ func to_dict() -> Dictionary:
 		"gold": gold,
 		"deck": deck,
 		"relics": relic_ids,
+		"potions": potion_ids,
+		"play_seconds": play_seconds,
 		"rng_seed": rng_seed,
 		"is_over": is_over,
 		"victory": victory,
@@ -175,3 +214,9 @@ func from_dict(data: Dictionary) -> void:
 	relics.clear()
 	for raw: Variant in (data.get("relics", []) as Array):
 		relics.append(StringName(str(raw)))
+
+	potions.clear()
+	for raw: Variant in (data.get("potions", []) as Array):
+		potions.append(StringName(str(raw)))
+
+	play_seconds = float(data.get("play_seconds", 0.0))

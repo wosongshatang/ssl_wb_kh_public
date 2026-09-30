@@ -9,7 +9,10 @@ extends OverlayPanel
 
 signal purchase_requested(card_id: StringName, price: int)
 signal removal_requested(card_id: StringName, price: int)
-signal closed
+# 注意：`closed` 由基类 OverlayPanel 声明。
+# ⚠️ 子类**不要**重复声明父类已有的信号——编译器会报
+#    "Could not resolve external class member"，而且错误指向的是**使用方**，
+#    完全指不到这里，极难排查。
 
 enum Mode { OFFERS, REMOVAL }
 

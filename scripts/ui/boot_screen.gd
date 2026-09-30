@@ -59,4 +59,4 @@ func _on_continue_pressed() -> void:
 func _on_debug_battle_pressed() -> void:
 	if GameState.run == null:
 		GameState.start_new_run(&"warrior", randi())
-	get_tree().change_scene_to_file("res://scenes/battle/battle_log.tscn")
+	get_tree().change_scene_to_file("res://scenes/battle/battle.tscn")

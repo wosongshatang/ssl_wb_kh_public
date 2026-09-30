@@ -11,7 +11,12 @@ extends Control
 const DIMMER_ALPHA: float = 0.72
 const CARD_MIN_WIDTH: int = 320
 
+## 玩家关闭了弹层（ESC 或点关闭按钮）。场景据此恢复计时等。
+signal closed
+
 var content_box: VBoxContainer
+## 内容区最大宽度（牌组网格这类宽内容需要调大）
+var frame_min_width: int = CARD_MIN_WIDTH
 
 
 func _ready() -> void:
@@ -28,7 +33,7 @@ func _ready() -> void:
 	add_child(center)
 
 	var frame := PanelContainer.new()
-	frame.custom_minimum_size = Vector2(CARD_MIN_WIDTH, 0)
+	frame.custom_minimum_size = Vector2(frame_min_width, 0)
 	center.add_child(frame)
 
 	var margin := MarginContainer.new()
@@ -43,6 +48,15 @@ func _ready() -> void:
 	margin.add_child(content_box)
 
 	_build_content()
+
+
+## ESC 关闭弹层（用户要求：「点击 esc 回到游戏界面」）
+func _unhandled_input(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	if key != null and key.pressed and key.keycode == KEY_ESCAPE:
+		accept_event()
+		closed.emit()
+		queue_free()
 
 
 ## 子类在这里往 content_box 里塞内容

@@ -1,36 +1,46 @@
 extends Node
 ## 战斗场景控制器（组合根）
 ##
-## 阶段 3 起：战斗从 GameState 读单局状态（血量 / 牌组 / 当前节点），
-## 结束后把结果写回去并返回地图。这是「一局能走完」的闭环所在。
+## 负责把 BattleManager（逻辑）与一堆视图控件接起来。视图只发信号，
+## 数值与状态全部由 BattleManager / DamagePipeline 决定。
+##
+## 布局参考用户提供的视频：角色在左、敌人在右，底部是手牌区与能量球，
+## 左下弃牌堆、右下抽牌堆，顶部是本局 HUD。
 
 const GOLD_REWARD_COMBAT: int = 12
 const GOLD_REWARD_ELITE: int = 30
-## 三幕结构：第 1、2 幕 Boss 后转职，第 3 幕 Boss 后通关（神战 P4 待实现）
 const MAX_ACTS: int = 3
+const POTION_DROP_CHANCE: float = 0.35
+const HAND_CARD_SPACING: int = 6
+const ENEMY_SLOT_SPACING: float = 190.0
+const ACTOR_Y_RATIO: float = 0.56
 
-@onready var ui: BattleLogUI = %BattleLogUI
-
-var _battle: BattleManager
-var _player: Player
-var _enemy: Enemy
 var _run: RunState
 var _node_kind: int = MapNode.Kind.COMBAT
-var _reward_panel: CardRewardPanel = null
+var _battle: BattleManager
+var _player: Player
+var _enemies: Array[Enemy] = []
+
+var _hud: RunHUD
+var _field: Control
+var _player_view: CombatActorView
+var _enemy_views: Array[CombatActorView] = []
+var _hand_box: HBoxContainer
+var _energy_label: Label
+var _draw_pile_label: Label
+var _discard_pile_label: Label
+var _turn_banner: Label
+var _log_label: Label
+var _end_turn_button: Button
+
+var _reward_panel: BattleRewardPanel = null
 var _job_panel: JobChoicePanel = null
+var _overlay: OverlayPanel = null
+var _busy: bool = false
 
 
 func _ready() -> void:
-	ui.attack_pressed.connect(_on_attack_pressed)
-	ui.defend_pressed.connect(_on_defend_pressed)
-	ui.end_turn_pressed.connect(_on_end_turn_pressed)
-	ui.back_pressed.connect(_on_back_pressed)
-	_start_battle()
-
-
-func _start_battle() -> void:
 	_run = GameState.run
-	# 直接运行本场景（调试）时自动开一局
 	if _run == null:
 		GameState.start_new_run(&"warrior", randi())
 		_run = GameState.run
@@ -38,6 +48,114 @@ func _start_battle() -> void:
 	var node: MapNode = GameState.map.current_node() if GameState.map != null else null
 	_node_kind = node.kind if node != null else MapNode.Kind.COMBAT
 
+	_build_ui()
+	_start_battle()
+	get_viewport().size_changed.connect(_layout)
+
+
+# ══ 界面构建 ════════════════════════════════════════════════
+
+func _build_ui() -> void:
+	var background := ColorRect.new()
+	background.color = UiPalette.BG_DEEP
+	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(background)
+
+	# 战场层用绝对定位——立绘要能被 Tween 挪动，放进容器会被布局系统覆盖
+	_field = Control.new()
+	_field.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_field.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_field)
+
+	_hand_box = HBoxContainer.new()
+	_hand_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_hand_box.add_theme_constant_override("separation", HAND_CARD_SPACING)
+	add_child(_hand_box)
+
+	_energy_label = _make_corner_label(UiPalette.ENERGY_ORB)
+	add_child(_energy_label)
+	_discard_pile_label = _make_corner_label(UiPalette.TEXT_DIM)
+	add_child(_discard_pile_label)
+	_draw_pile_label = _make_corner_label(UiPalette.BLOCK_BLUE)
+	add_child(_draw_pile_label)
+
+	_turn_banner = Label.new()
+	_turn_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_turn_banner.add_theme_font_size_override("font_size", 40)
+	_turn_banner.add_theme_color_override("font_color", UiPalette.GOLD)
+	_turn_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_turn_banner.modulate = Color(1, 1, 1, 0)
+	add_child(_turn_banner)
+
+	_log_label = Label.new()
+	_log_label.add_theme_font_size_override("font_size", 11)
+	_log_label.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
+	_log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_log_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_log_label)
+
+	_end_turn_button = Button.new()
+	_end_turn_button.text = "结束回合"
+	_end_turn_button.custom_minimum_size = Vector2(120, 42)
+	_end_turn_button.focus_mode = Control.FOCUS_NONE
+	_end_turn_button.pressed.connect(_on_end_turn_pressed)
+	add_child(_end_turn_button)
+
+	_hud = RunHUD.new()
+	add_child(_hud)
+	_hud.bind_run(_run)
+	_hud.set_time_running(true)
+	_hud.deck_pressed.connect(_open_deck)
+	_hud.relics_pressed.connect(_open_relics)
+	_hud.settings_pressed.connect(_open_settings)
+	_hud.map_pressed.connect(_open_map_overlay)
+	_hud.potion_pressed.connect(_on_potion_pressed)
+
+
+func _make_corner_label(accent: Color) -> Label:
+	var label := Label.new()
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", accent)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+
+func _layout() -> void:
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var field_top: float = RunHUD.HUD_HEIGHT + 20.0
+	var hand_height: float = 200.0
+	var field_height: float = viewport_size.y - field_top - hand_height
+	var actor_y: float = field_top + field_height * ACTOR_Y_RATIO - CombatActorView.VIEW_SIZE.y * 0.5
+
+	if _player_view != null:
+		_player_view.position = Vector2(
+			viewport_size.x * 0.24 - CombatActorView.VIEW_SIZE.x * 0.5, actor_y)
+
+	for i: int in _enemy_views.size():
+		var count: int = _enemy_views.size()
+		var center_x: float = viewport_size.x * 0.68 + float(i) * ENEMY_SLOT_SPACING
+		if count > 1:
+			center_x = viewport_size.x * 0.62 + (float(i) - float(count - 1) * 0.5) * ENEMY_SLOT_SPACING
+		_enemy_views[i].position = Vector2(
+			center_x - CombatActorView.VIEW_SIZE.x * 0.5, actor_y)
+
+	var hand_width: float = viewport_size.x * 0.72
+	_hand_box.position = Vector2((viewport_size.x - hand_width) * 0.5, viewport_size.y - hand_height + 24.0)
+	_hand_box.size = Vector2(hand_width, 170)
+
+	_energy_label.position = Vector2(34, viewport_size.y - 214)
+	_discard_pile_label.position = Vector2(30, viewport_size.y - 64)
+	_draw_pile_label.position = Vector2(viewport_size.x - 108, viewport_size.y - 64)
+	_turn_banner.position = Vector2(0, field_top + field_height * 0.16)
+	_turn_banner.size = Vector2(viewport_size.x, 60)
+	_log_label.position = Vector2(viewport_size.x * 0.5 - 220, field_top + field_height * 0.34)
+	_log_label.size = Vector2(440, 60)
+	_end_turn_button.position = Vector2(viewport_size.x - 152, viewport_size.y - 110)
+
+
+# ══ 开战 ════════════════════════════════════════════════════
+
+func _start_battle() -> void:
 	_battle = BattleManager.new()
 	add_child(_battle)
 	_battle.log_message.connect(_on_log)
@@ -49,30 +167,72 @@ func _start_battle() -> void:
 	_player.max_hp = _run.max_hp
 	add_child(_player)
 
-	_enemy = Enemy.new()
-	_enemy.setup_from_data(_build_enemy_data())
-	add_child(_enemy)
+	_player_view = CombatActorView.new()
+	_field.add_child(_player_view)
 
-	var enemies: Array[Enemy] = [_enemy]
-	_battle.start_battle(_player, enemies, _run.build_deck())
+	var enemy_data := _build_enemy_data()
+	var enemy := Enemy.new()
+	enemy.setup_from_data(enemy_data)
+	add_child(enemy)
+	_enemies = [enemy]
 
-	# ⚠️ 下面全部必须在 start_battle **之后**——它内部会 reset_for_battle()。
-	#    顺序颠倒会导致「地图上残血、一进战斗就满血」这类最难查的数值 bug。
+	var enemy_view := CombatActorView.new()
+	enemy_view.is_player_side = false
+	enemy_view.card_dropped_on_actor.connect(_on_card_dropped)
+	_field.add_child(enemy_view)
+	_enemy_views = [enemy_view]
+
+	_battle.start_battle(_player, _enemies, _run.build_deck())
+
+	# ⚠️ 下面全部必须在 start_battle **之后**——它内部会 reset_for_battle()
 	_inject_identity_and_relics()
 	_player.set_hp(_run.hp)
-	_enemy.apply_starting_powers()
-	_assign_opponents(enemies)
+	enemy.apply_starting_powers()
+	_assign_opponents()
 	_player.notify_battle_start()
-	_enemy.notify_battle_start()
+	enemy.notify_battle_start()
 
-	_refresh_view()
+	_player_view.bind(_player, CombatActorView.Look.WARRIOR, true)
+	enemy_view.bind(enemy, _look_for(enemy_data), false)
+
+	_layout()
+	_refresh_all()
 
 
-## 注入身份能力与遗物。
-##
-## 身份能力的「源头」是 [member GameState.identity_power_ids]——
-## **每场战斗重新实例化注入**。战斗内任何效果都接触不到那个源头，
-## 所以「不可剥夺」是物理性的，不是靠记得写判断。
+func _look_for(data: EnemyData) -> CombatActorView.Look:
+	if data.is_boss:
+		return CombatActorView.Look.GOD
+	if data.id == &"act1_combat" or data.id == &"act2_combat":
+		return CombatActorView.Look.SLIME
+	return CombatActorView.Look.BRUTE
+
+
+func _build_enemy_data() -> EnemyData:
+	var enemy_id := _node_enemy_id()
+	var loaded: Variant = ContentRegistry.get_enemy(enemy_id)
+	if loaded is EnemyData:
+		return loaded as EnemyData
+
+	push_warning("BattleScene: 找不到敌人配置「%s」，使用兜底敌人" % enemy_id)
+	var data := EnemyData.new()
+	data.id = &"fallback_enemy"
+	data.display_name = "无名的拦路者"
+	data.max_hp = 24
+	var intents: Array[IntentData] = [IntentData.make_attack(7)]
+	data.intents = intents
+	return data
+
+
+func _node_enemy_id() -> StringName:
+	if GameState.map == null:
+		return &""
+	var node: MapNode = GameState.map.current_node()
+	if node == null:
+		return &""
+	return StringName(str(node.payload.get("enemy_id", "")))
+
+
+## 身份能力的源头是 GameState.identity_power_ids——每场战斗重新实例化注入
 func _inject_identity_and_relics() -> void:
 	_player.clear_identity_powers()
 	for power_id: StringName in GameState.identity_power_ids:
@@ -87,108 +247,161 @@ func _inject_identity_and_relics() -> void:
 			_player.add_relic(relic)
 
 
-## 注入敌对单位。盾猛这类「对当前敌人造成伤害」的能力靠它拿目标。
-func _assign_opponents(enemies: Array[Enemy]) -> void:
+func _assign_opponents() -> void:
 	var player_side: Array[Creature] = [_player]
 	var enemy_side: Array[Creature] = []
-	for enemy: Enemy in enemies:
+	for enemy: Enemy in _enemies:
 		enemy_side.append(enemy)
 
 	_player.set_opponents(enemy_side)
-	for enemy: Enemy in enemies:
+	for enemy: Enemy in _enemies:
 		enemy.set_opponents(player_side)
 
 
-## 从 `data/enemies/*.tres` 按节点 payload 的 enemy_id 加载。
-## 找不到配置时退回兜底敌人——**绝不能让玩家卡在一场打不完的战斗里**。
-func _build_enemy_data() -> EnemyData:
-	var enemy_id := _node_enemy_id()
-	var loaded: Variant = ContentRegistry.get_enemy(enemy_id)
-	if loaded is EnemyData:
-		return loaded as EnemyData
+# ══ 刷新 ════════════════════════════════════════════════════
 
-	push_warning("BattleScene: 找不到敌人配置「%s」，使用兜底敌人" % enemy_id)
-	return _fallback_enemy_data()
+func _refresh_all() -> void:
+	_refresh_hand()
+	_refresh_piles()
+	_refresh_energy()
+	_hud.refresh()
 
 
-func _node_enemy_id() -> StringName:
-	if GameState.map == null:
-		return &""
-	var node: MapNode = GameState.map.current_node()
-	if node == null:
-		return &""
-	return StringName(str(node.payload.get("enemy_id", "")))
+func _refresh_hand() -> void:
+	for child: Node in _hand_box.get_children():
+		_hand_box.remove_child(child)
+		child.queue_free()
+
+	if _battle.deck == null:
+		return
+
+	var can_act: bool = _battle.flow.is_player_turn() and not _busy
+	for card: CardData in _battle.deck.hand:
+		var view := CardView.new()
+		_hand_box.add_child(view)
+		view.set_card(card)
+		view.set_playable(can_act and _player.can_afford(card.cost))
+		view.card_activated.connect(_on_card_double_clicked)
 
 
-func _fallback_enemy_data() -> EnemyData:
-	var data := EnemyData.new()
-	data.id = &"fallback_enemy"
-	data.display_name = "无名的拦路者"
-	data.max_hp = 24
-	var intents: Array[IntentData] = [IntentData.make_attack(7)]
-	data.intents = intents
-	return data
+func _refresh_piles() -> void:
+	if _battle.deck == null:
+		return
+	_draw_pile_label.text = "抽牌堆 %d" % _battle.deck.draw_pile.size()
+	_discard_pile_label.text = "弃牌堆 %d" % _battle.deck.discard_pile.size()
 
 
-# ── 按钮处理 ────────────────────────────────────────────────
-
-func _on_attack_pressed() -> void:
-	_play_first_playable(CardData.CardType.ATTACK)
+func _refresh_energy() -> void:
+	_energy_label.text = "能量 %d/%d" % [_player.energy, _player.max_energy]
 
 
-func _on_defend_pressed() -> void:
-	_play_first_playable(CardData.CardType.SKILL)
+func _show_banner(text: String) -> void:
+	_turn_banner.text = text
+	var tween := create_tween()
+	tween.tween_property(_turn_banner, "modulate", Color(1, 1, 1, 1), 0.15)
+	tween.tween_interval(0.7)
+	tween.tween_property(_turn_banner, "modulate", Color(1, 1, 1, 0), 0.35)
+
+
+# ══ 出牌 ════════════════════════════════════════════════════
+
+## 双击出牌：默认打第一个存活敌人（用户要求）
+func _on_card_double_clicked(card: CardData) -> void:
+	_play_card_on(card, _battle.first_alive_enemy())
+
+
+## 拖拽出牌：拖到哪个敌人身上就打哪个（用户要求）
+func _on_card_dropped(card: CardData, actor: Creature) -> void:
+	_play_card_on(card, actor)
+
+
+func _play_card_on(card: CardData, target: Creature) -> void:
+	if _busy or not _battle.flow.is_player_turn():
+		return
+
+	if target is Enemy:
+		var target_index: int = _enemies.find(target as Enemy)
+		if target_index >= 0:
+			_player_view.play_attack()
+			if target_index < _enemy_views.size():
+				_enemy_views[target_index].play_hit()
+
+	if not _battle.play_card(card, target):
+		return
+
+	_refresh_all()
 
 
 func _on_end_turn_pressed() -> void:
-	_battle.end_player_turn()
-	_refresh_view()
-
-
-func _on_back_pressed() -> void:
-	if _battle != null and _battle.is_over() and not _run.is_over:
-		get_tree().change_scene_to_file("res://scenes/map/map.tscn")
-	else:
-		# 战斗中途退出：保留存档（当前节点已标记为已访问）
-		SaveManager.save_run(_run, GameState.map)
-		get_tree().change_scene_to_file("res://scenes/boot/main.tscn")
-
-
-func _play_first_playable(type: CardData.CardType) -> void:
-	var card: CardData = _find_playable(type)
-	if card == null:
-		ui.append_log("（手牌里没有能量足够的%s牌）" % (
-			"攻击" if type == CardData.CardType.ATTACK else "技能"))
+	if _busy:
 		return
-	_battle.play_card(card)
-	_refresh_view()
+	_battle.end_player_turn()
+	_refresh_all()
 
 
-func _find_playable(type: CardData.CardType) -> CardData:
-	if _battle.deck == null:
-		return null
-	for card: CardData in _battle.deck.hand:
-		if card.type == type and _player.can_afford(card.cost):
-			return card
-	return null
+func _on_potion_pressed(slot_index: int) -> void:
+	if _busy or slot_index < 0 or slot_index >= _run.potions.size():
+		return
+
+	var potion_id: StringName = _run.potions[slot_index]
+	var data: Variant = ContentRegistry.get_potion(potion_id)
+	if not (data is PotionData):
+		return
+
+	var potion := data as PotionData
+	var applied: String = _apply_potion_effect(potion)
+	if applied == "":
+		_on_log("（%s 现在用不了）" % potion.display_name)
+		return
+
+	_run.remove_potion_at(slot_index)
+	_on_log("使用 %s：%s" % [potion.display_name, applied])
+	_refresh_all()
 
 
-# ── 战斗结果 ────────────────────────────────────────────────
+func _apply_potion_effect(potion: PotionData) -> String:
+	match potion.effect:
+		PotionData.Effect.HEAL:
+			_player.heal(potion.value)
+			return "回复 %d 点生命" % potion.value
+		PotionData.Effect.BLOCK:
+			var gained: int = _player.gain_block(potion.value)
+			return "获得 %d 点格挡" % gained
+		PotionData.Effect.STRENGTH:
+			_player.apply_power(BasePowers.Strength.new(potion.value))
+			return "获得 %d 点力量" % potion.value
+		PotionData.Effect.ENERGY:
+			_player.gain_energy(potion.value)
+			return "获得 %d 点能量" % potion.value
+		PotionData.Effect.DAMAGE:
+			var target: Enemy = _battle.first_alive_enemy()
+			if target == null:
+				return ""
+			target.take_damage(potion.value, _player, DamageType.NORMAL)
+			return "造成 %d 点伤害" % potion.value
+		_:
+			return ""
+
+
+# ══ BattleManager 回调 ══════════════════════════════════════
 
 func _on_log(text: String) -> void:
-	ui.append_log(text)
+	_log_label.text = text
 
 
 func _on_phase_changed(next_phase: TurnFlow.Phase) -> void:
-	ui.set_actions_enabled(next_phase == TurnFlow.Phase.PLAYER_TURN)
+	if next_phase == TurnFlow.Phase.PLAYER_TURN:
+		_show_banner("玩家回合")
+	elif next_phase == TurnFlow.Phase.ENEMY_TURN:
+		_show_banner("敌方回合")
+	_refresh_all()
 
 
 func _on_battle_ended(player_won: bool) -> void:
-	# ⚠️ 遗物结算必须在同步血量**之前**——燃烧之血会在胜利时回血。
-	#    顺序颠倒会导致「回的血没被写进单局状态」，而且不会有任何报错。
+	# ⚠️ 遗物结算必须在同步血量**之前**——燃烧之血会在胜利时回血
 	_player.notify_battle_end(player_won)
 	_run.sync_from_creature(_player)
-	ui.set_actions_enabled(false)
+	_hud.refresh()
 
 	if not player_won:
 		_run.finish(false)
@@ -196,11 +409,11 @@ func _on_battle_ended(player_won: bool) -> void:
 		_go_to_game_over()
 		return
 
+	_busy = true
 	var gold: int = _gold_reward()
-	_run.add_gold(gold)
-	ui.append_log("获得 %d 金币。" % gold)
 
 	if _node_kind == MapNode.Kind.BOSS:
+		_run.add_gold(gold)
 		if _run.current_act >= MAX_ACTS:
 			_run.finish(true)
 			SaveManager.delete_save()
@@ -209,133 +422,7 @@ func _on_battle_ended(player_won: bool) -> void:
 		_start_job_transfer()
 		return
 
-	_offer_card_reward()
-
-
-# ── 转职仪式（第 1、2 幕 Boss 后固定触发，设计文档 §2.1）────
-
-func _start_job_transfer() -> void:
-	var jobs: Array[JobData] = _pending_jobs()
-	if jobs.is_empty():
-		ui.append_log("（没有可选的转职——直接进入下一幕）")
-		_advance_act()
-		return
-
-	ui.append_log("═══ 转职仪式 ═══")
-	_job_panel = JobChoicePanel.new()
-	_job_panel.setup("选择一条要刻进灵魂的规则", jobs)
-	_job_panel.job_chosen.connect(_on_job_chosen)
-	add_child(_job_panel)
-
-
-## 该转几次了：0 → 一阶二选一；1 → 二阶二选一；2 → 已经没有转职了
-func _pending_jobs() -> Array[JobData]:
-	var transfers_done: int = GameState.job_path.size()
-	if transfers_done == 0:
-		return JobDatabase.first_tier_jobs(_run.character_class)
-	if transfers_done == 1:
-		return JobDatabase.final_jobs(GameState.job_path[0])
-
-	var none: Array[JobData] = []
-	return none
-
-
-func _on_job_chosen(job_id: StringName) -> void:
-	var job: JobData = JobDatabase.get_job(job_id)
-	if job == null:
-		return
-
-	GameState.apply_job(job)
-	ui.append_log("你刻入了「%s」的规则。任何方式都无法再把它拿走。" % job.display_name)
-
-	if _job_panel != null:
-		_job_panel.queue_free()
-		_job_panel = null
-
-	_offer_job_card(job)
-
-
-## 转职附赠：从该职业的职业牌里三选一。
-## **不增加最大生命**（设计文档 §2.2 / 决策 5）——续航由职业机制本身承担。
-func _offer_job_card(job: JobData) -> void:
-	var offers: Array[CardData] = []
-	for card_id: StringName in job.job_card_ids:
-		var card: Variant = ContentRegistry.get_card(card_id)
-		if card is CardData:
-			offers.append(card as CardData)
-
-	if offers.is_empty():
-		_advance_act()
-		return
-
-	_reward_panel = CardRewardPanel.new()
-	_reward_panel.setup("转职附赠：选择一张职业牌加入牌组", offers, false)
-	_reward_panel.card_chosen.connect(_on_job_card_chosen)
-	add_child(_reward_panel)
-
-
-func _on_job_card_chosen(card_id: StringName) -> void:
-	_run.add_card(card_id)
-	var card: Variant = ContentRegistry.get_card(card_id)
-	if card is CardData:
-		ui.append_log("「%s」加入牌组。" % (card as CardData).display_name)
-
-	if _reward_panel != null:
-		_reward_panel.queue_free()
-		_reward_panel = null
-
-	_advance_act()
-
-
-func _advance_act() -> void:
-	GameState.advance_act()
-	SaveManager.save_run(_run, GameState.map)
-	ui.append_log("═══ 进入第 %d 幕 ═══" % _run.current_act)
-	ui.set_back_label("进入第 %d 幕" % _run.current_act)
-
-
-# ── 战后三选一 ──────────────────────────────────────────────
-
-func _offer_card_reward() -> void:
-	var pool := CardPool.new(RandomNumberGenerator.new())
-	var offers: Array[CardData] = pool.roll()
-
-	if offers.is_empty():
-		# 卡池为空时不能把玩家卡在这里——直接结束流程
-		push_warning("BattleScene: 卡池为空，跳过卡牌奖励")
-		_finish_battle_flow()
-		return
-
-	_reward_panel = CardRewardPanel.new()
-	_reward_panel.setup("选择一张牌加入牌组", offers)
-	_reward_panel.card_chosen.connect(_on_reward_card_chosen)
-	_reward_panel.skipped.connect(_on_reward_skipped)
-	add_child(_reward_panel)
-
-
-func _on_reward_card_chosen(card_id: StringName) -> void:
-	_run.add_card(card_id)
-	var card: Variant = ContentRegistry.get_card(card_id)
-	if card is CardData:
-		ui.append_log("「%s」加入牌组。" % (card as CardData).display_name)
-	_finish_battle_flow()
-
-
-func _on_reward_skipped() -> void:
-	ui.append_log("放弃了卡牌奖励。")
-	_finish_battle_flow()
-
-
-func _finish_battle_flow() -> void:
-	if _reward_panel != null:
-		_reward_panel.queue_free()
-		_reward_panel = null
-	SaveManager.save_run(_run, GameState.map)
-	ui.set_back_label("返回地图")
-
-
-func _go_to_game_over() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/game_over.tscn")
+	_open_reward_panel(gold, _roll_potion_drop(), CardPool.new(RandomNumberGenerator.new()).roll())
 
 
 func _gold_reward() -> int:
@@ -348,30 +435,186 @@ func _gold_reward() -> int:
 			return GOLD_REWARD_COMBAT
 
 
-# ── 视图刷新 ────────────────────────────────────────────────
+func _roll_potion_drop() -> StringName:
+	if randf() > POTION_DROP_CHANCE:
+		return &""
+	var pool: Array[StringName] = ContentRegistry.all_potion_ids()
+	if pool.is_empty():
+		return &""
+	return pool[randi_range(0, pool.size() - 1)]
 
-func _refresh_view() -> void:
-	var intent_text: String = "—"
-	var intent: IntentData = _enemy.current_intent()
-	if intent != null and _enemy.is_alive():
-		intent_text = intent.display_text()
 
-	# 双姿态 Boss 换姿态时必须让玩家**看见**，否则"它变强了"只会表现为
-	# 莫名其妙的掉血变多——玩家会以为是自己算错了
-	var stance_tag: String = ""
-	if _enemy.phase() >= 2:
-		stance_tag = "〔已狂化〕"
+# ══ 战斗结算 ════════════════════════════════════════════════
 
-	ui.set_status("%s %d/%d  ❤   格挡 %d   ⚡ %d/%d      |      %s%s %d/%d  格挡 %d   〔意图：%s〕" % [
-		_player.display_name, _player.hp, _player.max_hp, _player.block,
-		_player.energy, _player.max_energy,
-		_enemy.display_name, stance_tag, _enemy.hp, _enemy.max_hp, _enemy.block, intent_text,
-	])
+func _open_reward_panel(gold: int, potion_id: StringName, offers: Array[CardData]) -> void:
+	_reward_panel = BattleRewardPanel.new()
+	_reward_panel.setup(gold, potion_id, offers, not _run.is_potion_bar_full())
+	_reward_panel.finished.connect(_on_reward_finished)
+	add_child(_reward_panel)
 
-	var names: PackedStringArray = PackedStringArray()
-	for card: CardData in _battle.deck.hand:
-		names.append("%s(%d费)" % [card.display_name, card.cost])
-	ui.set_hand("手牌 %d 张：%s" % [_battle.deck.hand.size(), "、".join(names)])
+
+func _on_reward_finished(result: Dictionary) -> void:
+	_run.add_gold(int(result.get("gold", 0)))
+
+	var card_id: StringName = result.get("card_id", &"")
+	if card_id != &"":
+		_run.add_card(card_id)
+
+	var potion_id: StringName = result.get("potion_id", &"")
+	if potion_id != &"" and not _run.add_potion(potion_id):
+		_on_log("药水栏已满，这瓶药水被丢弃了。")
+
+	_reward_panel = null
+	_busy = false
+	SaveManager.save_run(_run, GameState.map)
+	_go_to_map()
+
+
+# ══ 转职（第 1、2 幕 Boss 后固定触发）═══════════════════════
+
+func _start_job_transfer() -> void:
+	var jobs: Array[JobData] = _pending_jobs()
+	if jobs.is_empty():
+		_advance_act()
+		return
+
+	_job_panel = JobChoicePanel.new()
+	_job_panel.setup("选择一条要刻进灵魂的规则", jobs)
+	_job_panel.job_chosen.connect(_on_job_chosen)
+	add_child(_job_panel)
+
+
+func _pending_jobs() -> Array[JobData]:
+	var transfers_done: int = GameState.job_path.size()
+	if transfers_done == 0:
+		return JobDatabase.first_tier_jobs(_run.character_class)
+	if transfers_done == 1:
+		return JobDatabase.final_jobs(GameState.job_path[0])
+	var none: Array[JobData] = []
+	return none
+
+
+func _on_job_chosen(job_id: StringName) -> void:
+	var job: JobData = JobDatabase.get_job(job_id)
+	if job == null:
+		return
+
+	GameState.apply_job(job)
+	if _job_panel != null:
+		_job_panel.queue_free()
+		_job_panel = null
+
+	var offers: Array[CardData] = []
+	for card_id: StringName in job.job_card_ids:
+		var card: Variant = ContentRegistry.get_card(card_id)
+		if card is CardData:
+			offers.append(card as CardData)
+
+	# 复用结算面板：转职附赠只是"没有金币、没有药水"的结算
+	_reward_panel = BattleRewardPanel.new()
+	_reward_panel.setup(0, &"", offers, false)
+	_reward_panel.finished.connect(_on_job_card_finished)
+	add_child(_reward_panel)
+
+
+func _on_job_card_finished(result: Dictionary) -> void:
+	var card_id: StringName = result.get("card_id", &"")
+	if card_id != &"":
+		_run.add_card(card_id)
+	_reward_panel = null
+	_advance_act()
+
+
+func _advance_act() -> void:
+	GameState.advance_act()
+	_busy = false
+	SaveManager.save_run(_run, GameState.map)
+	_go_to_map()
+
+
+# ══ 弹层 ════════════════════════════════════════════════════
+
+func _open_deck() -> void:
+	if _overlay != null:
+		return
+	var panel := DeckViewPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(_run.build_deck())
+	panel.closed.connect(_close_overlay)
+
+
+func _open_relics() -> void:
+	if _overlay != null:
+		return
+	var panel := RelicViewPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(_run.relics)
+	panel.closed.connect(_close_overlay)
+
+
+func _open_settings() -> void:
+	if _overlay != null:
+		return
+	var panel := SettingsPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup()
+	panel.closed.connect(_close_overlay)
+	panel.return_to_title_pressed.connect(_return_to_title)
+	panel.quit_pressed.connect(func() -> void: get_tree().quit())
+
+
+## 战斗中查看地图：**只读**——能看但点不了节点（用户要求）
+func _open_map_overlay() -> void:
+	if _overlay != null or GameState.map == null:
+		return
+
+	var panel := OverlayPanel.new()
+	_overlay = panel
+	panel.frame_min_width = 660
+	add_child(panel)
+
+	var map_view := MapView.new()
+	map_view.custom_minimum_size = Vector2(600, 380)
+	map_view.size = Vector2(600, 380)
+	# 战斗中只读：把交互整个吃掉
+	map_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.content_box.add_child(map_view)
+	map_view.build_map(GameState.map)
+
+	var hint := Label.new()
+	hint.text = "战斗中只能查看地图，无法选择节点。"
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
+	panel.content_box.add_child(hint)
+
+	panel.add_button("返回战斗（ESC）", _close_overlay)
+	panel.closed.connect(_close_overlay)
+
+
+func _close_overlay() -> void:
+	if _overlay != null:
+		_overlay.queue_free()
+		_overlay = null
+
+
+# ══ 导航 ════════════════════════════════════════════════════
+
+func _go_to_map() -> void:
+	_hud.set_time_running(false)
+	get_tree().change_scene_to_file("res://scenes/map/map.tscn")
+
+
+func _go_to_game_over() -> void:
+	_hud.set_time_running(false)
+	get_tree().change_scene_to_file("res://scenes/ui/game_over.tscn")
+
+
+func _return_to_title() -> void:
+	SaveManager.save_run(_run, GameState.map)
+	get_tree().change_scene_to_file("res://scenes/boot/main.tscn")
 
 
 func _character_display_name() -> String:
