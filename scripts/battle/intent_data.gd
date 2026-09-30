@@ -21,6 +21,8 @@ enum IntentType {
 @export var times: int = 1
 ## 图标标识。阶段 2 无美术资源，UI 层先用文字符号渲染
 @export var icon_key: StringName = &""
+## BUFF / DEBUFF 意图要施加的 Power id（如 &"poison" / &"weak"）
+@export var power_id: StringName = &""
 @export var description: String = ""
 
 
@@ -57,9 +59,9 @@ func display_text() -> String:
 		IntentType.DEFEND:
 			return "防御 %d" % value
 		IntentType.BUFF:
-			return "强化"
+			return "强化 %d" % value
 		IntentType.DEBUFF:
-			return "弱化"
+			return "弱化 %d" % value
 		IntentType.SUMMON:
 			return "召唤"
 		_:

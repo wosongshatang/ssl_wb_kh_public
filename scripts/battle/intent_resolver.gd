@@ -17,6 +17,13 @@ func setup(data: EnemyData) -> void:
 	_cursor = 0
 
 
+## 直接用一串意图重设序列（Boss 切形态时调用）
+func setup_from_intents(intents: Array[IntentData]) -> void:
+	_pattern.clear()
+	_pattern.append_array(intents)
+	_cursor = 0
+
+
 func reset() -> void:
 	_cursor = 0
 

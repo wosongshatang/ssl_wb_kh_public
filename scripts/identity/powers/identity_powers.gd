@@ -163,6 +163,30 @@ class MomentumStrike extends AbstractPower:
 			owner.prune_expired_powers()
 
 
+## 神战 P4 · 战神 —— **壁垒的镜像**
+##
+## 「壁垒保留一半」的对称设计是「战神一点都不放」：
+## 它的格挡**永不衰减**，而且每回合还在涨力量。
+##
+## 玩家的解法不是硬拼，而是**用毒与生命流失绕过格挡**——
+## 这正是壁垒的弱点，也是设计文档要求「克制敌人必须存在」的原因：
+## 那类敌人同时是玩家的工具。
+class GodOfWarStance extends AbstractPower:
+	const STRENGTH_PER_TURN: int = 2
+
+	func _init() -> void:
+		id = &"god_of_war_stance"
+		display_name = "战神姿态"
+		description = "格挡永不衰减；每回合获得 %d 点力量。" % STRENGTH_PER_TURN
+		is_identity = true
+
+	func at_block_clear(_clearing: int, _owner: Creature) -> int:
+		return 0  # 一点都不清
+
+	func on_turn_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Strength.new(STRENGTH_PER_TURN))
+
+
 ## id → 构造器。新增身份能力时只需在这里加一行。
 static func create(power_id: StringName) -> AbstractPower:
 	match power_id:
@@ -178,6 +202,8 @@ static func create(power_id: StringName) -> AbstractPower:
 			return Bloodthirster.new()
 		&"momentum_strike":
 			return MomentumStrike.new()
+		&"god_of_war_stance":
+			return GodOfWarStance.new()
 		&"berserker_preview":
 			return BerserkerPreview.new()
 		_:

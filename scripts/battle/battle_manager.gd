@@ -118,6 +118,10 @@ func _on_enemy_turn_started(_turn: int) -> void:
 			continue
 		enemy.on_turn_start()
 		if player.is_alive():
+			# 变招检查放在行动**前**：血量刚掉下去的当回合就能切形态，
+			# 玩家能立刻感受到「它变了」，而不是多等一回合。
+			if enemy.refresh_phase():
+				_log("  ⚠ %s 改变了姿态！" % enemy.display_name)
 			_execute_intent(enemy)
 		enemy.on_turn_end()
 		if not player.is_alive():
@@ -206,8 +210,24 @@ func _execute_intent(enemy: Enemy) -> void:
 		IntentData.IntentType.DEFEND:
 			var gained: int = enemy.gain_block(intent.value)
 			_log("%s 获得 %d 格挡" % [enemy.display_name, gained])
+		IntentData.IntentType.DEBUFF:
+			# 把减益施加给玩家（毒 / 虚弱 / 易伤）。
+			# 毒是**壁垒的天敌**——它无视格挡，所以「格挡滚雪球」在它面前完全失效。
+			var debuff := PowerFactory.create(intent.power_id, intent.value)
+			if debuff != null:
+				player.apply_power(debuff)
+				_log("%s 施加了 %s ×%d" % [enemy.display_name, debuff.display_name, intent.value])
+			else:
+				push_warning("BattleManager: 意图引用了未知 Power「%s」" % intent.power_id)
+		IntentData.IntentType.BUFF:
+			var buff := PowerFactory.create(intent.power_id, intent.value)
+			if buff != null:
+				enemy.apply_power(buff)
+				_log("%s 获得 %s ×%d" % [enemy.display_name, buff.display_name, intent.value])
+			else:
+				push_warning("BattleManager: 意图引用了未知 Power「%s」" % intent.power_id)
 		_:
-			_log("%s 使用了「%s」（该意图类型阶段 2 尚未实现）" % [
+			_log("%s 使用了「%s」（该意图类型尚未实现）" % [
 				enemy.display_name, intent.display_text(),
 			])
 

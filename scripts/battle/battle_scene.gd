@@ -60,6 +60,7 @@ func _start_battle() -> void:
 	#    顺序颠倒会导致「地图上残血、一进战斗就满血」这类最难查的数值 bug。
 	_inject_identity_and_relics()
 	_player.set_hp(_run.hp)
+	_enemy.apply_starting_powers()
 	_assign_opponents(enemies)
 	_player.notify_battle_start()
 	_enemy.notify_battle_start()
@@ -98,30 +99,33 @@ func _assign_opponents(enemies: Array[Enemy]) -> void:
 		enemy.set_opponents(player_side)
 
 
-## 阶段 3 的占位敌人：按节点类型给一组固定数值。
-## 阶段 4 起改为从 data/enemies/*.tres 按 payload.enemy_id 加载。
+## 从 `data/enemies/*.tres` 按节点 payload 的 enemy_id 加载。
+## 找不到配置时退回兜底敌人——**绝不能让玩家卡在一场打不完的战斗里**。
 func _build_enemy_data() -> EnemyData:
-	var hp: int = 24
-	var attack: int = 7
-	var label: String = "竞技场新兵"
+	var enemy_id := _node_enemy_id()
+	var loaded: Variant = ContentRegistry.get_enemy(enemy_id)
+	if loaded is EnemyData:
+		return loaded as EnemyData
 
-	match _node_kind:
-		MapNode.Kind.ELITE:
-			hp = 40
-			attack = 10
-			label = "精英 · 铁律卫士"
-		MapNode.Kind.BOSS:
-			hp = 60
-			attack = 12
-			label = "考官 · 卫冕冠军卡冈"
-		_:
-			pass
+	push_warning("BattleScene: 找不到敌人配置「%s」，使用兜底敌人" % enemy_id)
+	return _fallback_enemy_data()
 
+
+func _node_enemy_id() -> StringName:
+	if GameState.map == null:
+		return &""
+	var node: MapNode = GameState.map.current_node()
+	if node == null:
+		return &""
+	return StringName(str(node.payload.get("enemy_id", "")))
+
+
+func _fallback_enemy_data() -> EnemyData:
 	var data := EnemyData.new()
-	data.id = &"placeholder_enemy"
-	data.display_name = label
-	data.max_hp = hp
-	var intents: Array[IntentData] = [IntentData.make_attack(attack)]
+	data.id = &"fallback_enemy"
+	data.display_name = "无名的拦路者"
+	data.max_hp = 24
+	var intents: Array[IntentData] = [IntentData.make_attack(7)]
 	data.intents = intents
 	return data
 
@@ -352,10 +356,16 @@ func _refresh_view() -> void:
 	if intent != null and _enemy.is_alive():
 		intent_text = intent.display_text()
 
-	ui.set_status("%s %d/%d  ❤   格挡 %d   ⚡ %d/%d      |      %s %d/%d  格挡 %d   〔意图：%s〕" % [
+	# 双姿态 Boss 换姿态时必须让玩家**看见**，否则"它变强了"只会表现为
+	# 莫名其妙的掉血变多——玩家会以为是自己算错了
+	var stance_tag: String = ""
+	if _enemy.phase() >= 2:
+		stance_tag = "〔已狂化〕"
+
+	ui.set_status("%s %d/%d  ❤   格挡 %d   ⚡ %d/%d      |      %s%s %d/%d  格挡 %d   〔意图：%s〕" % [
 		_player.display_name, _player.hp, _player.max_hp, _player.block,
 		_player.energy, _player.max_energy,
-		_enemy.display_name, _enemy.hp, _enemy.max_hp, _enemy.block, intent_text,
+		_enemy.display_name, stance_tag, _enemy.hp, _enemy.max_hp, _enemy.block, intent_text,
 	])
 
 	var names: PackedStringArray = PackedStringArray()

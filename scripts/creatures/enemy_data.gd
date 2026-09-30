@@ -11,3 +11,22 @@ extends Resource
 @export var is_boss: bool = false
 ## 所属幕（1/2/3），用于地图敌人池筛选
 @export_range(1, 3, 1) var act: int = 1
+
+# ══ 开场配置 ════════════════════════════════════════════════
+
+## 开场即拥有的常规 Power：{power_id: 层数}
+@export var starting_powers: Dictionary = {}
+## 开场即拥有的**身份能力** id（不可剥夺）。神战 P4 的战神用。
+@export var identity_power_ids: Array[StringName] = []
+
+# ══ 第二形态（Boss 双姿态）══════════════════════════════════
+
+## 血量降到该比例以下时切换到第二形态（0 表示没有第二形态）
+@export_range(0.0, 1.0, 0.05) var phase2_hp_ratio: float = 0.0
+## 第二形态的意图序列（为空则继续沿用第一形态的）
+@export var phase2_intents: Array[IntentData] = []
+
+
+func has_second_phase() -> bool:
+	return phase2_hp_ratio > 0.0 and not phase2_intents.is_empty()
+

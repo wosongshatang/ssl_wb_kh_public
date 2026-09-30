@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/creatures/enemy_data.gd" id="1_enemydata"]
+[ext_resource type="Script" path="res://scripts/battle/intent_data.gd" id="2_intentdata"]
+
+[sub_resource type="Resource" id="Intent_attack"]
+script = ExtResource("2_intentdata")
+type = 0
+value = 5
+times = 1
+icon_key = &"attack"
+power_id = &""
+
+[sub_resource type="Resource" id="Intent_poison"]
+script = ExtResource("2_intentdata")
+type = 3
+value = 3
+times = 1
+icon_key = &"debuff"
+power_id = &"poison"
+
+[resource]
+script = ExtResource("1_enemydata")
+id = &"act1_poisoner"
+display_name = "毒刃客"
+max_hp = 26
+intents = Array[IntentData]([SubResource("Intent_attack"), SubResource("Intent_poison")])
+is_elite = false
+is_boss = false
+act = 1
+starting_powers = {}
+identity_power_ids = Array[StringName]([])
+phase2_hp_ratio = 0.0
+phase2_intents = Array[IntentData]([])

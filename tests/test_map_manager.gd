@@ -248,3 +248,45 @@ func test_restored_map_can_continue_walking() -> void:
 	restored.from_dict(map.to_dict())
 
 	assert_true(_walk_to_boss(restored), "读档后应能继续走到 Boss")
+
+
+# ══ 内容引用完整性 ══════════════════════════════════════════
+
+func test_all_generated_payload_ids_resolve_to_real_content() -> void:
+	## 这条守着一个很隐蔽的失败模式：**内容做了但玩家永远遇不到**。
+	## 曾经事件 payload 写的是 `placeholder_event_N`，两个真事件因此从未被触发过；
+	## 也曾经所有战斗节点都固定用 `act1_combat`，导致毒敌人只存在于单测里。
+	ContentRegistry.load_all()
+
+	for seed_value: int in range(1, 21):
+		var map := _generate(seed_value)
+		for node_id: int in map.nodes:
+			var node: MapNode = map.nodes[node_id]
+
+			if node.payload.has("enemy_id"):
+				var enemy_id := StringName(str(node.payload["enemy_id"]))
+				assert_not_null(ContentRegistry.get_enemy(enemy_id),
+					"种子 %d 的 %s 引用了不存在的敌人「%s」" % [seed_value, node, enemy_id])
+
+			if node.payload.has("event_id"):
+				var event_id := StringName(str(node.payload["event_id"]))
+				assert_not_null(ContentRegistry.get_event(event_id),
+					"种子 %d 的 %s 引用了不存在的事件「%s」" % [seed_value, node, event_id])
+
+
+func test_poisoner_can_actually_appear_in_act_one() -> void:
+	## 「克制壁垒的敌人」必须在真实对局里出现，否则壁垒的弱点只存在于单测中
+	ContentRegistry.load_all()
+
+	var seen_poisoner: bool = false
+	for seed_value: int in range(1, 41):
+		var map := _generate(seed_value)
+		for node_id: int in map.nodes:
+			var node: MapNode = map.nodes[node_id]
+			if str(node.payload.get("enemy_id", "")) == "act1_poisoner":
+				seen_poisoner = true
+				break
+		if seen_poisoner:
+			break
+
+	assert_true(seen_poisoner, "40 个种子里毒刃客一次都没出现——它不在战斗池里？")

@@ -27,6 +27,19 @@ const KIND_WEIGHTS: Dictionary = {
 	MapNode.Kind.ELITE: 5,
 }
 
+## 每幕的普通战斗敌人池。
+## ⚠️ **毒敌人必须在池子里**——否则「克制壁垒的敌人」只存在于单测里，
+##    玩家永远遇不到，壁垒的弱点在真实对局中就不会出现。
+const COMBAT_POOLS: Dictionary = {
+	1: [&"act1_combat", &"act1_poisoner"],
+	2: [&"act2_combat", &"act2_poisoner"],
+	3: [&"act3_combat"],
+}
+
+## 事件池。**必须放真实注册的 id**——
+## 曾经这里写的是 `placeholder_event_N`，导致两个真事件永远不会被触发。
+const EVENT_POOL: Array[StringName] = [&"shrine_of_war", &"rebel_broker"]
+
 ## id -> MapNode
 var nodes: Dictionary = {}
 ## 每层的节点 id 列表
@@ -120,7 +133,7 @@ func _assign_kind(node: MapNode, r: int) -> void:
 		return
 	if r == 0:
 		node.kind = MapNode.Kind.COMBAT
-		node.payload = {"enemy_id": "act%d_combat" % act}
+		node.payload = {"enemy_id": _pick_combat_enemy()}
 		return
 
 	var weights: Dictionary = KIND_WEIGHTS.duplicate()
@@ -148,16 +161,29 @@ func _pick_kind(weights: Dictionary) -> MapNode.Kind:
 	return MapNode.Kind.COMBAT
 
 
-func _payload_for(kind: MapNode.Kind, r: int) -> Dictionary:
+func _payload_for(kind: MapNode.Kind, _r: int) -> Dictionary:
 	match kind:
 		MapNode.Kind.COMBAT:
-			return {"enemy_id": "act%d_combat" % act}
+			return {"enemy_id": _pick_combat_enemy()}
 		MapNode.Kind.ELITE:
 			return {"enemy_id": "act%d_elite" % act}
 		MapNode.Kind.EVENT:
-			return {"event_id": "placeholder_event_%d" % (r % 2)}
+			return {"event_id": String(_pick_event())}
 		_:
 			return {}
+
+
+func _pick_combat_enemy() -> String:
+	var pool: Array = COMBAT_POOLS.get(act, [])
+	if pool.is_empty():
+		return "act%d_combat" % act
+	return String(pool[_rng.randi_range(0, pool.size() - 1)])
+
+
+func _pick_event() -> StringName:
+	if EVENT_POOL.is_empty():
+		return &""
+	return EVENT_POOL[_rng.randi_range(0, EVENT_POOL.size() - 1)]
 
 
 # ── 移动 ────────────────────────────────────────────────────
