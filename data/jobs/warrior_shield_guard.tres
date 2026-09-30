@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"warrior_shield_guard"
+display_name = "盾卫"
+description = "以身为墙。每回合获得的第一张格挡额外 +3。"
+tier = 1
+parent_job = &""
+identity_power_ids = Array[StringName]([&"shield_guard_stance"])
+job_card_ids = Array[StringName]([&"true_grit", &"iron_wave", &"shrug_it_off"])
+card_pool_tags = Array[StringName]([&"warrior", &"defense"])

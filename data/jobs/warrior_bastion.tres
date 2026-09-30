@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"warrior_bastion"
+display_name = "壁垒"
+description = "最坚固的墙永不倒塌。回合开始时，本该清零的格挡保留一半。"
+tier = 2
+parent_job = &"warrior_shield_guard"
+identity_power_ids = Array[StringName]([&"bastion_wall"])
+job_card_ids = Array[StringName]([&"impervious", &"true_grit", &"footwork"])
+card_pool_tags = Array[StringName]([&"warrior", &"defense"])

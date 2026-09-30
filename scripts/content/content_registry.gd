@@ -75,6 +75,20 @@ func all_card_ids() -> Array[StringName]:
 	return out
 
 
+func all_job_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key: Variant in _jobs:
+		out.append(StringName(str(key)))
+	return out
+
+
+func all_relic_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key: Variant in _relics:
+		out.append(StringName(str(key)))
+	return out
+
+
 func get_relic(id: StringName) -> Variant:
 	return _relics.get(String(id))
 

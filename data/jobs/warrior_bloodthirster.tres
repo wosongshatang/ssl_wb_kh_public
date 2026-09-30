@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"warrior_bloodthirster"
+display_name = "嗜血者"
+description = "血债必须血偿。每失去 1 点生命获得 1 层力量，击杀敌人回复 6 点生命。"
+tier = 2
+parent_job = &"warrior_berserker"
+identity_power_ids = Array[StringName]([&"bloodthirster"])
+job_card_ids = Array[StringName]([&"inflame", &"clothesline", &"pommel_strike"])
+card_pool_tags = Array[StringName]([&"warrior", &"aggressive"])

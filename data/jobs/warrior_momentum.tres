@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"warrior_momentum"
+display_name = "鏖战者"
+description = "攻势一旦开始，就不会停下。本回合每打出一张攻击牌获得 1 层怒涛。"
+tier = 2
+parent_job = &"warrior_berserker"
+identity_power_ids = Array[StringName]([&"momentum_strike"])
+job_card_ids = Array[StringName]([&"pommel_strike", &"strike", &"clothesline"])
+card_pool_tags = Array[StringName]([&"warrior", &"aggressive"])

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"warrior_berserker"
+display_name = "狂战"
+description = "以伤换伤。每失去 2 点生命获得 1 层怒气。"
+tier = 1
+parent_job = &""
+identity_power_ids = Array[StringName]([&"blood_rage"])
+job_card_ids = Array[StringName]([&"clothesline", &"inflame", &"pommel_strike"])
+card_pool_tags = Array[StringName]([&"warrior", &"aggressive"])

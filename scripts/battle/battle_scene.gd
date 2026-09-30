@@ -6,6 +6,8 @@ extends Node
 
 const GOLD_REWARD_COMBAT: int = 12
 const GOLD_REWARD_ELITE: int = 30
+## 三幕结构：第 1、2 幕 Boss 后转职，第 3 幕 Boss 后通关（神战 P4 待实现）
+const MAX_ACTS: int = 3
 
 @onready var ui: BattleLogUI = %BattleLogUI
 
@@ -15,6 +17,7 @@ var _enemy: Enemy
 var _run: RunState
 var _node_kind: int = MapNode.Kind.COMBAT
 var _reward_panel: CardRewardPanel = null
+var _job_panel: JobChoicePanel = null
 
 
 func _ready() -> void:
@@ -53,11 +56,46 @@ func _start_battle() -> void:
 	var enemies: Array[Enemy] = [_enemy]
 	_battle.start_battle(_player, enemies, _run.build_deck())
 
-	# ⚠️ start_battle 内部会 reset_for_battle()（满血）。单局里的残血必须在这之后接管——
-	#    否则会出现「地图上残血、一进战斗就满血」这种最难查的数值 bug。
+	# ⚠️ 下面全部必须在 start_battle **之后**——它内部会 reset_for_battle()。
+	#    顺序颠倒会导致「地图上残血、一进战斗就满血」这类最难查的数值 bug。
+	_inject_identity_and_relics()
 	_player.set_hp(_run.hp)
+	_assign_opponents(enemies)
+	_player.notify_battle_start()
+	_enemy.notify_battle_start()
 
 	_refresh_view()
+
+
+## 注入身份能力与遗物。
+##
+## 身份能力的「源头」是 [member GameState.identity_power_ids]——
+## **每场战斗重新实例化注入**。战斗内任何效果都接触不到那个源头，
+## 所以「不可剥夺」是物理性的，不是靠记得写判断。
+func _inject_identity_and_relics() -> void:
+	_player.clear_identity_powers()
+	for power_id: StringName in GameState.identity_power_ids:
+		var power := IdentityPowers.create(power_id)
+		if power != null:
+			_player.apply_identity_power(power)
+
+	_player.clear_relics()
+	for relic_id: StringName in _run.relics:
+		var relic := RelicFactory.create(relic_id)
+		if relic != null:
+			_player.add_relic(relic)
+
+
+## 注入敌对单位。盾猛这类「对当前敌人造成伤害」的能力靠它拿目标。
+func _assign_opponents(enemies: Array[Enemy]) -> void:
+	var player_side: Array[Creature] = [_player]
+	var enemy_side: Array[Creature] = []
+	for enemy: Enemy in enemies:
+		enemy_side.append(enemy)
+
+	_player.set_opponents(enemy_side)
+	for enemy: Enemy in enemies:
+		enemy.set_opponents(player_side)
 
 
 ## 阶段 3 的占位敌人：按节点类型给一组固定数值。
@@ -142,6 +180,9 @@ func _on_phase_changed(next_phase: TurnFlow.Phase) -> void:
 
 
 func _on_battle_ended(player_won: bool) -> void:
+	# ⚠️ 遗物结算必须在同步血量**之前**——燃烧之血会在胜利时回血。
+	#    顺序颠倒会导致「回的血没被写进单局状态」，而且不会有任何报错。
+	_player.notify_battle_end(player_won)
 	_run.sync_from_creature(_player)
 	ui.set_actions_enabled(false)
 
@@ -156,12 +197,97 @@ func _on_battle_ended(player_won: bool) -> void:
 	ui.append_log("获得 %d 金币。" % gold)
 
 	if _node_kind == MapNode.Kind.BOSS:
-		_run.finish(true)
-		SaveManager.delete_save()
-		_go_to_game_over()
+		if _run.current_act >= MAX_ACTS:
+			_run.finish(true)
+			SaveManager.delete_save()
+			_go_to_game_over()
+			return
+		_start_job_transfer()
 		return
 
 	_offer_card_reward()
+
+
+# ── 转职仪式（第 1、2 幕 Boss 后固定触发，设计文档 §2.1）────
+
+func _start_job_transfer() -> void:
+	var jobs: Array[JobData] = _pending_jobs()
+	if jobs.is_empty():
+		ui.append_log("（没有可选的转职——直接进入下一幕）")
+		_advance_act()
+		return
+
+	ui.append_log("═══ 转职仪式 ═══")
+	_job_panel = JobChoicePanel.new()
+	_job_panel.setup("选择一条要刻进灵魂的规则", jobs)
+	_job_panel.job_chosen.connect(_on_job_chosen)
+	add_child(_job_panel)
+
+
+## 该转几次了：0 → 一阶二选一；1 → 二阶二选一；2 → 已经没有转职了
+func _pending_jobs() -> Array[JobData]:
+	var transfers_done: int = GameState.job_path.size()
+	if transfers_done == 0:
+		return JobDatabase.first_tier_jobs(_run.character_class)
+	if transfers_done == 1:
+		return JobDatabase.final_jobs(GameState.job_path[0])
+
+	var none: Array[JobData] = []
+	return none
+
+
+func _on_job_chosen(job_id: StringName) -> void:
+	var job: JobData = JobDatabase.get_job(job_id)
+	if job == null:
+		return
+
+	GameState.apply_job(job)
+	ui.append_log("你刻入了「%s」的规则。任何方式都无法再把它拿走。" % job.display_name)
+
+	if _job_panel != null:
+		_job_panel.queue_free()
+		_job_panel = null
+
+	_offer_job_card(job)
+
+
+## 转职附赠：从该职业的职业牌里三选一。
+## **不增加最大生命**（设计文档 §2.2 / 决策 5）——续航由职业机制本身承担。
+func _offer_job_card(job: JobData) -> void:
+	var offers: Array[CardData] = []
+	for card_id: StringName in job.job_card_ids:
+		var card: Variant = ContentRegistry.get_card(card_id)
+		if card is CardData:
+			offers.append(card as CardData)
+
+	if offers.is_empty():
+		_advance_act()
+		return
+
+	_reward_panel = CardRewardPanel.new()
+	_reward_panel.setup("转职附赠：选择一张职业牌加入牌组", offers, false)
+	_reward_panel.card_chosen.connect(_on_job_card_chosen)
+	add_child(_reward_panel)
+
+
+func _on_job_card_chosen(card_id: StringName) -> void:
+	_run.add_card(card_id)
+	var card: Variant = ContentRegistry.get_card(card_id)
+	if card is CardData:
+		ui.append_log("「%s」加入牌组。" % (card as CardData).display_name)
+
+	if _reward_panel != null:
+		_reward_panel.queue_free()
+		_reward_panel = null
+
+	_advance_act()
+
+
+func _advance_act() -> void:
+	GameState.advance_act()
+	SaveManager.save_run(_run, GameState.map)
+	ui.append_log("═══ 进入第 %d 幕 ═══" % _run.current_act)
+	ui.set_back_label("进入第 %d 幕" % _run.current_act)
 
 
 # ── 战后三选一 ──────────────────────────────────────────────

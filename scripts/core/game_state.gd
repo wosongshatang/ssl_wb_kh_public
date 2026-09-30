@@ -23,6 +23,8 @@ signal job_advanced(job_id: StringName)
 
 const DIVINITY_MAX: int = 100
 const HUMANITY_MAX: int = 100
+## 派生下一幕地图种子用的步长（质数，避免与别处的种子运算撞车）
+const ACT_SEED_STRIDE: int = 104729
 
 ## 当前单局状态（未开局时为 null）
 var run: RunState = null
@@ -76,6 +78,31 @@ func reset_run() -> void:
 
 func has_active_run() -> bool:
 	return run != null and not run.is_over
+
+
+## 进入下一幕：重新生成地图（用「种子 + 幕」派生新种子，保证同局可复现）
+func advance_act() -> void:
+	if run == null:
+		return
+	run.current_act += 1
+	run.current_node_id = -1
+
+	map = MapManager.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = run.rng_seed + run.current_act * ACT_SEED_STRIDE
+	map.generate(rng, run.current_act)
+
+	EventBus.act_advanced.emit(run.current_act)
+
+
+## 转职：把职业赋予的身份能力一并记入身份层
+func apply_job(job: JobData) -> void:
+	if job == null:
+		return
+	advance_job(job.id)
+	for power_id: StringName in job.identity_power_ids:
+		if not identity_power_ids.has(power_id):
+			identity_power_ids.append(power_id)
 
 
 # ── 转职（阶段 4 接入 UI，此处先备好逻辑）────────────────────

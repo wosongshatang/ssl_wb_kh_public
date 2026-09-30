@@ -32,18 +32,26 @@ func start_new_run(character: StringName, seed_value: int) -> void:
 	hp = max_hp
 	gold = STARTING_GOLD
 	deck_card_ids = _starting_deck_for(character)
-	relics.clear()
+	relics = _starting_relics_for(character)
 	is_over = false
 	victory = false
 
 
-## 阶段 3 只有战士；猎人 / 法师的初始牌组在阶段 5 接入
+## 阶段 4 只有战士；猎人 / 法师的初始牌组在阶段 5 接入
 func _starting_deck_for(_character: StringName) -> Array[StringName]:
 	var ids: Array[StringName] = []
 	for _i: int in 5:
 		ids.append(&"strike")
 	for _i: int in 5:
 		ids.append(&"defend")
+	return ids
+
+
+## 初始遗物（设计文档 §9.5）
+func _starting_relics_for(character: StringName) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	if character == &"warrior":
+		ids.append(&"burning_blood")
 	return ids
 
 

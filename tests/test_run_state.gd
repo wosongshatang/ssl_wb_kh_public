@@ -166,7 +166,7 @@ func test_to_dict_from_dict_round_trip() -> void:
 	run.current_act = 2
 	run.current_node_id = 7
 	run.add_card(&"bash")
-	run.relics.append(&"burning_blood")
+	run.relics.append(&"test_relic")
 
 	var restored := RunState.new()
 	restored.from_dict(run.to_dict())
@@ -178,8 +178,18 @@ func test_to_dict_from_dict_round_trip() -> void:
 	assert_eq(restored.current_node_id, 7)
 	assert_eq(restored.rng_seed, 12345)
 	assert_eq(restored.deck_card_ids.size(), 11)
-	assert_eq(restored.relics.size(), 1)
-	assert_eq(restored.relics[0], &"burning_blood")
+	assert_eq(restored.relics.size(), run.relics.size(), "遗物数量应往返一致")
+	assert_true(restored.relics.has(&"burning_blood"), "初始遗物应保留")
+	assert_true(restored.relics.has(&"test_relic"), "新增遗物应保留")
+
+
+func test_warrior_starts_with_burning_blood() -> void:
+	## 设计文档 §9.5：战士初始遗物「燃烧之血」
+	var run := _new_run()
+
+	assert_true(run.relics.has(&"burning_blood"), "战士应自带燃烧之血")
+	assert_not_null(ContentRegistry.get_relic(&"burning_blood"),
+		"初始遗物必须真的存在于 data/relics/，否则进战斗会静默失效")
 
 
 func test_from_dict_tolerates_missing_keys() -> void:

@@ -45,8 +45,12 @@ static func calculate(
 
 	var value: float = float(base_damage)
 
-	# ③④⑤ 攻击方加成（力量 → 虚弱 → 姿态，靠 priority 排序保证加法先于乘法）
+	# ② 攻击方遗物**最先介入**——因此会被后续的乘法放大。
+	#    不想被放大就改用「施加 Power」模式（见 AbstractRelic 的类文档）。
+	# ③④⑤ 攻击方 Power（力量 → 虚弱 → 姿态，靠 priority 保证加法先于乘法）
 	if DamageType.uses_offensive_modifiers(damage_type) and source != null:
+		for relic: AbstractRelic in source.relics:
+			value = relic.at_damage_modify(value, info)
 		for power: AbstractPower in sorted_powers(source):
 			value = power.at_damage_give(value, info)
 

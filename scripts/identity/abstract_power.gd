@@ -94,6 +94,17 @@ func on_attacked(_info: DamageInfo) -> void:
 	pass
 
 
+## 持有者实际失去生命后（狂战的怒气挂这里）
+func on_health_lost(_owner: Creature, _amount: int) -> void:
+	pass
+
+
+## 持有者实际获得格挡后（盾猛的反伤挂这里）
+## 携带的是**修正后**的量（经敏捷等）——盾猛按「实际获得多少」计算反伤。
+func on_block_gained(_owner: Creature, _amount: int) -> void:
+	pass
+
+
 func on_kill(_owner: Creature, _target: Creature) -> void:
 	pass
 

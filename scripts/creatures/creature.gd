@@ -37,6 +37,18 @@ var is_dead: bool = false
 var powers: Array[AbstractPower] = []
 ## 身份层（不可剥夺）。**不要直接操作这个数组**，用 apply_identity_power / clear_identity_powers
 var identity_powers: Array[AbstractPower] = []
+## 遗物（**整局持续**，不进 reset_for_battle——战斗结束不该把遗物清掉）
+var relics: Array[AbstractRelic] = []
+## 敌对单位（由 BattleManager 在开战时注入）。
+## 需要「对当前敌人造成伤害」的能力靠它拿目标——例如盾猛的反伤。
+## 放在 Creature 上而不是让 Power 去引用 BattleManager，是为了避免 Power 层
+## 依赖战斗编排层（那样 Power 就没法单独测试了）。
+var opponents: Array[Creature] = []
+
+
+## 设置敌对单位（BattleManager 在开战时调用）
+func set_opponents(units: Array[Creature]) -> void:
+	opponents = units
 
 
 ## 战斗开始时调用：重置战斗内状态。
@@ -124,6 +136,31 @@ func clear_identity_powers() -> void:
 	identity_powers.clear()
 
 
+# ══ 遗物 ════════════════════════════════════════════════════
+
+## 添加遗物。遗物**整局持续**，不参与 reset_for_battle。
+func add_relic(relic: AbstractRelic) -> void:
+	if relic == null:
+		return
+	if has_relic(relic.id):
+		push_warning("Creature.add_relic: %s 已存在，忽略重复添加" % relic.id)
+		return
+	relic.owner_creature = self
+	relics.append(relic)
+
+
+## 清空遗物。**仅供「整局初始化」使用**（从 RunState 重新注入）。
+func clear_relics() -> void:
+	relics.clear()
+
+
+func has_relic(relic_id: StringName) -> bool:
+	for relic: AbstractRelic in relics:
+		if relic.id == relic_id:
+			return true
+	return false
+
+
 func get_power(id: StringName) -> AbstractPower:
 	for power: AbstractPower in all_powers():
 		if power.id == id:
@@ -159,6 +196,10 @@ func gain_block(amount: int, card: CardData = null) -> int:
 	block += final_amount
 	block_changed.emit(block)
 	block_gained.emit(final_amount)
+	# 分发「获得格挡」钩子（盾猛挂这里）。
+	# 携带的是**修正后**的量——盾猛按「实际获得多少格挡」反伤。
+	for power: AbstractPower in all_powers():
+		power.on_block_gained(self, final_amount)
 	return final_amount
 
 
@@ -205,6 +246,10 @@ func apply_hp_loss(amount: int) -> void:
 		return
 	hp = maxi(0, hp - amount)
 	health_lost.emit(amount)
+	# 分发「失去生命」钩子（狂战的怒气挂这里）。
+	# 放在 health_lost 之后：先让监听信号的 UI 拿到正确血量，再跑可能改状态的钩子。
+	for power: AbstractPower in all_powers():
+		power.on_health_lost(self, amount)
 	health_changed.emit(hp, max_hp)
 	if hp <= 0:
 		is_dead = true
@@ -254,6 +299,8 @@ func on_turn_start() -> void:
 	clear_block()
 	for power: AbstractPower in all_powers():
 		power.on_turn_start(self)
+	for relic: AbstractRelic in relics:
+		relic.on_turn_start(self)
 	_prune_expired(powers)
 
 
@@ -262,6 +309,8 @@ func on_turn_start() -> void:
 func on_turn_end() -> void:
 	for power: AbstractPower in all_powers():
 		power.on_turn_end(self)
+	for relic: AbstractRelic in relics:
+		relic.on_turn_end(self)
 	_prune_expired(powers)
 
 
@@ -269,6 +318,20 @@ func on_turn_end() -> void:
 func notify_card_played(card: CardData) -> void:
 	for power: AbstractPower in all_powers():
 		power.on_card_played(self, card)
+	for relic: AbstractRelic in relics:
+		relic.on_use_card(self, card)
+
+
+## 通知「战斗开始」（遗物在这里做开场布置）
+func notify_battle_start() -> void:
+	for relic: AbstractRelic in relics:
+		relic.at_battle_start(self)
+
+
+## 通知「战斗结束」（燃烧之血在这里回血）
+func notify_battle_end(won: bool) -> void:
+	for relic: AbstractRelic in relics:
+		relic.on_battle_end(self, won)
 
 
 ## 通知「击杀了某目标」（嗜血者的击杀回血挂这里）

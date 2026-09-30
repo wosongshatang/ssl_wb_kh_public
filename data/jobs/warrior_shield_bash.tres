@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"warrior_shield_bash"
+display_name = "盾猛"
+description = "最好的防守，是正在进攻的防守。获得格挡时对敌人造成该量 50% 的伤害。"
+tier = 2
+parent_job = &"warrior_shield_guard"
+identity_power_ids = Array[StringName]([&"shield_bash"])
+job_card_ids = Array[StringName]([&"shrug_it_off", &"iron_wave", &"true_grit"])
+card_pool_tags = Array[StringName]([&"warrior", &"defense"])
