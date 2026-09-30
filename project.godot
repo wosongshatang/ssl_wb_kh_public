@@ -1,0 +1,47 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Godslayer"
+config/description="《弑神律》—— 类杀戮尖塔卡牌构筑 Roguelike · 三律界"
+config/version="0.0.1"
+run/main_scene="res://scenes/boot/main.tscn"
+config/features=PackedStringArray("4.6", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*res://scripts/core/game_state.gd"
+EventBus="*res://scripts/core/event_bus.gd"
+ContentRegistry="*res://scripts/content/content_registry.gd"
+
+[debug]
+
+gdscript/warnings/enable_all_warnings=true
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[gui]
+
+theme/custom_font="res://assets/fonts/cjk_system_font.tres"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

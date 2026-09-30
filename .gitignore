@@ -1,0 +1,21 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Godot .NET / mono 残留（本项目纯 GDScript，不提交 C# 工程文件）
+.mono/
+*.csproj
+*.sln
+.vs/
+
+# 导出产物与配置（可能含签名路径/密钥）
+export_presets.cfg
+*.translation
+
+# GUT 测试产物
+.gut_junit.xml
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+desktop.ini
