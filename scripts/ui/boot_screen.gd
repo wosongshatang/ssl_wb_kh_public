@@ -10,9 +10,12 @@ const BUILD_STAGE: String = "阶段 0 · 骨架就绪"
 @onready var title_label: Label = %TitleLabel
 @onready var stage_label: Label = %StageLabel
 @onready var content_label: Label = %ContentLabel
+@onready var enter_battle_button: Button = %EnterBattleButton
 
 
 func _ready() -> void:
+	enter_battle_button.pressed.connect(_on_enter_battle_pressed)
+
 	title_label.text = GAME_TITLE
 	stage_label.text = BUILD_STAGE
 
@@ -27,3 +30,7 @@ func _ready() -> void:
 	print("[Boot] %s —— %s" % [GAME_TITLE, BUILD_STAGE])
 	print("[Boot] Godot %s" % Engine.get_version_info()["string"])
 	print("[Boot] 引擎版本 4.6 / 渲染后端 GL Compatibility")
+
+
+func _on_enter_battle_pressed() -> void:
+	get_tree().change_scene_to_file("res://scenes/battle/battle_log.tscn")

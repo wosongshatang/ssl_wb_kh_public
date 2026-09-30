@@ -10,6 +10,7 @@ extends SceneTree
 
 const SCENES: Array[String] = [
 	"res://scenes/boot/main.tscn",
+	"res://scenes/battle/battle_log.tscn",
 ]
 
 
@@ -28,7 +29,11 @@ func _initialize() -> void:
 			failed += 1
 			continue
 
+		# 必须真正挂进场景树才会触发 _ready()——否则场景控制器的初始化逻辑
+		# 根本没被执行，"冒烟"就只是加载了个空壳。
+		get_root().add_child(instance)
 		print("OK %s (children=%d)" % [scene_path, instance.get_child_count()])
+		get_root().remove_child(instance)
 		instance.free()
 
 	if failed > 0:

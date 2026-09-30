@@ -1,0 +1,98 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/battle/battle_scene.gd" id="1_battle_scene"]
+[ext_resource type="Script" path="res://scripts/ui/battle_log_ui.gd" id="2_battle_ui"]
+
+[node name="BattleLog" type="Node"]
+script = ExtResource("1_battle_scene")
+
+[node name="BattleLogUI" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_battle_ui")
+
+[node name="Background" type="ColorRect" parent="BattleLogUI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.078, 0.078, 0.098, 1)
+
+[node name="Margin" type="MarginContainer" parent="BattleLogUI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="BattleLogUI/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderLabel" type="Label" parent="BattleLogUI/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.902, 0.831, 0.6, 1)
+theme_override_font_sizes/font_size = 22
+text = "战斗原型 · 阶段 1"
+
+[node name="StatusLabel" type="Label" parent="BattleLogUI/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.95, 1)
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="LogView" type="RichTextLabel" parent="BattleLogUI/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/default_color = Color(0.78, 0.8, 0.84, 1)
+theme_override_font_sizes/normal_font_size = 14
+scroll_following = true
+
+[node name="HandLabel" type="Label" parent="BattleLogUI/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.66, 0.72, 1)
+theme_override_font_sizes/font_size = 14
+text = ""
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="BattleLogUI/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="AttackButton" type="Button" parent="BattleLogUI/Margin/VBox/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "打出攻击牌"
+
+[node name="DefendButton" type="Button" parent="BattleLogUI/Margin/VBox/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "打出防御牌"
+
+[node name="EndTurnButton" type="Button" parent="BattleLogUI/Margin/VBox/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "结束回合"
+
+[node name="BackButton" type="Button" parent="BattleLogUI/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "返回启动页"
