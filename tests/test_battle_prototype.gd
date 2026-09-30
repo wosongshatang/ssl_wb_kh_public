@@ -305,13 +305,13 @@ func test_cannot_play_card_after_battle_over() -> void:
 # ── Creature 基础行为 ───────────────────────────────────────
 
 func test_block_is_cleared_at_owners_turn_start() -> void:
-	## 记录当前格挡时序实现（decisions.md Q1）。
-	## 阶段 2 若定案改为「回合末清除」，必须同步修改本测试。
+	## 格挡时序（decisions.md D10 / Q1 定案）：自身回合开始时清零。
+	## 阶段 2 起入口改名为 on_turn_start（同时分发 Power 钩子）。
 	var player := _make_player()
 	player.gain_block(10)
 	assert_eq(player.block, 10)
 
-	player.start_turn()
+	player.on_turn_start()
 	assert_eq(player.block, 0, "自身回合开始时格挡应清除")
 
 

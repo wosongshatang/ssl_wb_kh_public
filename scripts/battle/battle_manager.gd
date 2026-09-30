@@ -1,17 +1,12 @@
 class_name BattleManager
 extends Node
-## 战斗流程管理（阶段 1 薄切片版）
+## 战斗流程管理
 ##
-## ⚠️ 一次性代码（设计文档 §11）：阶段 2 会被重构成正式的 TurnFlow + IntentResolver。
-## 不要在本类上叠加功能——它存在的唯一目的是**验证概念能跑通**。
+## 阶段 2 起：所有伤害都走 [DamagePipeline]，本类只负责**回合流转与校验**，
+## 不参与任何数值计算——数值全在管线里，这样 12 个终职才有唯一的挂载点。
 ##
-## 阶段 1 的六项验收标准（tests/test_battle_prototype.gd 全覆盖）：
-##   1. 开局抽 5 张
-##   2. 出牌正确扣能量
-##   3. 回合结束弃手牌
-##   4. 敌人回合正确结算
-##   5. 抽牌堆空时正确洗牌
-##   6. 玩家 / 敌人死亡正确结束战斗
+## ⚠️ 本类仍是阶段 1 的结构（TurnFlow / IntentResolver 尚未拆分），
+## 阶段 2 的 P1 任务会把它拆成 TurnFlow + IntentResolver。
 
 enum Phase {
 	PLAYER_TURN,
@@ -74,6 +69,8 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 	deck.take_from_hand(card)
 	_log("打出「%s」（剩余能量 %d）" % [card.display_name, player.energy])
 
+	player.notify_card_played(card)
+
 	match card.type:
 		CardData.CardType.ATTACK:
 			var victim: Creature = target if target != null else first_alive_enemy()
@@ -81,10 +78,10 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 				_deal_damage(player, victim, card.damage)
 		CardData.CardType.SKILL:
 			if card.block > 0:
-				player.gain_block(card.block)
-				_log("  获得 %d 格挡（当前 %d）" % [card.block, player.block])
+				var gained: int = player.gain_block(card.block, card)
+				_log("  获得 %d 格挡（当前 %d）" % [gained, player.block])
 		CardData.CardType.POWER:
-			_log("  能力牌在阶段 1 暂未实现")
+			_log("  能力牌在阶段 2 暂未实现")
 
 	if card.exhaust:
 		deck.add_to_exhaust(card)
@@ -99,7 +96,7 @@ func end_player_turn() -> void:
 	if phase != Phase.PLAYER_TURN:
 		return
 
-	player.end_turn()
+	player.on_turn_end()
 	var discarded: int = deck.discard_hand()
 	_log("玩家回合结束，弃掉手牌 %d 张" % discarded)
 
@@ -115,11 +112,11 @@ func _run_enemy_turn() -> void:
 	for enemy: Enemy in enemies:
 		if not enemy.is_alive():
 			continue
-		enemy.start_turn()
+		enemy.on_turn_start()
 		if player.is_alive():
 			_log("%s 发动攻击（%d）" % [enemy.display_name, enemy.attack_damage])
 			_deal_damage(enemy, player, enemy.attack_damage)
-		enemy.end_turn()
+		enemy.on_turn_end()
 		if not player.is_alive():
 			break
 
@@ -130,7 +127,7 @@ func _run_enemy_turn() -> void:
 
 func _begin_player_turn() -> void:
 	turn_number += 1
-	player.start_turn()
+	player.on_turn_start()
 	var drawn: Array[CardData] = deck.draw(HAND_SIZE)
 
 	phase = Phase.PLAYER_TURN
@@ -141,21 +138,16 @@ func _begin_player_turn() -> void:
 
 # ── 结算 ────────────────────────────────────────────────────
 
-func _deal_damage(_source: Creature, target: Creature, amount: int) -> void:
-	## ⚠️ 阶段 1 简化：无修正链，直接结算。
-	## 阶段 2 换成 pipeline/DamagePipeline（力量 / 虚弱 / 易伤 / 印记 / 姿态）。
-	var hp_before: int = target.hp
-	var block_before: int = target.block
-
-	target.take_damage(amount)
-
-	var absorbed: int = block_before - target.block
-	var lost: int = hp_before - target.hp
+func _deal_damage(source: Creature, target: Creature, amount: int, damage_type: int = DamageType.NORMAL) -> void:
+	## 数值全部交给 DamagePipeline——本类只负责调用与记录
+	var info: DamageInfo = target.take_damage(amount, source, damage_type)
 	_log("  %s 受到 %d 伤害（格挡挡下 %d，损失 %d，生命 %d/%d）" % [
-		target.display_name, amount, absorbed, lost, target.hp, target.max_hp,
+		target.display_name, info.output, info.blocked, info.hp_lost, target.hp, target.max_hp,
 	])
 	if not target.is_alive():
 		_log("  ☠ %s 被击败" % target.display_name)
+		if source != null:
+			source.notify_kill(target)
 
 
 func _check_battle_end() -> bool:

@@ -3,8 +3,10 @@
 # 《弑神律》提交前校验（工程书 §2.6）
 #
 # 用法：
-#   bash tools/ci_check.sh            # 四步全跑
+#   bash tools/ci_check.sh            # 五步全跑
 #   bash tools/ci_check.sh --quick    # 只跑 ① 脚本解析
+#
+# 五步：① 脚本解析 ② 目录结构 ③ 场景冒烟 ④ GUT 单测 ⑤ 分层铁律
 #
 # 退出码：0 = 全过；1 = 有失败项；2 = 环境问题（找不到 Godot）
 #
@@ -90,6 +92,28 @@ else
   echo "$FAIL_MARK 单元测试失败："
   echo "$TEST_OUT" | tail -40
   FAILED=1
+fi
+
+# ── ⑤ 分层铁律：ui/ 不得依赖 battle/ 或 pipeline/ ────────────────
+echo
+echo "── ⑤ 分层铁律（ui/ 不得依赖 battle/ 或 pipeline/）──────"
+FORBIDDEN="BattleManager|DamagePipeline|DamageInfo|IntentResolver|TurnFlow|BattleScene"
+LAYER_HITS=""
+for f in "$PROJECT_DIR"/scripts/ui/*.gd; do
+  [ -f "$f" ] || continue
+  # 逐 token 匹配（用词边界，避免误伤注释里提到类名的情况——注释也算提示，一并暴露）
+  HIT="$(grep -nE "$FORBIDDEN" "$f" || true)"
+  if [ -n "$HIT" ]; then
+    LAYER_HITS="$LAYER_HITS$(basename "$f"): $HIT"$'\n'
+  fi
+done
+if [ -n "$LAYER_HITS" ]; then
+  echo "$FAIL_MARK ui/ 层出现了对战斗逻辑的依赖："
+  echo "$LAYER_HITS"
+  echo "  修法：把逻辑移到 scripts/battle/battle_scene.gd（组合根），ui 只发信号 + 收展示指令"
+  FAILED=1
+else
+  echo "$PASS_MARK ui/ 层与战斗逻辑解耦"
 fi
 
 # ── 汇总 ─────────────────────────────────────────────────────────

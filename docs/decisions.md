@@ -89,6 +89,53 @@
 |---|---|---|
 | ~~1~~ | ~~远端私有仓库对 GitHub 连接器不可见~~ | ✅ 已解决：改用 SSH 通道 |
 | 2 | 项目级主题（Theme）尚未建立，UI 样式散落在各场景 | 阶段 1（战斗 UI 出现后） |
-| **Q1** | **格挡清除时序**：设计文档 §3.1 把壁垒的改写点写在 `Creature.on_turn_end`，但若格挡在**自身回合结束时**清除，敌人回合将无格挡可吸（格挡失效）。STS 标准是**自身回合开始时**清除。阶段 1 按 STS 标准实现（`Creature.start_turn()` → `clear_block()`），**阶段 2 建 Power 系统时定案**，阶段 4 做壁垒前必须解决 | 阶段 2 |
+| ~~**Q1**~~ | ~~格挡清除时序~~ | ✅ **已定案 → 见 D10** |
 | Q2 | Phase 1 的 `BattleManager` 与 `Creature.take_damage` 是**一次性代码**，阶段 2 会被 `DamagePipeline` 替换。不要在其上叠加功能 | 阶段 2 |
+
+---
+
+## 阶段 2 决策
+
+### D10 · 格挡清除时序 —— **自身回合开始时清零**（Q1 定案）
+- **日期**：2026-09-30
+- **用户定案原话**：「玩家回合开始时清零，壁垒只是将本该清零的值保留一半，如果没有就是保留 0。」
+- **决策**：`Creature.on_turn_start()` 第一步执行格挡清零，清零量**可被钩子改写**：
+  - 钩子 `AbstractPower.at_block_clear(clearing, owner) -> int`，返回**实际清零的量**；
+  - 默认返回 `clearing`（全清）；
+  - **壁垒**返回 `clearing - floor(clearing / 2)`（保留一半，向下取整）。
+  - 例：clearing = 5 → 保留 2、清 3；clearing = 0 → 保留 0。
+- **为什么这样设计**：设计文档 §3.1 原文把改写点写在 `on_turn_end`，但若格挡在自身回合**末**清除，
+  敌人回合来打时格挡已经没了，**格挡机制直接失效**。用户口径（回合开始清零 + 保留本该清零值的一半）
+  在机制上与 STS 一致，且表述更精确——它明确了「保留的对象是**本该被清掉的那部分**」。
+- **影响**：
+  - 阶段 1 的实现方向正确；`clear_block()` 保留并升级为**可被钩子改写**。
+  - 阶段 4 做壁垒时只需实现 `at_block_clear` 返回一半，**不需要动 `on_turn_end`**。
+  - 设计文档 §3.1 与工程书 §3.1 中关于 `on_turn_end` 的表述**以本条为准**。
+
+### D11 · DamageType 分流**集中在 DamagePipeline**
+- **日期**：2026-09-30
+- **决策**：`NORMAL / THORNS / HP_LOSS / POISON` 的修正环节分流，由 `DamagePipeline` **集中控制**，
+  不在各个 Power 钩子里重复判断类型。
+- **理由**：分流规则可测试、且只应存在一份。分散到每个钩子里必然漏掉某一个
+  （`card-game-numerical-framework` 技能明确警告过这个陷阱）。
+- **代价**：钩子无法自行决定「我要不要参与 THORNS 的修正」。
+  将来若确有需要，再给 `AbstractPower` 加 `damage_types: Array[int]` 白名单字段。
+
+### D12 · 钩子集扩展为 10 个（设计文档 §3.3 的 6 个视为下限）
+- **日期**：2026-09-30
+- **决策**：在 `on_turn_start / on_turn_end / at_damage_give / at_damage_receive / on_card_played / on_kill`
+  之外，增加 `at_damage_final`、`modify_block`、`at_block_clear`、`prevent_hp_loss`。
+- **理由**：设计文档 §10.3 的修正链本身就含 `at_damage_final_*` 环节；
+  `prevent_hp_loss` 必须放在**格挡吸收之后**——缓冲要挡的是「真正会掉的血」，
+  被格挡完全吃掉的攻击不该消耗缓冲层数；`at_block_clear` 是 D10 的落点。
+- **原则**：钩子默认返回原值，子类只 override 关心的那个。
+
+### D13 · 基础 Power 的文件组织
+- **日期**：2026-09-30
+- **决策**：`AbstractPower` 基类放 `scripts/identity/abstract_power.gd`（沿用设计文档 §10.4）；
+  基础 Power（力量/敏捷/虚弱/易伤/中毒/荆棘/缓冲）集中在
+  `scripts/identity/powers/base_powers.gd`，以**内部类**形式定义。
+- **理由**：每个 Power 仅 15~25 行，阶段 2 就拆成 7 个文件是过度拆分。
+  阶段 4~6 内容变多后若确实需要，再拆成独立文件。
+
 
