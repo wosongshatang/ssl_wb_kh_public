@@ -42,9 +42,13 @@ func _start_prototype_battle() -> void:
 	add_child(_player)
 
 	_enemy = Enemy.new()
-	_enemy.display_name = "竞技场新兵"
-	_enemy.max_hp = PROTOTYPE_ENEMY_HP
-	_enemy.attack_damage = PROTOTYPE_ENEMY_ATTACK
+	var enemy_data := EnemyData.new()
+	enemy_data.id = &"arena_recruit"
+	enemy_data.display_name = "竞技场新兵"
+	enemy_data.max_hp = PROTOTYPE_ENEMY_HP
+	var intents: Array[IntentData] = [IntentData.make_attack(PROTOTYPE_ENEMY_ATTACK)]
+	enemy_data.intents = intents
+	_enemy.setup_from_data(enemy_data)
 	add_child(_enemy)
 
 	var enemies: Array[Enemy] = [_enemy]
@@ -109,14 +113,19 @@ func _on_battle_ended(_player_won: bool) -> void:
 	ui.set_actions_enabled(false)
 
 
-func _on_phase_changed(phase: BattleManager.Phase) -> void:
-	ui.set_actions_enabled(phase == BattleManager.Phase.PLAYER_TURN)
+func _on_phase_changed(next_phase: TurnFlow.Phase) -> void:
+	ui.set_actions_enabled(next_phase == TurnFlow.Phase.PLAYER_TURN)
 
 
 func _refresh_view() -> void:
-	ui.set_status("%s %d/%d  ❤   格挡 %d   ⚡ %d/%d      |      %s %d/%d  格挡 %d" % [
+	var intent_text: String = "—"
+	var intent: IntentData = _enemy.current_intent()
+	if intent != null and _enemy.is_alive():
+		intent_text = intent.display_text()
+
+	ui.set_status("%s %d/%d  ❤   格挡 %d   ⚡ %d/%d      |      %s %d/%d  格挡 %d   〔意图：%s〕" % [
 		_player.display_name, _player.hp, _player.max_hp, _player.block, _player.energy, _player.max_energy,
-		_enemy.display_name, _enemy.hp, _enemy.max_hp, _enemy.block,
+		_enemy.display_name, _enemy.hp, _enemy.max_hp, _enemy.block, intent_text,
 	])
 
 	var names: PackedStringArray = PackedStringArray()

@@ -27,11 +27,16 @@ func _make_player(hp: int = 30) -> Player:
 
 
 func _make_enemy(hp: int = 24, attack: int = 7) -> Enemy:
+	## 阶段 2 起敌人由 EnemyData + IntentResolver 驱动
+	var data := EnemyData.new()
+	data.id = &"test_dummy"
+	data.display_name = "竞技场新兵"
+	data.max_hp = hp
+	var intents: Array[IntentData] = [IntentData.make_attack(attack)]
+	data.intents = intents
+
 	var e := Enemy.new()
-	e.display_name = "竞技场新兵"
-	e.max_hp = hp
-	e.attack_damage = attack
-	e.reset_for_battle()
+	e.setup_from_data(data)
 	autofree(e)
 	return e
 
@@ -74,7 +79,7 @@ func test_battle_starts_with_five_cards_in_hand() -> void:
 	assert_eq(bm.deck.draw_pile.size(), 5, "10 张牌组抽 5 张后抽牌堆应剩 5 张")
 	assert_eq(bm.deck.discard_pile.size(), 0, "开局弃牌堆应为空")
 	assert_eq(bm.turn_number, 1, "应处于第 1 回合")
-	assert_eq(bm.phase, BattleManager.Phase.PLAYER_TURN, "开局应是玩家回合")
+	assert_eq(bm.phase, TurnFlow.Phase.PLAYER_TURN, "开局应是玩家回合")
 
 
 func test_player_starts_turn_with_full_energy() -> void:
@@ -267,7 +272,7 @@ func test_battle_ends_when_enemy_dies() -> void:
 
 	assert_false(enemy.is_alive(), "5 血敌人应被 6 点伤害击杀")
 	assert_true(bm.is_over(), "敌人死亡后战斗应结束")
-	assert_eq(bm.phase, BattleManager.Phase.BATTLE_OVER, "阶段应切到 BATTLE_OVER")
+	assert_eq(bm.phase, TurnFlow.Phase.BATTLE_OVER, "阶段应切到 BATTLE_OVER")
 	assert_signal_emitted_with_parameters(bm, "battle_ended", [true])
 
 

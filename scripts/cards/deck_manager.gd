@@ -65,6 +65,16 @@ func add_to_exhaust(card: CardData) -> void:
 	exhaust_pile.append(card)
 
 
+## 把手牌中的一张牌移入消耗区（本局不再回牌堆）。
+## 阶段 5 法师线的「禁忌知识」「死灵师」依赖这个入口。
+## ⚠️ 消耗区**不参与重洗**——这是它存在的全部意义。
+func exhaust(card: CardData) -> bool:
+	if not take_from_hand(card):
+		return false
+	exhaust_pile.append(card)
+	return true
+
+
 ## 整张手牌进弃牌堆（回合结束）
 func discard_hand() -> int:
 	var count: int = hand.size()

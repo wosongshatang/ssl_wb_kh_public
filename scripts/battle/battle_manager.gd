@@ -1,21 +1,17 @@
 class_name BattleManager
 extends Node
-## 战斗流程管理
+## 战斗编排
 ##
-## 阶段 2 起：所有伤害都走 [DamagePipeline]，本类只负责**回合流转与校验**，
-## 不参与任何数值计算——数值全在管线里，这样 12 个终职才有唯一的挂载点。
+## 职责边界（阶段 2 收尾后）：
+##   - **拥有** player / enemies / deck
+##   - **校验并执行**玩家出牌
+##   - **响应** [TurnFlow] 的信号，执行各方回合行为
 ##
-## ⚠️ 本类仍是阶段 1 的结构（TurnFlow / IntentResolver 尚未拆分），
-## 阶段 2 的 P1 任务会把它拆成 TurnFlow + IntentResolver。
+## 不再负责：回合状态（交给 [TurnFlow]）、数值计算（交给 [DamagePipeline]）、
+## 敌人意图推进（交给 [IntentResolver]）。
 
-enum Phase {
-	PLAYER_TURN,
-	ENEMY_TURN,
-	BATTLE_OVER,
-}
-
-signal phase_changed(phase: Phase)
 signal log_message(text: String)
+signal phase_changed(phase: TurnFlow.Phase)
 signal battle_ended(player_won: bool)
 
 const HAND_SIZE: int = 5
@@ -23,10 +19,19 @@ const HAND_SIZE: int = 5
 var player: Player
 var enemies: Array[Enemy] = []
 var deck: DeckManager
-var phase: Phase = Phase.BATTLE_OVER
-var turn_number: int = 0
+var flow: TurnFlow = TurnFlow.new()
 
 var _rng: RandomNumberGenerator
+
+
+## 回合状态透传（真正的状态在 TurnFlow 里，这里只做转发避免两处状态不一致）
+var phase: TurnFlow.Phase:
+	get:
+		return flow.phase
+
+var turn_number: int:
+	get:
+		return flow.turn_number
 
 
 ## 开一场战斗。rng 可注入以保证测试可复现。
@@ -47,15 +52,21 @@ func start_battle(
 	deck = DeckManager.new(_rng)
 	deck.setup(starting_deck)
 
-	turn_number = 0
+	flow = TurnFlow.new()
+	flow.phase_changed.connect(_on_flow_phase_changed)
+	flow.player_turn_started.connect(_on_player_turn_started)
+	flow.player_turn_ended.connect(_on_player_turn_ended)
+	flow.enemy_turn_started.connect(_on_enemy_turn_started)
+	flow.battle_finished.connect(_on_battle_finished)
+
 	_log("═══ 战斗开始 ═══")
-	_begin_player_turn()
+	flow.begin()
 
 
-# ── 玩家回合 ────────────────────────────────────────────────
+# ── 玩家出牌 ────────────────────────────────────────────────
 
 func play_card(card: CardData, target: Creature = null) -> bool:
-	if phase != Phase.PLAYER_TURN:
+	if not flow.is_player_turn():
 		_log("当前不是玩家回合，无法出牌")
 		return false
 	if not deck.hand.has(card):
@@ -93,47 +104,72 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 
 
 func end_player_turn() -> void:
-	if phase != Phase.PLAYER_TURN:
-		return
+	flow.end_player_turn()
 
+
+# ── TurnFlow 信号处理 ───────────────────────────────────────
+
+func _on_player_turn_started(turn: int) -> void:
+	player.on_turn_start()
+	var drawn: Array[CardData] = deck.draw(HAND_SIZE)
+	_log("── 第 %d 回合 · 玩家 ──（能量 %d/%d）" % [turn, player.energy, player.max_energy])
+	_log("抽到 %d 张：%s" % [drawn.size(), get_hand_names()])
+
+
+func _on_player_turn_ended(_turn: int) -> void:
 	player.on_turn_end()
 	var discarded: int = deck.discard_hand()
 	_log("玩家回合结束，弃掉手牌 %d 张" % discarded)
 
-	phase = Phase.ENEMY_TURN
-	phase_changed.emit(phase)
-	_run_enemy_turn()
 
-
-# ── 敌人回合 ────────────────────────────────────────────────
-
-func _run_enemy_turn() -> void:
+func _on_enemy_turn_started(_turn: int) -> void:
 	_log("── 敌人回合 ──")
 	for enemy: Enemy in enemies:
 		if not enemy.is_alive():
 			continue
 		enemy.on_turn_start()
 		if player.is_alive():
-			_log("%s 发动攻击（%d）" % [enemy.display_name, enemy.attack_damage])
-			_deal_damage(enemy, player, enemy.attack_damage)
+			_execute_intent(enemy)
 		enemy.on_turn_end()
 		if not player.is_alive():
 			break
 
 	if _check_battle_end():
 		return
-	_begin_player_turn()
+	flow.end_enemy_turn()
 
 
-func _begin_player_turn() -> void:
-	turn_number += 1
-	player.on_turn_start()
-	var drawn: Array[CardData] = deck.draw(HAND_SIZE)
+func _on_battle_finished(player_won: bool) -> void:
+	_log("═══ %s ═══" % ("胜利" if player_won else "战败"))
+	battle_ended.emit(player_won)
 
-	phase = Phase.PLAYER_TURN
-	phase_changed.emit(phase)
-	_log("── 第 %d 回合 · 玩家 ──（能量 %d/%d）" % [turn_number, player.energy, player.max_energy])
-	_log("抽到 %d 张：%s" % [drawn.size(), get_hand_names()])
+
+func _on_flow_phase_changed(next_phase: TurnFlow.Phase) -> void:
+	phase_changed.emit(next_phase)
+
+
+# ── 意图执行 ────────────────────────────────────────────────
+
+func _execute_intent(enemy: Enemy) -> void:
+	var intent: IntentData = enemy.advance_intent()
+	if intent == null:
+		return
+
+	match intent.type:
+		IntentData.IntentType.ATTACK:
+			# 多段攻击逐段结算——每段独立触发格挡与荆棘
+			for _i: int in intent.times:
+				if not player.is_alive():
+					break
+				_log("%s 发动攻击（%d）" % [enemy.display_name, intent.value])
+				_deal_damage(enemy, player, intent.value)
+		IntentData.IntentType.DEFEND:
+			var gained: int = enemy.gain_block(intent.value)
+			_log("%s 获得 %d 格挡" % [enemy.display_name, gained])
+		_:
+			_log("%s 使用了「%s」（该意图类型阶段 2 尚未实现）" % [
+				enemy.display_name, intent.display_text(),
+			])
 
 
 # ── 结算 ────────────────────────────────────────────────────
@@ -151,28 +187,21 @@ func _deal_damage(source: Creature, target: Creature, amount: int, damage_type: 
 
 
 func _check_battle_end() -> bool:
-	if phase == Phase.BATTLE_OVER:
+	if flow.is_over():
 		return true
 	if not player.is_alive():
-		_finish_battle(false)
+		flow.finish(false)
 		return true
 	if first_alive_enemy() == null:
-		_finish_battle(true)
+		flow.finish(true)
 		return true
 	return false
-
-
-func _finish_battle(player_won: bool) -> void:
-	phase = Phase.BATTLE_OVER
-	phase_changed.emit(phase)
-	_log("═══ %s ═══" % ("胜利" if player_won else "战败"))
-	battle_ended.emit(player_won)
 
 
 # ── 查询 ────────────────────────────────────────────────────
 
 func is_over() -> bool:
-	return phase == Phase.BATTLE_OVER
+	return flow.is_over()
 
 
 func first_alive_enemy() -> Enemy:
