@@ -17,6 +17,7 @@ var _enemies: Dictionary = {}
 var _acts: Dictionary = {}
 var _events: Dictionary = {}
 var _potions: Dictionary = {}
+var _act_modifiers: Dictionary = {}
 
 
 func _ready() -> void:
@@ -32,6 +33,7 @@ func load_all() -> void:
 	_acts = _load_dir("acts")
 	_events = _load_dir("events")
 	_potions = _load_dir("potions")
+	_act_modifiers = _load_dir("act_modifiers")
 
 
 ## 扫描一个数据子目录，按 Resource.id 建索引
@@ -134,6 +136,17 @@ func get_potion(id: StringName) -> Variant:
 	return _potions.get(String(id))
 
 
+func get_act_modifier(id: StringName) -> Variant:
+	return _act_modifiers.get(String(id))
+
+
+func all_act_modifier_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key: Variant in _act_modifiers:
+		out.append(StringName(str(key)))
+	return out
+
+
 func all_potion_ids() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for key: Variant in _potions:
@@ -151,4 +164,5 @@ func summary() -> Dictionary:
 		"acts": _acts.size(),
 		"events": _events.size(),
 		"potions": _potions.size(),
+		"act_modifiers": _act_modifiers.size(),
 	}

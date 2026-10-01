@@ -63,7 +63,7 @@ echo "── ② 目录结构完整性 ─────────────�
 STRUCT_FAIL=0
 for d in scripts/core scripts/battle scripts/pipeline scripts/identity \
          scripts/cards scripts/creatures scripts/relics scripts/map scripts/ui scripts/content \
-         data/cards data/relics data/jobs data/enemies data/acts data/events data/potions \
+         data/cards data/relics data/jobs data/enemies data/acts data/events data/potions data/act_modifiers \
          scenes/boot scenes/map scenes/battle scenes/ui tests tools docs; do
   if [ ! -d "$PROJECT_DIR/$d" ]; then
     echo "  $FAIL_MARK 缺少目录：$d"

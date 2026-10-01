@@ -15,10 +15,17 @@ signal phase_changed(phase: TurnFlow.Phase)
 signal battle_ended(player_won: bool)
 ## 卡牌获得药水（BattleManager 够不着 RunState，所以抛给场景去记账）
 signal potion_granted(potion_id: StringName)
+## 幕环境机制生效（阶段 6）。与遗物同理：**必须看得见**，
+## 否则玩家会以为"这关怎么突然变难了"是自己算错了。
+signal environment_announced(text: String)
 
 ## 遗物在战斗内累加的额外金币（幸运币这类）。
 ## 金币属于 RunState，遗物够不着，所以先累在这里，由场景结算时一并发放。
 var bonus_gold: int = 0
+
+## 本场的幕环境机制（阶段 6）。没有配置时为 null。
+var act_modifier: ActModifiers.Runtime = null
+var _pending_act_modifier: ActModifier = null
 
 const HAND_SIZE: int = 5
 
@@ -54,6 +61,9 @@ func start_battle(
 	player.reset_for_battle()
 	for enemy: Enemy in enemies:
 		enemy.reset_for_battle()
+
+	# 幕环境机制：在所有 reset 之后、开战之前生效
+	_setup_act_modifier()
 
 	deck = DeckManager.new(_rng)
 	deck.setup(starting_deck)
@@ -91,6 +101,8 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 	_log("打出「%s」（剩余能量 %d）" % [card.display_name, player.energy])
 
 	player.notify_card_played(card)
+	if act_modifier != null:
+		act_modifier.on_card_played(player, card)
 	_resolve_card_effects(card, target)
 
 	if card.exhaust:
@@ -110,6 +122,8 @@ func end_player_turn() -> void:
 
 func _on_player_turn_started(turn: int) -> void:
 	player.on_turn_start()
+	if act_modifier != null:
+		act_modifier.on_turn_start(player, turn)
 	var drawn: Array[CardData] = deck.draw(HAND_SIZE)
 	_log("── 第 %d 回合 · 玩家 ──（能量 %d/%d）" % [turn, player.energy, player.max_energy])
 	_log("抽到 %d 张：%s" % [drawn.size(), get_hand_names()])
@@ -291,6 +305,8 @@ func _deal_damage(source: Creature, target: Creature, amount: int, damage_type: 
 		_log("  ☠ %s 被击败" % target.display_name)
 		if source != null:
 			source.notify_kill(target)
+		if act_modifier != null:
+			act_modifier.on_enemy_killed(player, target)
 
 
 func _check_battle_end() -> bool:
@@ -323,6 +339,21 @@ func get_hand_names() -> String:
 	for card: CardData in deck.hand:
 		names.append(card.display_name)
 	return "、".join(names)
+
+
+## 注入本场的幕环境机制。**必须在 [method start_battle] 之前调用**——
+## 机制的 `apply_battle_start` 要在开战时立刻生效。
+func set_act_modifier(modifier: ActModifier) -> void:
+	_pending_act_modifier = modifier
+
+
+func _setup_act_modifier() -> void:
+	act_modifier = null
+	if _pending_act_modifier == null:
+		return
+	act_modifier = ActModifiers.create(_pending_act_modifier, self)
+	if act_modifier != null:
+		act_modifier.apply_battle_start(player, enemies)
 
 
 func _log(text: String) -> void:

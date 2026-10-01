@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ActModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/act_modifier.gd" id="1_actmodifier"]
+
+[resource]
+script = ExtResource("1_actmodifier")
+id = &"arena_crowd_cheer"
+display_name = "竞技场 · 观众喝彩"
+description = "连续打出同类型的牌会积累喝彩（每层 +1 力量，最多 5 层）；一旦换类型，喝彩清零。"
+params = {}

@@ -80,6 +80,7 @@ func bind(target: Creature, look_kind: Look = Look.WARRIOR, player_side: bool = 
 	target.block_changed.connect(_on_any_change)
 	target.power_added.connect(_on_powers_changed)
 	target.power_removed.connect(_on_powers_changed)
+	target.power_changed.connect(_on_powers_changed)
 	target.health_lost.connect(_on_health_lost)
 	target.block_gained.connect(_on_block_gained)
 

@@ -23,6 +23,10 @@ signal block_gained(amount: int)
 signal health_lost(amount: int)
 signal power_added(power: AbstractPower)
 signal power_removed(power: AbstractPower)
+## Power 的**层数**变化（既不是新增也不是移除）。
+## 幕环境「喝彩清零」这类按层数削减需要它——只发 added/removed 的话，
+## 层数从 3 变成 1 时 UI 不会刷新。
+signal power_changed(power: AbstractPower)
 ## 遗物触发了（UI 据此显示提示——遗物效果必须**看得见**）
 signal relic_triggered(relic: AbstractRelic, detail: String)
 signal died
@@ -46,6 +50,26 @@ var relics: Array[AbstractRelic] = []
 ## 放在 Creature 上而不是让 Power 去引用 BattleManager，是为了避免 Power 层
 ## 依赖战斗编排层（那样 Power 就没法单独测试了）。
 var opponents: Array[Creature] = []
+
+
+## 按层数削减某个 Power。
+##
+## 与 [method remove_power] 的区别：那个会**整个拿掉**，
+## 幕环境的「喝彩清零」只需要扣掉自己加的那几层——
+## 用 remove_power 会把别的来源（遗物、药水、卡牌）给的力量一起清掉。
+func reduce_power(power_id: StringName, amount: int) -> void:
+	if amount <= 0:
+		return
+	var power: AbstractPower = get_power(power_id)
+	if power == null:
+		return
+
+	power.amount -= amount
+	if power.amount <= 0:
+		power.amount = 0
+		remove_power(power_id)
+	else:
+		power_changed.emit(power)
 
 
 ## 设置敌对单位（BattleManager 在开战时调用）

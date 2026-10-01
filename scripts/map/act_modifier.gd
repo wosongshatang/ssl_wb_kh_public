@@ -1,33 +1,34 @@
 class_name ActModifier
 extends Resource
-## 幕环境机制（阶段 3 只留接口，阶段 6 填充）
+## 幕环境机制（**纯数据**）—— 阶段 6
 ##
-## 每张地图一个环境机制：竞技场的「观众喝彩」、战场的「军势 / 阵型」、
-## 古战场的「不灭 / 执念」、翠林猎场的「埋伏 / 逃窜」……
+## 每张地图一个环境机制：竞技场的「观众喝彩」、战场的「军势」、
+## 古战场的「执念」……
 ##
-## 它们改变的是**规则**而不是数值（设计文档 §2.3 的设计判据），
-## 所以走独立资源 + 钩子，**不要**把 if 分支塞进 BattleManager。
+## ## 为什么逻辑不写在这里
+## `.tres` 存不下方法体。如果把逻辑写在 Resource 上，就得为每个机制
+## 单独写一个脚本 + 一个 `.tres`，数据与代码被拆到两个地方。
+## 所以按项目既有模式（`PowerFactory` / `RelicFactory`）：
+## **本类只存数据，运行时实现放在 [ActModifiers] 里按 id 分发。**
+##
+## ## 设计判据（设计文档 §2.3）
+## 幕环境改变的是**规则**而不是数值。所以它们是钩子，不是"敌人血量 ×1.2"。
 
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var description: String = ""
+## 机制参数。不同机制用不同的键，避免为每个机制往类上加字段。
+@export var params: Dictionary = {}
 
 
-## 战斗开始时应用环境效果
-func apply_battle_start(_battle: Node, _player: Creature, _enemies: Array) -> void:
-	pass
+## 取参数（带默认值——缺参数不该让机制崩掉，只该让它用默认行为）
+func param_int(key: String, fallback: int = 0) -> int:
+	return int(params.get(key, fallback))
 
 
-## 玩家打出一张牌时（例：竞技场「连续打出同类型牌积累喝彩」）
-func on_card_played(_player: Creature, _card: CardData) -> void:
-	pass
+func param_float(key: String, fallback: float = 0.0) -> float:
+	return float(params.get(key, fallback))
 
 
-## 敌人死亡时（例：古战场「执念需二次处理」）
-func on_enemy_killed(_player: Creature, _enemy: Creature) -> void:
-	pass
-
-
-## 回合开始时（例：元素裂隙「魔力潮汐轮替」）
-func on_turn_start(_player: Creature, _turn_number: int) -> void:
-	pass
+func _to_string() -> String:
+	return "ActModifier(%s)" % display_name

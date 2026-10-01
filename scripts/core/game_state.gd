@@ -23,6 +23,10 @@ signal job_advanced(job_id: StringName)
 
 const DIVINITY_MAX: int = 100
 const HUMANITY_MAX: int = 100
+## 显化阈值：神性到了这里，规则开始在你身上外显
+const DIVINITY_MANIFEST: int = 70
+## 登神阈值：到了这里，你已经无法拒绝成为规则，结局锁定
+const DIVINITY_ASCENSION: int = 90
 ## 派生下一幕地图种子用的步长（质数，避免与别处的种子运算撞车）
 const ACT_SEED_STRIDE: int = 104729
 
@@ -78,6 +82,17 @@ func reset_run() -> void:
 
 func has_active_run() -> bool:
 	return run != null and not run.is_over
+
+
+## 当前幕的环境机制（阶段 6）。没有配置时返回 null——机制是可选增强，不是必需依赖。
+func current_act_modifier() -> ActModifier:
+	if run == null:
+		return null
+	var modifier_id: StringName = MapManager.ACT_MODIFIERS.get(run.current_act, &"")
+	if modifier_id == &"":
+		return null
+	var loaded: Variant = ContentRegistry.get_act_modifier(modifier_id)
+	return loaded as ActModifier
 
 
 ## 进入下一幕：重新生成地图（用「种子 + 幕」派生新种子，保证同局可复现）
@@ -138,4 +153,48 @@ func can_unlock_mortal_ending() -> bool:
 
 ## 神性 >= 90：已无法拒绝成为规则，结局锁定「登神」
 func is_ascension_locked() -> bool:
-	return divinity >= 90
+	return divinity >= DIVINITY_ASCENSION
+
+
+## 神性是否已显化（≥70）——战斗中会外显为强化 + 持续反噬
+func is_divinity_manifest() -> bool:
+	return divinity >= DIVINITY_MANIFEST
+
+
+## 神性/人性的综合倾向，UI 用它画进度条（-1 全人性，+1 全神性）
+func erosion_ratio() -> float:
+	return clampf(float(divinity - humanity) / float(DIVINITY_MAX), -1.0, 1.0)
+
+
+# ── 结局判定（阶段 6）──────────────────────────────────────
+
+## 判定本局结局。
+##
+## 顺序**不可调换**：登神是"无法拒绝"，必须最先判定——
+## 一个神性 95 的玩家即使人性也满了，也已经不是人了。
+func resolve_ending() -> StringName:
+	if divinity >= DIVINITY_ASCENSION:
+		return &"ascension"
+	if can_unlock_mortal_ending():
+		return &"mortal"
+	return &"godslayer"
+
+
+static func ending_title(ending: StringName) -> String:
+	match ending:
+		&"ascension":
+			return "登神"
+		&"mortal":
+			return "凡人"
+		_:
+			return "弑神"
+
+
+static func ending_summary(ending: StringName) -> String:
+	match ending:
+		&"ascension":
+			return "你成为了新的规则。从此再没有人能拒绝你——包括你自己。"
+		&"mortal":
+			return "你杀死了神，却没有成为它。你带着人的重量走了出去。"
+		_:
+			return "你杀死了神。世界空出了一个位置，而你不打算坐上去。"

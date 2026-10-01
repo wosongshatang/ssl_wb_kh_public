@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ActModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/act_modifier.gd" id="1_actmodifier"]
+
+[resource]
+script = ExtResource("1_actmodifier")
+id = &"ancient_grudge"
+display_name = "古战场 · 执念"
+description = "每次击杀敌人时，执念反噬：你受到 4 点无视格挡的伤害。"
+params = {
+"damage": 4
+}

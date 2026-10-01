@@ -194,6 +194,27 @@ class GodOfWarStance extends AbstractPower:
 		owner.apply_power(BasePowers.Strength.new(STRENGTH_PER_TURN))
 
 
+## 神性显化（≥70）—— **不是转职能力，是侵蚀的副作用**
+##
+## 规则开始在你身上外显：力量暴涨，但每回合都在流失生命。
+## 与身份能力的区别：这个**可以被移除**（它不是刻进灵魂的，是附着上来的），
+## 而且它带着明确的、会累积的代价——把玩家往"要么早点收手、要么一路走到底"推。
+class DivinityManifest extends AbstractPower:
+	const STRENGTH: int = 3
+	const HP_LOSS_PER_TURN: int = 2
+
+	func _init() -> void:
+		id = &"divinity_manifest"
+		display_name = "神性显化"
+		description = "获得 %d 点力量；每回合开始时失去 %d 点生命。" % [
+			STRENGTH, HP_LOSS_PER_TURN,
+		]
+		is_identity = false
+
+	func on_turn_start(owner: Creature) -> void:
+		owner.take_damage(HP_LOSS_PER_TURN, null, DamageType.HP_LOSS)
+
+
 ## id → 构造器。新增身份能力时只需在这里加一行。
 static func create(power_id: StringName) -> AbstractPower:
 	match power_id:
@@ -213,6 +234,8 @@ static func create(power_id: StringName) -> AbstractPower:
 			return GodOfWarStance.new()
 		&"berserker_preview":
 			return BerserkerPreview.new()
+		&"divinity_manifest":
+			return DivinityManifest.new()
 		_:
 			push_warning("IdentityPowers: 未知身份能力 id「%s」" % power_id)
 			return null

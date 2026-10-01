@@ -194,6 +194,10 @@ func _start_battle() -> void:
 	_field.add_child(enemy_view)
 	_enemy_views = [enemy_view]
 
+	# 幕环境机制（阶段 6）——必须在 start_battle **之前**注入，
+	# 它的 apply_battle_start 要在开战时立刻生效
+	_battle.set_act_modifier(GameState.current_act_modifier())
+	_battle.environment_announced.connect(_on_environment_announced)
 	_battle.start_battle(_player, _enemies, _run.build_deck())
 
 	# ⚠️ 下面全部必须在 start_battle **之后**——它内部会 reset_for_battle()
@@ -207,6 +211,8 @@ func _start_battle() -> void:
 	_player.relic_triggered.connect(_on_relic_triggered)
 	_player.notify_battle_start()
 	enemy.notify_battle_start()
+
+	_apply_divinity_manifest()
 
 	_player_view.bind(_player, CombatActorView.Look.WARRIOR, true)
 	enemy_view.bind(enemy, _look_for(enemy_data), false)
@@ -512,6 +518,34 @@ func _on_potion_granted(potion_id: StringName) -> void:
 
 
 # ══ BattleManager 回调 ══════════════════════════════════════
+
+## 幕环境机制生效时的提示（阶段 6）。
+## 与遗物同理：环境如果完全静默，玩家会以为"这关怎么突然变难了"是自己算错了。
+func _on_environment_announced(text: String) -> void:
+	_log_lines.append("〔环境〕%s" % text)
+	if _player_view != null:
+		_player_view.show_floating_text("〔环境〕%s" % text, UiPalette.GOLD)
+
+
+## 神性显化（≥70）：规则开始外显——力量暴涨，但每回合持续流失生命。
+##
+## 注意它是**可移除的常规 Power**，不是身份能力：
+## 侵蚀不是"刻进灵魂"的东西，是附着上来的——玩家还有收手的余地。
+func _apply_divinity_manifest() -> void:
+	if not GameState.is_divinity_manifest():
+		return
+
+	var manifest := IdentityPowers.create(&"divinity_manifest")
+	if manifest == null:
+		return
+
+	_player.apply_power(manifest)
+	_player.apply_power(BasePowers.Strength.new(IdentityPowers.DivinityManifest.STRENGTH))
+	_log_lines.append("〔侵蚀〕神性显化：+%d 力量，每回合 -%d 生命" % [
+		IdentityPowers.DivinityManifest.STRENGTH,
+		IdentityPowers.DivinityManifest.HP_LOSS_PER_TURN,
+	])
+
 
 func _on_log(text: String) -> void:
 	_log_lines.append(text)

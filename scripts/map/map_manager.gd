@@ -27,6 +27,13 @@ const KIND_WEIGHTS: Dictionary = {
 	MapNode.Kind.ELITE: 5,
 }
 
+## 每幕的环境机制（阶段 6）。**改变规则，不是改数值**（设计文档 §2.3）。
+const ACT_MODIFIERS: Dictionary = {
+	1: &"arena_crowd_cheer",
+	2: &"battlefield_momentum",
+	3: &"ancient_grudge",
+}
+
 ## 每幕的普通战斗敌人池。
 ## ⚠️ **毒敌人必须在池子里**——否则「克制壁垒的敌人」只存在于单测里，
 ##    玩家永远遇不到，壁垒的弱点在真实对局中就不会出现。

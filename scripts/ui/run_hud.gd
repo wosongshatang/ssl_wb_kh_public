@@ -41,6 +41,7 @@ var _boss_icon: Control
 var _relic_chip: Button
 var _time_chip: Label
 var _log_button: Button
+var _erosion_bar: Control
 var _potion_slots: Array[PotionSlot] = []
 
 
@@ -101,6 +102,16 @@ func _build() -> void:
 	margin.add_child(row)
 
 	_build_avatar(row)
+
+	# 侵蚀条（阶段 6）：神性从右往左长，人性从左往右长——
+	# 两者在中间相遇就是"被同化"的直观表达
+	_erosion_bar = Control.new()
+	_erosion_bar.custom_minimum_size = Vector2(96, 16)
+	_erosion_bar.size = Vector2(96, 16)
+	_erosion_bar.mouse_filter = Control.MOUSE_FILTER_PASS
+	_erosion_bar.draw.connect(_on_erosion_draw)
+	row.add_child(_erosion_bar)
+
 	_hp_chip = _make_chip("", UiPalette.HP_RED)
 	row.add_child(_hp_chip)
 	_gold_chip = _make_chip("", UiPalette.COIN)
@@ -160,6 +171,32 @@ func _build_avatar(row: HBoxContainer) -> void:
 	_avatar_letter.add_theme_color_override("font_color", UiPalette.GOLD)
 	_avatar_letter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_avatar_box.add_child(_avatar_letter)
+
+
+## 侵蚀条：左半人性（蓝）／右半神性（红）
+func _on_erosion_draw() -> void:
+	var rect := Rect2(Vector2.ZERO, _erosion_bar.size)
+	_erosion_bar.draw_rect(rect, UiPalette.BG_SLOT, true)
+
+	var half: float = rect.size.x * 0.5
+	var divinity_ratio: float = clampf(
+		float(GameState.divinity) / float(GameState.DIVINITY_MAX), 0.0, 1.0)
+	var humanity_ratio: float = clampf(
+		float(GameState.humanity) / float(GameState.HUMANITY_MAX), 0.0, 1.0)
+
+	_erosion_bar.draw_rect(
+		Rect2(0.0, 0.0, half * humanity_ratio, rect.size.y), Color(0.35, 0.6, 0.88))
+	_erosion_bar.draw_rect(
+		Rect2(rect.size.x - half * divinity_ratio, 0.0, half * divinity_ratio, rect.size.y),
+		UiPalette.NODE_BOSS)
+
+	# 显化阈值刻线（神性 70）
+	var manifest_x: float = rect.size.x - half * (
+		float(GameState.DIVINITY_MANIFEST) / float(GameState.DIVINITY_MAX))
+	_erosion_bar.draw_line(Vector2(manifest_x, 0.0), Vector2(manifest_x, rect.size.y),
+		UiPalette.GOLD, 1.0)
+
+	_erosion_bar.draw_rect(rect, UiPalette.BORDER_DIM, false, 1.0)
 
 
 func _build_potion_bar(row: HBoxContainer) -> void:
@@ -255,6 +292,13 @@ func refresh() -> void:
 
 	_refresh_potions()
 	_update_time_chip()
+
+	# 侵蚀条要跟着数据走，否则加了神性界面不动
+	if _erosion_bar != null:
+		_erosion_bar.tooltip_text = "侵蚀　神性 %d / 人性 %d　（显化阈值 %d）" % [
+			GameState.divinity, GameState.humanity, GameState.DIVINITY_MANIFEST,
+		]
+		_erosion_bar.queue_redraw()
 
 
 func _refresh_potions() -> void:

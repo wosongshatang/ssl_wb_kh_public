@@ -37,15 +37,18 @@ func _refresh() -> void:
 		return
 
 	if run.victory:
-		title_label.text = "弑神"
-		summary_label.text = "你击败了规则本身。"
+		# 三结局判定（阶段 6）：登神 / 凡人 / 弑神
+		var ending: StringName = GameState.resolve_ending()
+		title_label.text = GameState.ending_title(ending)
+		summary_label.text = GameState.ending_summary(ending)
 	else:
 		title_label.text = "陨落"
 		summary_label.text = "你的旅程止步于此。"
 
-	detail_label.text = "%s　最终生命 %d/%d　金币 %d　牌组 %d 张　抵达第 %d 幕" % [
+	detail_label.text = "%s　最终生命 %d/%d　金币 %d　牌组 %d 张　抵达第 %d 幕\n神性 %d / 人性 %d" % [
 		_character_name(run.character_class),
 		run.hp, run.max_hp, run.gold, run.deck_card_ids.size(), run.current_act,
+		GameState.divinity, GameState.humanity,
 	]
 
 
