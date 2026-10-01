@@ -40,6 +40,8 @@ enum CardType {
 @export var apply_to_target: Dictionary = {}
 ## 打出后进入消耗区而非弃牌堆（阶段 5 法师线用）
 @export var exhaust: bool = false
+## 打出后获得的药水 id（阶段 5：卡牌也是药水的获取途径之一）
+@export var grant_potion_id: StringName = &""
 
 
 static func make_attack(p_id: StringName, p_name: String, p_cost: int, p_damage: int) -> CardData:

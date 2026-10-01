@@ -18,7 +18,10 @@ signal map_pressed
 signal deck_pressed
 signal relics_pressed
 signal settings_pressed
+## 单击药水槽 → 查看信息（**不是**直接使用）
 signal potion_pressed(slot_index: int)
+## 双击药水槽 → 直接使用（战斗式默认打第一个敌人）
+signal potion_double_clicked(slot_index: int)
 
 const HUD_HEIGHT: float = 58.0
 const AVATAR_SIZE: float = 42.0
@@ -35,7 +38,7 @@ var _map_info_label: Label
 var _boss_icon: Control
 var _relic_chip: Button
 var _time_chip: Label
-var _potion_buttons: Array[Button] = []
+var _potion_slots: Array[PotionSlot] = []
 
 
 func _ready() -> void:
@@ -149,12 +152,11 @@ func _build_potion_bar(row: HBoxContainer) -> void:
 	row.add_child(box)
 
 	for i: int in RunState.MAX_POTIONS:
-		var slot := Button.new()
-		slot.custom_minimum_size = Vector2(26, 26)
-		slot.focus_mode = Control.FOCUS_NONE
-		slot.pressed.connect(_on_potion_pressed.bind(i))
+		var slot := PotionSlot.new()
+		slot.slot_clicked.connect(_on_potion_slot_clicked)
+		slot.slot_double_clicked.connect(_on_potion_slot_double_clicked)
 		box.add_child(slot)
-		_potion_buttons.append(slot)
+		_potion_slots.append(slot)
 
 
 func _build_map_info(row: HBoxContainer) -> void:
@@ -240,26 +242,13 @@ func refresh() -> void:
 
 
 func _refresh_potions() -> void:
-	for i: int in _potion_buttons.size():
-		var button := _potion_buttons[i]
-		var filled: bool = i < _run.potions.size()
-		var style := StyleBoxFlat.new()
-		style.set_corner_radius_all(13)
-		style.bg_color = UiPalette.POTION.darkened(0.35) if filled else UiPalette.BG_SLOT
-		style.border_color = UiPalette.POTION if filled else UiPalette.BORDER_DIM
-		style.set_border_width_all(1)
-		button.add_theme_stylebox_override("normal", style)
-		button.add_theme_stylebox_override("hover", style)
-		button.add_theme_stylebox_override("pressed", style)
-
-		if filled:
-			var potion: Variant = ContentRegistry.get_potion(_run.potions[i])
-			button.text = (potion as PotionData).display_name.substr(0, 1) if potion is PotionData else "?"
-			button.add_theme_font_size_override("font_size", 12)
-			button.tooltip_text = (potion as PotionData).description if potion is PotionData else ""
-		else:
-			button.text = ""
-			button.tooltip_text = "空药水栏"
+	for i: int in _potion_slots.size():
+		var data: PotionData = null
+		if i < _run.potions.size():
+			var loaded: Variant = ContentRegistry.get_potion(_run.potions[i])
+			if loaded is PotionData:
+				data = loaded as PotionData
+		_potion_slots[i].set_potion(data, i)
 
 
 func _update_time_chip() -> void:
@@ -269,8 +258,12 @@ func _update_time_chip() -> void:
 	_time_chip.text = "%02d:%02d" % [total / 60, total % 60]
 
 
-func _on_potion_pressed(slot_index: int) -> void:
+func _on_potion_slot_clicked(slot_index: int) -> void:
 	potion_pressed.emit(slot_index)
+
+
+func _on_potion_slot_double_clicked(slot_index: int) -> void:
+	potion_double_clicked.emit(slot_index)
 
 
 func _character_letter(character: StringName) -> String:

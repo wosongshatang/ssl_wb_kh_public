@@ -20,6 +20,7 @@ var _overlay: OverlayPanel = null
 var _shop_panel: ShopPanel = null
 var _event_panel: EventPanel = null
 var _shop_offers: Array[CardData] = []
+var _potion_offers: Array[PotionData] = []
 var _current_event: EventData = null
 
 
@@ -33,6 +34,11 @@ func _ready() -> void:
 		_map = GameState.map
 
 	_build_ui()
+	# ⚠️ 必须**立刻**调一次 _layout()。只连接 size_changed 是不够的——
+	#    那要等到窗口尺寸变化才触发，而初始布局永远等不到。
+	#    症状：地图视图尺寸停在 (0,0)，`_recompute_positions()` 算不出坐标，
+	#    整张地图空白。这是个"看起来在跑、其实什么都没画"的典型 bug。
+	_layout()
 	_reseed_rng()
 	_refresh()
 	get_viewport().size_changed.connect(_layout)
@@ -70,7 +76,8 @@ func _build_ui() -> void:
 	_hud.relics_pressed.connect(_open_relics)
 	_hud.settings_pressed.connect(_open_settings)
 	_hud.map_pressed.connect(_refresh)
-	_hud.potion_pressed.connect(_on_potion_pressed)
+	_hud.potion_pressed.connect(_on_potion_clicked)
+	_hud.potion_double_clicked.connect(_on_potion_double_clicked)
 
 
 func _layout() -> void:
@@ -141,20 +148,76 @@ func _persist_and_refresh() -> void:
 	_refresh()
 
 
-func _on_potion_pressed(slot_index: int) -> void:
-	if slot_index < 0 or slot_index >= _run.potions.size():
+# ── 药水 ────────────────────────────────────────────────────
+
+## 单击：查看信息，不消耗
+func _on_potion_clicked(slot_index: int) -> void:
+	if _overlay != null:
 		return
-	var data: Variant = ContentRegistry.get_potion(_run.potions[slot_index])
-	if not (data is PotionData):
-		return
-	var potion := data as PotionData
-	if potion.battle_only:
-		_hint_label.text = "%s 只能在战斗中使用。" % potion.display_name
+	var potion: PotionData = _potion_at(slot_index)
+	if potion == null:
 		return
 
-	_run.heal(potion.value)
+	# 地图上恒为 in_battle = false、无敌人
+	var blocked: String = PotionResolver.can_use(potion, false, false)
+
+	var panel := PotionInfoPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(potion, slot_index, blocked)
+	panel.use_requested.connect(_on_potion_use_requested)
+	panel.closed.connect(_close_overlay)
+
+
+func _on_potion_use_requested(slot_index: int) -> void:
+	_close_overlay()
+	_use_potion_on_self(slot_index)
+
+
+## 双击：直接使用（通用式药水）
+func _on_potion_double_clicked(slot_index: int) -> void:
+	_use_potion_on_self(slot_index)
+
+
+func _potion_at(slot_index: int) -> PotionData:
+	if slot_index < 0 or slot_index >= _run.potions.size():
+		return null
+	var loaded: Variant = ContentRegistry.get_potion(_run.potions[slot_index])
+	if loaded is PotionData:
+		return loaded as PotionData
+	return null
+
+
+func _use_potion_on_self(slot_index: int) -> void:
+	var potion: PotionData = _potion_at(slot_index)
+	if potion == null:
+		return
+
+	var blocked: String = PotionResolver.can_use(potion, false, false)
+	if blocked != "":
+		_hint_label.text = "%s 现在用不了：%s" % [potion.display_name, blocked]
+		return
+
+	# 地图上没有战斗实体，用一个**临时 Creature 代理**来承接效果。
+	# 为什么不用 if-else 直接改 RunState：药水效果的定义在 PotionResolver 里，
+	# 地图再写一套"只能回血"的简化版，两边会慢慢走偏——
+	# 以后加了「回复类」新药水，地图上就会莫名其妙用不了。
+	var proxy := Creature.new()
+	proxy.max_hp = _run.max_hp
+	proxy.reset_for_battle()
+	proxy.set_hp(_run.hp)
+
+	var result := PotionResolver.apply(potion, proxy, null, null, _rng)
+	if not result.success:
+		proxy.free()
+		_hint_label.text = "%s 用不了：%s" % [potion.display_name, result.message]
+		return
+
+	_run.sync_from_creature(proxy)
+	proxy.free()
+
 	_run.remove_potion_at(slot_index)
-	_hint_label.text = "使用 %s：回复 %d 点生命。" % [potion.display_name, potion.value]
+	_hint_label.text = "使用 %s：%s" % [potion.display_name, result.message]
 	_persist_and_refresh()
 
 
@@ -163,16 +226,33 @@ func _on_potion_pressed(slot_index: int) -> void:
 func _open_shop() -> void:
 	var pool := CardPool.new(_rng)
 	_shop_offers = pool.roll(CardPool.SHOP_OFFER_COUNT)
+	_potion_offers = _roll_potion_offers(2)
 	_show_shop()
+
+
+## 抽 count 瓶**不重复**的药水当货架
+func _roll_potion_offers(count: int) -> Array[PotionData]:
+	var out: Array[PotionData] = []
+	var pool: Array[StringName] = ContentRegistry.all_potion_ids()
+
+	while out.size() < count and not pool.is_empty():
+		var index: int = _rng.randi_range(0, pool.size() - 1)
+		var loaded: Variant = ContentRegistry.get_potion(pool[index])
+		pool.remove_at(index)
+		if loaded is PotionData:
+			out.append(loaded as PotionData)
+
+	return out
 
 
 func _show_shop() -> void:
 	_close_shop()
 	_shop_panel = ShopPanel.new()
 	_overlay = _shop_panel
-	_shop_panel.setup(_run.gold, _shop_offers, _run.build_deck())
+	_shop_panel.setup(_run.gold, _shop_offers, _run.build_deck(), _potion_offers)
 	_shop_panel.purchase_requested.connect(_on_purchase_requested)
 	_shop_panel.removal_requested.connect(_on_removal_requested)
+	_shop_panel.potion_purchase_requested.connect(_on_potion_purchase_requested)
 	_shop_panel.closed.connect(_on_shop_closed)
 	add_child(_shop_panel)
 
@@ -212,6 +292,27 @@ func _on_removal_requested(card_id: StringName, price: int) -> void:
 func _on_shop_closed() -> void:
 	_close_shop()
 	_persist_and_refresh()
+
+
+func _on_potion_purchase_requested(potion_id: StringName, price: int) -> void:
+	# 药水栏满了必须先喝掉一瓶——**不能默默买下来再丢弃**
+	if _run.is_potion_bar_full():
+		_hint_label.text = "药水栏已满，先喝掉一瓶再来买。"
+		_show_shop()
+		return
+
+	if not _run.spend_gold(price):
+		return
+
+	_run.add_potion(potion_id)
+	for i: int in range(_potion_offers.size() - 1, -1, -1):
+		if _potion_offers[i].id == potion_id:
+			_potion_offers.remove_at(i)
+			break
+
+	_hint_label.text = "购买了「%s」（花费 %d 金币）。" % [_potion_name(potion_id), price]
+	_hud.refresh()
+	_show_shop()
 
 
 # ── 事件 ────────────────────────────────────────────────────
@@ -290,6 +391,17 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 				return "卡池为空，什么也没得到"
 			_run.add_card(offers[0].id)
 			return "获得「%s」" % offers[0].display_name
+		EventData.Effect.ADD_POTION:
+			var pool: Array[StringName] = ContentRegistry.all_potion_ids()
+			if pool.is_empty():
+				return "没有可获得的药水"
+			if _run.is_potion_bar_full():
+				return "药水栏已满，什么也没拿到"
+			var potion_id: StringName = pool[_rng.randi_range(0, pool.size() - 1)]
+			if not _run.add_potion(potion_id):
+				return "药水栏已满，什么也没拿到"
+			return "获得「%s」" % _potion_name(potion_id)
+
 		EventData.Effect.REMOVE_CARD:
 			# 阶段 5 简化：随机移除一张。阶段 6 改成让玩家选。
 			var deck: Array[CardData] = _run.build_deck()
@@ -357,3 +469,10 @@ func _card_name(card_id: StringName) -> String:
 	if card is CardData:
 		return (card as CardData).display_name
 	return String(card_id)
+
+
+func _potion_name(potion_id: StringName) -> String:
+	var potion: Variant = ContentRegistry.get_potion(potion_id)
+	if potion is PotionData:
+		return (potion as PotionData).display_name
+	return String(potion_id)

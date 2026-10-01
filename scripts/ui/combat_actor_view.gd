@@ -16,6 +16,8 @@ extends Control
 
 ## 玩家把牌拖到本单位身上释放
 signal card_dropped_on_actor(card: CardData, actor: Creature)
+## 玩家把药水拖到本单位身上使用（战斗式药水）
+signal potion_dropped_on_actor(slot_index: int, actor: Creature)
 
 const VIEW_SIZE := Vector2(168, 214)
 const BODY_HEIGHT := 128.0
@@ -264,9 +266,22 @@ func _refresh_powers() -> void:
 # ══ 卡牌投放目标 ════════════════════════════════════════════
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
-	return data is CardData and creature != null and creature.is_alive()
+	if creature == null or not creature.is_alive():
+		return false
+	if data is CardData:
+		return true
+	return _is_potion_payload(data)
 
 
 func _drop_data(_at_position: Vector2, data: Variant) -> void:
 	if data is CardData:
 		card_dropped_on_actor.emit(data as CardData, creature)
+		return
+	if _is_potion_payload(data):
+		potion_dropped_on_actor.emit(int((data as Dictionary)[PotionSlot.DRAG_KEY]), creature)
+
+
+## 药水拖拽载荷是 `{槽位下标: int}` 的字典，不是 PotionData——
+## 因为注册表里的药水是共享实例，用对象没法区分"拖的是第几格"。
+func _is_potion_payload(data: Variant) -> bool:
+	return data is Dictionary and (data as Dictionary).has(PotionSlot.DRAG_KEY)

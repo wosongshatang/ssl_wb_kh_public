@@ -38,7 +38,9 @@ const COMBAT_POOLS: Dictionary = {
 
 ## 事件池。**必须放真实注册的 id**——
 ## 曾经这里写的是 `placeholder_event_N`，导致两个真事件永远不会被触发。
-const EVENT_POOL: Array[StringName] = [&"shrine_of_war", &"rebel_broker"]
+const EVENT_POOL: Array[StringName] = [
+	&"shrine_of_war", &"rebel_broker", &"wandering_alchemist",
+]
 
 ## id -> MapNode
 var nodes: Dictionary = {}

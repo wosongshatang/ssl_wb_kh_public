@@ -13,6 +13,8 @@ extends Node
 signal log_message(text: String)
 signal phase_changed(phase: TurnFlow.Phase)
 signal battle_ended(player_won: bool)
+## 卡牌获得药水（BattleManager 够不着 RunState，所以抛给场景去记账）
+signal potion_granted(potion_id: StringName)
 
 const HAND_SIZE: int = 5
 
@@ -179,6 +181,11 @@ func _resolve_card_effects(card: CardData, target: Creature) -> void:
 	if card.self_hp_loss > 0:
 		player.take_damage(card.self_hp_loss, null, DamageType.HP_LOSS)
 		_log("  失去 %d 点生命（无视格挡）" % card.self_hp_loss)
+
+	if card.grant_potion_id != &"":
+		# 药水栏是否放得下由场景决定——BattleManager 不该知道 RunState 的存在
+		potion_granted.emit(card.grant_potion_id)
+		_log("  获得药水（%s）" % card.grant_potion_id)
 
 
 func _apply_powers(receiver: Creature, table: Dictionary, label: String) -> void:

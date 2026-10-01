@@ -22,12 +22,18 @@ var _map: MapManager = null
 var _positions: Dictionary = {}
 var _available: Dictionary = {}
 var _hover_id: int = -1
+var _legend_panel: PanelContainer
 var _legend_box: VBoxContainer
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# ⚠️ **不要**在这里 set_anchors_preset(PRESET_FULL_RECT)。
+	# 调用方（场景的 _layout()）会用 position/size 定位本控件；
+	# 一旦锚点是"左右/上下不相等"的全屏锚点，Godot 会在 _ready 之后
+	# **用锚点重新覆盖 size**，并报 "Nodes with non-equal opposite anchors
+	# will have their size overridden after _ready()"。
+	# 症状：布局代码看起来生效了，实际尺寸还是被改回去了。
 	_build_legend()
 
 
@@ -41,6 +47,8 @@ func build_map(map: MapManager) -> void:
 func refresh(map: MapManager) -> void:
 	_map = map
 	_refresh_availability()
+	# 刷新时也要重算坐标：调用方可能刚改过 size（例如 _layout() 之后立刻 refresh）
+	_recompute_positions()
 	queue_redraw()
 
 
@@ -50,6 +58,17 @@ func _refresh_availability() -> void:
 		return
 	for node: MapNode in _map.available_nodes():
 		_available[node.id] = true
+
+
+## 已算出坐标的节点数。供测试断言用——
+## 「尺寸为 0 导致整张地图空白」是个"看起来在跑、其实什么都没画"的 bug，
+## 必须有办法在不渲染的情况下验证它。
+func positioned_node_count() -> int:
+	return _positions.size()
+
+
+func node_position(node_id: int) -> Vector2:
+	return _positions.get(node_id, Vector2.ZERO)
 
 
 # ══ 布局 ════════════════════════════════════════════════════
@@ -75,7 +94,16 @@ func _recompute_positions() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
 		_recompute_positions()
+		_reposition_legend()
 		queue_redraw()
+
+
+## 图例贴右上角。**必须跟着 size 走**——_ready() 时 size 还是 0，
+## 那一刻算出来的位置会把图例甩到屏幕外。
+func _reposition_legend() -> void:
+	if _legend_panel == null:
+		return
+	_legend_panel.position = Vector2(maxf(size.x - LEGEND_WIDTH - 16.0, 8.0), 20.0)
 
 
 # ══ 绘制 ════════════════════════════════════════════════════
@@ -225,8 +253,7 @@ func _node_at(point: Vector2) -> int:
 
 func _build_legend() -> void:
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	panel.position = Vector2(size.x - LEGEND_WIDTH - 16, 70)
+	_legend_panel = panel
 	panel.custom_minimum_size = Vector2(LEGEND_WIDTH, 0)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 

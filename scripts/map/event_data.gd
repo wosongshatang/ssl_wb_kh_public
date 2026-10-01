@@ -15,6 +15,7 @@ enum Effect {
 	ADD_RANDOM_CARD,  ## 获得一张随机卡牌
 	REMOVE_CARD,      ## 移除牌组中一张牌（进删牌页）
 	MAX_HP,           ## 最大生命增加
+	ADD_POTION,       ## 获得一瓶随机药水（药水栏满则失败）
 }
 
 @export var id: StringName = &""
@@ -50,5 +51,7 @@ static func effect_text(effect: Effect, value: int) -> String:
 			return "移除牌组中一张牌"
 		Effect.MAX_HP:
 			return "最大生命 +%d" % value
+		Effect.ADD_POTION:
+			return "获得一瓶随机药水"
 		_:
 			return "什么也不会发生"

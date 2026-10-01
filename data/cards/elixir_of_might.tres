@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card_data.gd" id="1_carddata"]
+
+[resource]
+script = ExtResource("1_carddata")
+id = &"elixir_of_might"
+display_name = "力量药剂"
+description = "获得一瓶力量药水。"
+cost = 1
+type = 1
+rarity = 1
+damage = 0
+block = 0
+draw = 0
+gain_energy = 0
+self_hp_loss = 0
+apply_to_self = {}
+apply_to_target = {}
+grant_potion_id = &"strength_potion"
+exhaust = true

@@ -109,7 +109,8 @@ func _build_ui() -> void:
 	_hud.relics_pressed.connect(_open_relics)
 	_hud.settings_pressed.connect(_open_settings)
 	_hud.map_pressed.connect(_open_map_overlay)
-	_hud.potion_pressed.connect(_on_potion_pressed)
+	_hud.potion_pressed.connect(_on_potion_clicked)
+	_hud.potion_double_clicked.connect(_on_potion_double_clicked)
 
 
 func _make_corner_label(accent: Color) -> Label:
@@ -161,6 +162,7 @@ func _start_battle() -> void:
 	_battle.log_message.connect(_on_log)
 	_battle.battle_ended.connect(_on_battle_ended)
 	_battle.phase_changed.connect(_on_phase_changed)
+	_battle.potion_granted.connect(_on_potion_granted)
 
 	_player = Player.new()
 	_player.display_name = _character_display_name()
@@ -179,6 +181,7 @@ func _start_battle() -> void:
 	var enemy_view := CombatActorView.new()
 	enemy_view.is_player_side = false
 	enemy_view.card_dropped_on_actor.connect(_on_card_dropped)
+	enemy_view.potion_dropped_on_actor.connect(_on_potion_dropped)
 	_field.add_child(enemy_view)
 	_enemy_views = [enemy_view]
 
@@ -339,48 +342,136 @@ func _on_end_turn_pressed() -> void:
 	_refresh_all()
 
 
-func _on_potion_pressed(slot_index: int) -> void:
-	if _busy or slot_index < 0 or slot_index >= _run.potions.size():
+# ══ 药水 ════════════════════════════════════════════════════
+
+## 单击：**查看信息**，不消耗（用户要求）
+func _on_potion_clicked(slot_index: int) -> void:
+	if _busy or _overlay != null:
+		return
+	var potion: PotionData = _potion_at(slot_index)
+	if potion == null:
 		return
 
-	var potion_id: StringName = _run.potions[slot_index]
-	var data: Variant = ContentRegistry.get_potion(potion_id)
-	if not (data is PotionData):
+	var blocked: String = PotionResolver.can_use(
+		potion, true, _battle.first_alive_enemy() != null)
+
+	var panel := PotionInfoPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(potion, slot_index, blocked)
+	panel.use_requested.connect(_on_potion_use_requested)
+	panel.closed.connect(_close_overlay)
+
+
+func _on_potion_use_requested(slot_index: int) -> void:
+	_close_overlay()
+	_use_potion(slot_index, _default_target_for(_potion_at(slot_index)))
+
+
+## 双击：直接使用。**战斗式默认打第一个敌人**（用户要求）
+func _on_potion_double_clicked(slot_index: int) -> void:
+	if _busy:
+		return
+	var potion: PotionData = _potion_at(slot_index)
+	if potion == null:
 		return
 
-	var potion := data as PotionData
-	var applied: String = _apply_potion_effect(potion)
-	if applied == "":
-		_on_log("（%s 现在用不了）" % potion.display_name)
+	var blocked: String = PotionResolver.can_use(
+		potion, true, _battle.first_alive_enemy() != null)
+	if blocked != "":
+		_on_log("（%s 现在用不了：%s）" % [potion.display_name, blocked])
+		return
+
+	_use_potion(slot_index, _default_target_for(potion))
+
+
+## 拖到敌人身上：用那个敌人当目标（用户要求）
+func _on_potion_dropped(slot_index: int, actor: Creature) -> void:
+	if _busy:
+		return
+	_use_potion(slot_index, actor)
+
+
+func _default_target_for(potion: PotionData) -> Creature:
+	if potion == null:
+		return null
+	if potion.needs_enemy_target():
+		return _battle.first_alive_enemy()
+	return _player
+
+
+func _potion_at(slot_index: int) -> PotionData:
+	if slot_index < 0 or slot_index >= _run.potions.size():
+		return null
+	var loaded: Variant = ContentRegistry.get_potion(_run.potions[slot_index])
+	if loaded is PotionData:
+		return loaded as PotionData
+	return null
+
+
+func _use_potion(slot_index: int, target: Creature) -> void:
+	var potion: PotionData = _potion_at(slot_index)
+	if potion == null:
+		return
+
+	# 一次性资源：**先结算，成功了再扣**。失败不扣——
+	# "用了没效果还把药水吃掉"是最不能忍的一类 bug。
+	var result := PotionResolver.apply(
+		potion, _player, target, _battle.deck, RandomNumberGenerator.new())
+
+	if not result.success:
+		_on_log("（%s 用不了：%s）" % [potion.display_name, result.message])
 		return
 
 	_run.remove_potion_at(slot_index)
-	_on_log("使用 %s：%s" % [potion.display_name, applied])
+	_on_log("使用 %s：%s" % [potion.display_name, result.message])
+
+	if target is Enemy:
+		var index: int = _enemies.find(target as Enemy)
+		if index >= 0 and index < _enemy_views.size():
+			_enemy_views[index].play_hit()
+
+	_refresh_all()
+
+	if result.needs_card_choice:
+		_offer_potion_cards(result.offered_card_ids)
+
+
+## 得牌类药水：从牌库展示 N 张，选一张加入手牌。
+## 加入的是**临时牌**——它从未进过 `RunState.deck_card_ids`，
+## 所以战斗结束自然消失，不需要任何清理代码。
+func _offer_potion_cards(card_ids: Array[StringName]) -> void:
+	var cards: Array[CardData] = []
+	for card_id: StringName in card_ids:
+		var loaded: Variant = ContentRegistry.get_card(card_id)
+		if loaded is CardData:
+			cards.append(loaded as CardData)
+
+	if cards.is_empty():
+		return
+
+	var panel := CardChoicePanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup("选择一张加入手牌（战斗结束后消失）", cards)
+	panel.card_chosen.connect(_on_potion_card_chosen)
+	panel.cancelled.connect(_close_overlay)
+
+
+func _on_potion_card_chosen(card_id: StringName) -> void:
+	PotionResolver.grant_card_to_hand(card_id, _battle.deck)
+	_close_overlay()
 	_refresh_all()
 
 
-func _apply_potion_effect(potion: PotionData) -> String:
-	match potion.effect:
-		PotionData.Effect.HEAL:
-			_player.heal(potion.value)
-			return "回复 %d 点生命" % potion.value
-		PotionData.Effect.BLOCK:
-			var gained: int = _player.gain_block(potion.value)
-			return "获得 %d 点格挡" % gained
-		PotionData.Effect.STRENGTH:
-			_player.apply_power(BasePowers.Strength.new(potion.value))
-			return "获得 %d 点力量" % potion.value
-		PotionData.Effect.ENERGY:
-			_player.gain_energy(potion.value)
-			return "获得 %d 点能量" % potion.value
-		PotionData.Effect.DAMAGE:
-			var target: Enemy = _battle.first_alive_enemy()
-			if target == null:
-				return ""
-			target.take_damage(potion.value, _player, DamageType.NORMAL)
-			return "造成 %d 点伤害" % potion.value
-		_:
-			return ""
+## 卡牌给药水（如「力量药剂」）。药水栏满了就丢弃并**明确告诉玩家**——
+## 静默丢弃是最容易让玩家以为"卡牌没生效"的处理方式。
+func _on_potion_granted(potion_id: StringName) -> void:
+	if _run.is_potion_bar_full():
+		_on_log("药水栏已满，这瓶药水被丢弃了。")
+		return
+	_run.add_potion(potion_id)
+	_hud.refresh()
 
 
 # ══ BattleManager 回调 ══════════════════════════════════════

@@ -6,7 +6,9 @@
 script = ExtResource("1_potiondata")
 id = &"strength_potion"
 display_name = "力量药水"
-description = "获得 2 点力量。"
-effect = 2
-value = 2
+description = "获得 3 点力量。"
+effect = 3
+value = 3
+targeting = 1
 battle_only = true
+rarity = 1

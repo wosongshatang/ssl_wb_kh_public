@@ -9,6 +9,7 @@ extends OverlayPanel
 
 signal purchase_requested(card_id: StringName, price: int)
 signal removal_requested(card_id: StringName, price: int)
+signal potion_purchase_requested(potion_id: StringName, price: int)
 # 注意：`closed` 由基类 OverlayPanel 声明。
 # ⚠️ 子类**不要**重复声明父类已有的信号——编译器会报
 #    "Could not resolve external class member"，而且错误指向的是**使用方**，
@@ -22,12 +23,19 @@ var _mode: Mode = Mode.OFFERS
 var _gold: int = 0
 var _offers: Array[CardData] = []
 var _deck: Array[CardData] = []
+var _potion_offers: Array[PotionData] = []
 
 
-func setup(gold: int, offers: Array[CardData], deck: Array[CardData]) -> void:
+func setup(
+	gold: int,
+	offers: Array[CardData],
+	deck: Array[CardData],
+	potion_offers: Array[PotionData] = []
+) -> void:
 	_gold = gold
 	_offers = offers
 	_deck = deck
+	_potion_offers = potion_offers
 	_mode = Mode.OFFERS
 	rebuild_content()
 
@@ -44,7 +52,7 @@ func _build_content() -> void:
 
 
 func _build_offers() -> void:
-	if _offers.is_empty():
+	if _offers.is_empty() and _potion_offers.is_empty():
 		add_text("（货架已空）")
 
 	for card: CardData in _offers:
@@ -54,9 +62,30 @@ func _build_offers() -> void:
 			card.display_name, card.cost, price, suffix, card.description,
 		], _on_buy_pressed.bind(card.id, price))
 
+	if not _potion_offers.is_empty():
+		add_separator()
+		add_text("药水")
+		for potion: PotionData in _potion_offers:
+			var potion_price: int = potion_price_of(potion)
+			var potion_suffix: String = "" if potion_price <= _gold else "　—　金币不足"
+			add_button("%s　%d 金币%s\n%s" % [
+				potion.display_name, potion_price, potion_suffix, potion.description,
+			], _on_buy_potion_pressed.bind(potion.id, potion_price))
+
 	add_separator()
 	add_button("删除一张牌（%d 金币）" % REMOVAL_PRICE, _on_open_removal_pressed)
 	add_button("离开商店", func() -> void: closed.emit())
+
+
+## 药水定价：稀有度越高越贵（与卡牌定价同一套思路）
+static func potion_price_of(potion: PotionData) -> int:
+	match potion.rarity:
+		2:
+			return 90
+		1:
+			return 62
+		_:
+			return 40
 
 
 func _build_removal() -> void:
@@ -75,6 +104,12 @@ func _on_buy_pressed(card_id: StringName, price: int) -> void:
 	if price > _gold:
 		return
 	purchase_requested.emit(card_id, price)
+
+
+func _on_buy_potion_pressed(potion_id: StringName, price: int) -> void:
+	if price > _gold:
+		return
+	potion_purchase_requested.emit(potion_id, price)
 
 
 func _on_open_removal_pressed() -> void:

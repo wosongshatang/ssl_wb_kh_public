@@ -290,3 +290,48 @@ func test_poisoner_can_actually_appear_in_act_one() -> void:
 			break
 
 	assert_true(seen_poisoner, "40 个种子里毒刃客一次都没出现——它不在战斗池里？")
+
+
+# ══ 地图视图（回归测试）═════════════════════════════════════
+
+func test_map_view_computes_node_positions() -> void:
+	## 回归：地图视图尺寸为 0 时 `_recompute_positions()` 算不出坐标，
+	## 整张地图空白——而它"看起来在跑"（不报错、HUD 正常）。
+	## 真实成因是 `_layout()` 从未被调用过，只连接了 size_changed。
+	## 这条测试在不渲染的情况下就能抓到这类 bug。
+	var view := MapView.new()
+	add_child_autofree(view)
+	view.size = Vector2(1200, 700)
+
+	var map := _generate(5)
+	view.build_map(map)
+
+	assert_eq(view.positioned_node_count(), map.node_count(),
+		"build_map 之后每个节点都应有坐标")
+	assert_gt(view.positioned_node_count(), 0)
+
+
+func test_map_view_positions_spread_across_rows() -> void:
+	var view := MapView.new()
+	add_child_autofree(view)
+	view.size = Vector2(1200, 700)
+
+	var map := _generate(6)
+	view.build_map(map)
+
+	var first_row_y: float = view.node_position(int(map.rows[0][0])).y
+	var last_row_y: float = view.node_position(int(map.rows[MapManager.ROWS_PER_ACT - 1][0])).y
+
+	assert_gt(last_row_y, first_row_y, "层数越大 y 越大（自上而下推进）")
+
+
+func test_map_view_refresh_recomputes_positions() -> void:
+	## 刷新时也必须重算坐标：调用方可能刚改过 size
+	var view := MapView.new()
+	add_child_autofree(view)
+
+	var map := _generate(7)
+	view.size = Vector2(1200, 700)
+	view.refresh(map)
+
+	assert_eq(view.positioned_node_count(), map.node_count())

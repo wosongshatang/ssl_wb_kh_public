@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"wandering_alchemist"
+title = "游方炼金术士"
+description = "一个背着满箱瓶瓶罐罐的老者。他愿意用一瓶药水换你的故事，或者换你的钱。"
+option_a_label = "讲个故事换药水"
+option_a_effect = 7
+option_a_value = 0
+option_b_label = "花钱买下药水"
+option_b_effect = 3
+option_b_value = -35

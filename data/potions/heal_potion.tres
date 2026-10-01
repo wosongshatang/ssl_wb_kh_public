@@ -5,8 +5,10 @@
 [resource]
 script = ExtResource("1_potiondata")
 id = &"heal_potion"
-display_name = "治疗药水"
-description = "回复 20 点生命。"
-effect = 0
-value = 20
+display_name = "回复药水"
+description = "回复最大生命 10% 的生命。"
+effect = 5
+value = 10
+targeting = 1
 battle_only = false
+rarity = 0
