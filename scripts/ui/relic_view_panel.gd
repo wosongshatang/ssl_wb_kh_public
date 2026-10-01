@@ -40,9 +40,13 @@ func _build_content() -> void:
 		row.add_child(text_box)
 
 		var name_label := Label.new()
-		name_label.text = "%s%s" % ["【神格】" if relic.is_divine() else "", relic.display_name]
+		name_label.text = "%s%s　〔%s〕" % [
+			"【神格】" if relic.is_divine() else "",
+			relic.display_name,
+			relic.category_text(),
+		]
 		name_label.add_theme_font_size_override("font_size", 15)
-		name_label.add_theme_color_override("font_color", UiPalette.GOLD)
+		name_label.add_theme_color_override("font_color", _accent_for(relic))
 		text_box.add_child(name_label)
 
 		var desc_label := Label.new()
@@ -53,6 +57,21 @@ func _build_content() -> void:
 		desc_label.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
 		text_box.add_child(desc_label)
 
+		# 触发时机：玩家最想知道的是"它什么时候生效"
+		if relic.trigger_text != "":
+			var trigger_label := Label.new()
+			trigger_label.text = "触发：%s" % relic.trigger_text
+			trigger_label.add_theme_font_size_override("font_size", 11)
+			trigger_label.add_theme_color_override("font_color", UiPalette.GOLD.darkened(0.15))
+			text_box.add_child(trigger_label)
+
+		if relic.divinity_cost > 0:
+			var cost_label := Label.new()
+			cost_label.text = "神性代价：+%d" % relic.divinity_cost
+			cost_label.add_theme_font_size_override("font_size", 11)
+			cost_label.add_theme_color_override("font_color", UiPalette.NODE_BOSS)
+			text_box.add_child(cost_label)
+
 	add_separator()
 	add_button("关闭（ESC）", _close)
 
@@ -62,14 +81,18 @@ func _make_icon(relic: RelicData) -> Control:
 	var icon := ColorRect.new()
 	icon.custom_minimum_size = Vector2(36, 36)
 	icon.size = Vector2(36, 36)
+	icon.color = _accent_for(relic)
+	return icon
+
+
+func _accent_for(relic: RelicData) -> Color:
 	match relic.category:
 		RelicData.Category.DIVINE:
-			icon.color = UiPalette.color_for_rarity(CardData.Rarity.EPIC)
+			return UiPalette.color_for_rarity(CardData.Rarity.EPIC)
 		RelicData.Category.JOB:
-			icon.color = UiPalette.TINT_SKILL.lightened(0.2)
+			return UiPalette.color_for_rarity(CardData.Rarity.GOLD)
 		_:
-			icon.color = UiPalette.color_for_rarity(CardData.Rarity.COMMON)
-	return icon
+			return UiPalette.color_for_rarity(CardData.Rarity.COMMON)
 
 
 func _close() -> void:

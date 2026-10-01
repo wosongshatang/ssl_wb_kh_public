@@ -201,6 +201,10 @@ func _start_battle() -> void:
 	_player.set_hp(_run.hp)
 	enemy.apply_starting_powers()
 	_assign_opponents()
+	# 遗物上下文必须在 notify_battle_start **之前**注入——
+	# 有些遗物（提灯 / 幸运币）要在开场或结算时用到牌堆与战斗对象
+	_player.bind_relics_to_battle(_battle)
+	_player.relic_triggered.connect(_on_relic_triggered)
 	_player.notify_battle_start()
 	enemy.notify_battle_start()
 
@@ -513,6 +517,16 @@ func _on_log(text: String) -> void:
 	_log_lines.append(text)
 
 
+## 遗物触发时给玩家**看得见**的反馈。
+##
+## 静默生效的遗物等于不存在——玩家不会围绕一个"感觉没生效"的东西构筑。
+## 飘字放在自己身上（遗物都是持有者的东西），同时进战斗日志备查。
+func _on_relic_triggered(relic: AbstractRelic, detail: String) -> void:
+	_log_lines.append("〔遗物〕%s：%s" % [relic.display_name, detail])
+	if _player_view != null:
+		_player_view.show_floating_text("%s %s" % [relic.display_name, detail], UiPalette.GOLD)
+
+
 func _on_phase_changed(next_phase: TurnFlow.Phase) -> void:
 	if next_phase == TurnFlow.Phase.PLAYER_TURN:
 		_show_banner("玩家回合")
@@ -556,7 +570,8 @@ func _on_battle_ended(player_won: bool) -> void:
 ## 真正的写回在结算场景点「前进」时一次性完成（D24）。
 func _go_to_reward(gold: int) -> void:
 	var bundle := RewardBundle.new()
-	bundle.gold = gold
+	# 遗物可能在战斗内累加了额外金币（幸运币），一并发放
+	bundle.gold = gold + _battle.bonus_gold
 	bundle.potion_id = _roll_potion_drop()
 	bundle.relic_id = _roll_relic_drop()
 	for card: CardData in CardPool.new(RandomNumberGenerator.new()).roll():
@@ -664,6 +679,12 @@ func _on_job_chosen(job_id: StringName) -> void:
 		granted.append(RewardBundle.card_name(card_id))
 	if not granted.is_empty():
 		_log_lines.append("获得专属卡：%s" % "、".join(granted))
+
+	# 职业专属遗物：与职业绑定，不进普通掉落池
+	var job_relic: StringName = JobRelics.for_job(job.id)
+	if job_relic != &"" and not _run.relics.has(job_relic):
+		_run.relics.append(job_relic)
+		_log_lines.append("获得职业遗物「%s」" % RewardBundle.relic_name(job_relic))
 
 	if _job_panel != null:
 		_job_panel.queue_free()

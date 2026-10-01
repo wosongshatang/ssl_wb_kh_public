@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/relics/relic_data.gd" id="1_relicdata"]
+
+[resource]
+script = ExtResource("1_relicdata")
+id = &"job_bastion_keystone"
+display_name = "壁垒的基石"
+description = "回合结束时，本该清零的格挡额外保留 25%。"
+trigger_text = "回合结束时"
+category = 2
+divinity_cost = 0
+rarity = 2
+deity_id = &""

@@ -21,6 +21,7 @@ var _shop_panel: ShopPanel = null
 var _event_panel: EventPanel = null
 var _shop_offers: Array[CardData] = []
 var _potion_offers: Array[PotionData] = []
+var _relic_offers: Array[StringName] = []
 var _current_event: EventData = null
 
 
@@ -288,7 +289,20 @@ func _open_shop() -> void:
 	var pool := CardPool.new(_rng)
 	_shop_offers = pool.roll(CardPool.SHOP_OFFER_COUNT)
 	_potion_offers = _roll_potion_offers(2)
+	_relic_offers = _roll_relic_offers(2)
 	_show_shop()
+
+
+## 抽 count 件**不重复**的普通遗物当货架。
+## 神格遗物与职业遗物不进商店——前者只能窃取，后者只能转职获得。
+func _roll_relic_offers(count: int) -> Array[StringName]:
+	var pool: Array[StringName] = RelicFactory.droppable_ids(_run.relics)
+	var out: Array[StringName] = []
+	while out.size() < count and not pool.is_empty():
+		var index: int = _rng.randi_range(0, pool.size() - 1)
+		out.append(pool[index])
+		pool.remove_at(index)
+	return out
 
 
 ## 抽 count 瓶**不重复**的药水当货架
@@ -310,10 +324,11 @@ func _show_shop() -> void:
 	_close_shop()
 	_shop_panel = ShopPanel.new()
 	_overlay = _shop_panel
-	_shop_panel.setup(_run.gold, _shop_offers, _run.build_deck(), _potion_offers)
+	_shop_panel.setup(_run.gold, _shop_offers, _run.build_deck(), _potion_offers, _relic_offers)
 	_shop_panel.purchase_requested.connect(_on_purchase_requested)
 	_shop_panel.removal_requested.connect(_on_removal_requested)
 	_shop_panel.potion_purchase_requested.connect(_on_potion_purchase_requested)
+	_shop_panel.relic_purchase_requested.connect(_on_relic_purchase_requested)
 	_shop_panel.closed.connect(_on_shop_closed)
 	add_child(_shop_panel)
 
@@ -372,6 +387,21 @@ func _on_potion_purchase_requested(potion_id: StringName, price: int) -> void:
 			break
 
 	_hint_label.text = "购买了「%s」（花费 %d 金币）。" % [_potion_name(potion_id), price]
+	_hud.refresh()
+	_show_shop()
+
+
+func _on_relic_purchase_requested(relic_id: StringName, price: int) -> void:
+	if not _run.spend_gold(price):
+		return
+
+	_run.relics.append(relic_id)
+	for i: int in range(_relic_offers.size() - 1, -1, -1):
+		if _relic_offers[i] == relic_id:
+			_relic_offers.remove_at(i)
+			break
+
+	_hint_label.text = "购买了遗物「%s」（花费 %d 金币）。" % [_relic_name(relic_id), price]
 	_hud.refresh()
 	_show_shop()
 
@@ -482,6 +512,26 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 			_run.add_card(curse.id)
 			return "获得诅咒「%s」" % curse.display_name
 
+		EventData.Effect.ADD_RELIC:
+			var relic_pool: Array[StringName] = RelicFactory.droppable_ids(_run.relics)
+			if relic_pool.is_empty():
+				return "没有可获得的遗物了"
+			var relic_id: StringName = relic_pool[_rng.randi_range(0, relic_pool.size() - 1)]
+			_run.relics.append(relic_id)
+			return "获得遗物「%s」" % _relic_name(relic_id)
+
+		EventData.Effect.ADD_DIVINE_RELIC:
+			# 窃权事件：神格遗物**只能**从这里来（不进普通掉落池）
+			var divine_pool: Array[StringName] = RelicFactory.divine_ids(_run.relics)
+			if divine_pool.is_empty():
+				return "已经没有可窃取的权柄了"
+			var divine_id: StringName = divine_pool[_rng.randi_range(0, divine_pool.size() - 1)]
+			_run.relics.append(divine_id)
+			var relic_data: Variant = ContentRegistry.get_relic(divine_id)
+			var cost: int = (relic_data as RelicData).divinity_cost if relic_data is RelicData else 0
+			GameState.add_divinity(cost)
+			return "窃得「%s」（神性 +%d）" % [_relic_name(divine_id), cost]
+
 		EventData.Effect.REMOVE_CARD:
 			# 阶段 5 简化：随机移除一张。阶段 6 改成让玩家选。
 			var deck: Array[CardData] = _run.build_deck()
@@ -556,3 +606,10 @@ func _potion_name(potion_id: StringName) -> String:
 	if potion is PotionData:
 		return (potion as PotionData).display_name
 	return String(potion_id)
+
+
+func _relic_name(relic_id: StringName) -> String:
+	var relic: Variant = ContentRegistry.get_relic(relic_id)
+	if relic is RelicData:
+		return (relic as RelicData).display_name
+	return String(relic_id)

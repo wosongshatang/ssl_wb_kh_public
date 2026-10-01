@@ -23,6 +23,8 @@ signal block_gained(amount: int)
 signal health_lost(amount: int)
 signal power_added(power: AbstractPower)
 signal power_removed(power: AbstractPower)
+## 遗物触发了（UI 据此显示提示——遗物效果必须**看得见**）
+signal relic_triggered(relic: AbstractRelic, detail: String)
 signal died
 
 @export var display_name: String = "单位"
@@ -188,6 +190,8 @@ func gain_block(amount: int, card: CardData = null) -> int:
 	var final_amount: int = amount
 	for power: AbstractPower in all_powers():
 		final_amount = power.modify_block(final_amount, card)
+	for relic: AbstractRelic in relics:
+		final_amount = relic.at_block_gain(final_amount, card)
 	final_amount = maxi(0, final_amount)
 
 	if final_amount <= 0:
@@ -219,6 +223,8 @@ func clear_block() -> void:
 	var clearing: int = block
 	for power: AbstractPower in all_powers():
 		clearing = power.at_block_clear(clearing, self)
+	for relic: AbstractRelic in relics:
+		clearing = relic.at_block_clear(clearing, self)
 	clearing = clampi(clearing, 0, block)
 
 	block -= clearing
@@ -250,6 +256,8 @@ func apply_hp_loss(amount: int) -> void:
 	# 放在 health_lost 之后：先让监听信号的 UI 拿到正确血量，再跑可能改状态的钩子。
 	for power: AbstractPower in all_powers():
 		power.on_health_lost(self, amount)
+	for relic: AbstractRelic in relics:
+		relic.on_damage_taken(self, amount)
 	health_changed.emit(hp, max_hp)
 	if hp <= 0:
 		is_dead = true
@@ -283,7 +291,16 @@ func preview_block(amount: int, card: CardData = null) -> int:
 	var value: int = amount
 	for power: AbstractPower in all_powers():
 		value = power.preview_block(value, card)
+	for relic: AbstractRelic in relics:
+		value = relic.preview_block(value, card)
 	return maxi(0, value)
+
+
+## 给所有遗物注入战斗上下文（需要操作牌堆/能量的遗物用）。
+## 由场景在 `notify_battle_start()` **之前**调用。
+func bind_relics_to_battle(battle: BattleManager) -> void:
+	for relic: AbstractRelic in relics:
+		relic.battle = battle
 
 
 # ══ 能量 ════════════════════════════════════════════════════
@@ -350,6 +367,13 @@ func notify_battle_end(won: bool) -> void:
 func notify_kill(target: Creature) -> void:
 	for power: AbstractPower in all_powers():
 		power.on_kill(self, target)
+	for relic: AbstractRelic in relics:
+		relic.on_kill(self, target)
+
+
+## 遗物通知"我触发了"。视图据此显示飘字 / 日志。
+func notify_relic_triggered(relic: AbstractRelic, detail: String) -> void:
+	relic_triggered.emit(relic, detail)
 
 
 ## 清理已到期的常规 Power（依据 is_turn_based + amount <= 0）

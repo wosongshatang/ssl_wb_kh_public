@@ -18,6 +18,8 @@ enum Effect {
 	ADD_POTION,       ## 获得一瓶随机药水（药水栏满则失败）
 	ADD_DIVINE_CARD,  ## 获得一张**对应神明**的无色卡（同时增加神性）
 	ADD_CURSE_CARD,   ## 获得一张随机诅咒卡（纯负面）
+	ADD_RELIC,        ## 获得一件普通遗物
+	ADD_DIVINE_RELIC, ## 获得一件**神格遗物**（窃权事件专用，同时增加神性）
 }
 
 ## 事件涉及的属性（无色卡事件据此只给对应神明的卡）
@@ -62,5 +64,9 @@ static func effect_text(effect: Effect, value: int) -> String:
 			return "获得一张神明的无色卡（同时增加神性）"
 		Effect.ADD_CURSE_CARD:
 			return "获得一张诅咒卡（无法打出、无法升级）"
+		Effect.ADD_RELIC:
+			return "获得一件遗物"
+		Effect.ADD_DIVINE_RELIC:
+			return "窃取一件神格遗物（强力，但会大幅增加神性）"
 		_:
 			return "什么也不会发生"

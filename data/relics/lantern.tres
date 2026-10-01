@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/relics/relic_data.gd" id="1_relicdata"]
+
+[resource]
+script = ExtResource("1_relicdata")
+id = &"lantern"
+display_name = "提灯"
+description = "每场战斗的第一个回合额外抽 1 张牌。"
+trigger_text = "战斗第一回合"
+category = 0
+divinity_cost = 0
+rarity = 1
+deity_id = &""

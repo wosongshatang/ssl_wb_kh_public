@@ -15,10 +15,31 @@ enum Category {
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var description: String = ""
+## 触发时机的一句话说明（UI 用——玩家最想知道的是"它什么时候生效"）
+@export var trigger_text: String = ""
 @export var category: Category = Category.COMMON
 ## 拾取时增加的神性（0 表示不增加）。神格遗物一般 8~15。
 @export_range(0, 30, 1) var divinity_cost: int = 0
+## 掉落权重档位：0 普通 / 1 罕见 / 2 稀有。与卡牌稀有度同一套思路。
+@export_range(0, 2, 1) var rarity: int = 0
+## 神格遗物所属神明（用于「窃权事件」筛选；空表示跨神格通用）
+@export var deity_id: StringName = &""
 
 
 func is_divine() -> bool:
 	return category == Category.DIVINE
+
+
+func is_job_specific() -> bool:
+	return category == Category.JOB
+
+
+## 分类显示名（UI 用）
+func category_text() -> String:
+	match category:
+		Category.DIVINE:
+			return "神格"
+		Category.JOB:
+			return "职业"
+		_:
+			return "普通"

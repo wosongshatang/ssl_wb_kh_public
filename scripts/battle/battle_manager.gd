@@ -16,6 +16,10 @@ signal battle_ended(player_won: bool)
 ## 卡牌获得药水（BattleManager 够不着 RunState，所以抛给场景去记账）
 signal potion_granted(potion_id: StringName)
 
+## 遗物在战斗内累加的额外金币（幸运币这类）。
+## 金币属于 RunState，遗物够不着，所以先累在这里，由场景结算时一并发放。
+var bonus_gold: int = 0
+
 const HAND_SIZE: int = 5
 
 var player: Player

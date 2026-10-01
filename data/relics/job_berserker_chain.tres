@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/relics/relic_data.gd" id="1_relicdata"]
+
+[resource]
+script = ExtResource("1_relicdata")
+id = &"job_berserker_chain"
+display_name = "狂战的骨链"
+description = "每失去 3 点生命，获得 1 点力量。"
+trigger_text = "失去生命时"
+category = 2
+divinity_cost = 0
+rarity = 2
+deity_id = &""

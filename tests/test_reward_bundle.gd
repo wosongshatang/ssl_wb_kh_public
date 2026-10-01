@@ -241,6 +241,6 @@ func test_droppable_relics_exclude_owned_ones() -> void:
 
 
 func test_droppable_relics_empty_when_all_owned() -> void:
-	var owned: Array[StringName] = [&"vajra", &"anchor_chain", &"blood_vial"]
+	var owned: Array[StringName] = BasicRelics.ids()
 
 	assert_eq(RelicFactory.droppable_ids(owned).size(), 0)

@@ -3,85 +3,67 @@ extends RefCounted
 ## 遗物工厂：`relic_id` → [AbstractRelic] 实例
 ##
 ## 与 [PowerFactory] 同样的思路：让 `.tres` 与代码只写 id，不写脚本路径。
-## 新增遗物时只需在 [method create] 加一行 match 分支。
-
-
-## 燃烧之血 —— 战士初始遗物（设计文档 §9.5）
-class BurningBlood extends AbstractRelic:
-	const HEAL_AMOUNT: int = 5
-
-	func _init() -> void:
-		id = &"burning_blood"
-		display_name = "燃烧之血"
-		description = "战斗胜利后回复 %d 点生命。" % HEAL_AMOUNT
-
-	func on_battle_end(owner: Creature, won: bool) -> void:
-		if won:
-			owner.heal(HEAL_AMOUNT)
-
-
-## 金刚杵 —— 战斗开始时获得 1 点力量
-class Vajra extends AbstractRelic:
-	const STRENGTH: int = 1
-
-	func _init() -> void:
-		id = &"vajra"
-		display_name = "金刚杵"
-		description = "战斗开始时获得 %d 点力量。" % STRENGTH
-
-	func at_battle_start(owner: Creature) -> void:
-		owner.apply_power(BasePowers.Strength.new(STRENGTH))
-
-
-## 锚链 —— 战斗开始时获得 4 点格挡
-class AnchorChain extends AbstractRelic:
-	const BLOCK: int = 4
-
-	func _init() -> void:
-		id = &"anchor_chain"
-		display_name = "锚链"
-		description = "战斗开始时获得 %d 点格挡。" % BLOCK
-
-	func at_battle_start(owner: Creature) -> void:
-		owner.gain_block(BLOCK)
-
-
-## 血瓶 —— 战斗开始时回复 2 点生命
-class BloodVial extends AbstractRelic:
-	const HEAL: int = 2
-
-	func _init() -> void:
-		id = &"blood_vial"
-		display_name = "血瓶"
-		description = "战斗开始时回复 %d 点生命。" % HEAL
-
-	func at_battle_start(owner: Creature) -> void:
-		owner.heal(HEAL)
-
+## 三层分类各自在 [BasicRelics] / [DivineRelics] / [JobRelics] 里实现，
+## 本类只负责按顺序问一遍——新增遗物时改对应的分组文件即可。
 
 static func create(relic_id: StringName) -> AbstractRelic:
-	match relic_id:
-		&"burning_blood":
-			return BurningBlood.new()
-		&"vajra":
-			return Vajra.new()
-		&"anchor_chain":
-			return AnchorChain.new()
-		&"blood_vial":
-			return BloodVial.new()
-		_:
-			push_warning("RelicFactory: 未知遗物 id「%s」" % relic_id)
-			return null
+	var relic: AbstractRelic = BasicRelics.create(relic_id)
+	if relic == null:
+		relic = DivineRelics.create(relic_id)
+	if relic == null:
+		relic = JobRelics.create(relic_id)
+
+	if relic == null:
+		push_warning("RelicFactory: 未知遗物 id「%s」" % relic_id)
+	return relic
 
 
 static func is_known(relic_id: StringName) -> bool:
-	return relic_id in [&"burning_blood", &"vajra", &"anchor_chain", &"blood_vial"]
+	return all_ids().has(relic_id)
 
 
-## 可掉落的遗物池（排除角色初始遗物——已经拿到的不会重复掉）
+static func all_ids() -> Array[StringName]:
+	var out: Array[StringName] = BasicRelics.ids()
+	out.append_array(DivineRelics.ids())
+	out.append_array(JobRelics.ids())
+	return out
+
+
+## 普通遗物池（战斗掉落 / 商店用）。
+##
+## **神格遗物与职业遗物刻意排除**：
+## 前者只能通过「窃权事件」获得，后者只能通过转职——
+## 让它们出现在普通掉落里，等于把"选择的重量"稀释掉了。
 static func droppable_ids(owned: Array[StringName]) -> Array[StringName]:
 	var out: Array[StringName] = []
-	for relic_id: StringName in [&"vajra", &"anchor_chain", &"blood_vial"]:
+	for relic_id: StringName in BasicRelics.ids():
 		if not owned.has(relic_id):
 			out.append(relic_id)
 	return out
+
+
+## 神格遗物池（窃权事件用）
+static func divine_ids(owned: Array[StringName]) -> Array[StringName]:
+	var out: Array[StringName] = []
+	for relic_id: StringName in DivineRelics.ids():
+		if not owned.has(relic_id):
+			out.append(relic_id)
+	return out
+
+
+## 商店定价：分类决定档位
+static func price_of(relic_id: StringName) -> int:
+	if DivineRelics.ids().has(relic_id):
+		return 200
+	if JobRelics.ids().has(relic_id):
+		return 150
+	var data: Variant = ContentRegistry.get_relic(relic_id)
+	if data is RelicData:
+		match (data as RelicData).rarity:
+			2:
+				return 160
+			1:
+				return 110
+			_:
+				return 70
+	return 70

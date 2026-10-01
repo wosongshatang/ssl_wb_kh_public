@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"usurp_power"
+title = "窃取权柄"
+description = "神座背后堆着一些不该被人碰到的东西。它们没有看守——\n因为神认为没人敢碰。"
+option_a_label = "伸手去拿"
+option_a_effect = 11
+option_a_value = 0
+option_b_label = "把手缩回来"
+option_b_effect = 3
+option_b_value = 30

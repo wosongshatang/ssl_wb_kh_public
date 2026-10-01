@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/relics/relic_data.gd" id="1_relicdata"]
+
+[resource]
+script = ExtResource("1_relicdata")
+id = &"god_arcane_orb"
+display_name = "法神宝珠"
+description = "战斗开始时获得 2 点荆棘与 2 点缓冲。"
+trigger_text = "战斗开始时"
+category = 1
+divinity_cost = 12
+rarity = 2
+deity_id = &"arcane"

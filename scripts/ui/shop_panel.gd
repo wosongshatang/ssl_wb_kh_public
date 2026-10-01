@@ -10,6 +10,7 @@ extends OverlayPanel
 signal purchase_requested(card_id: StringName, price: int)
 signal removal_requested(card_id: StringName, price: int)
 signal potion_purchase_requested(potion_id: StringName, price: int)
+signal relic_purchase_requested(relic_id: StringName, price: int)
 # 注意：`closed` 由基类 OverlayPanel 声明。
 # ⚠️ 子类**不要**重复声明父类已有的信号——编译器会报
 #    "Could not resolve external class member"，而且错误指向的是**使用方**，
@@ -24,18 +25,21 @@ var _gold: int = 0
 var _offers: Array[CardData] = []
 var _deck: Array[CardData] = []
 var _potion_offers: Array[PotionData] = []
+var _relic_offers: Array[StringName] = []
 
 
 func setup(
 	gold: int,
 	offers: Array[CardData],
 	deck: Array[CardData],
-	potion_offers: Array[PotionData] = []
+	potion_offers: Array[PotionData] = [],
+	relic_offers: Array[StringName] = []
 ) -> void:
 	_gold = gold
 	_offers = offers
 	_deck = deck
 	_potion_offers = potion_offers
+	_relic_offers = relic_offers
 	_mode = Mode.OFFERS
 	rebuild_content()
 
@@ -71,6 +75,21 @@ func _build_offers() -> void:
 			add_button("%s　%d 金币%s\n%s" % [
 				potion.display_name, potion_price, potion_suffix, potion.description,
 			], _on_buy_potion_pressed.bind(potion.id, potion_price))
+
+	if not _relic_offers.is_empty():
+		add_separator()
+		add_text("遗物")
+		for relic_id: StringName in _relic_offers:
+			var loaded: Variant = ContentRegistry.get_relic(relic_id)
+			var relic: RelicData = loaded as RelicData if loaded is RelicData else null
+			if relic == null:
+				continue
+			var relic_price: int = RelicFactory.price_of(relic_id)
+			var relic_suffix: String = "" if relic_price <= _gold else "　—　金币不足"
+			add_button("%s　%d 金币%s\n%s　〔%s〕" % [
+				relic.display_name, relic_price, relic_suffix,
+				relic.description, relic.trigger_text,
+			], _on_buy_relic_pressed.bind(relic_id, relic_price))
 
 	add_separator()
 	add_button("删除一张牌（%d 金币）" % REMOVAL_PRICE, _on_open_removal_pressed)
@@ -110,6 +129,12 @@ func _on_buy_potion_pressed(potion_id: StringName, price: int) -> void:
 	if price > _gold:
 		return
 	potion_purchase_requested.emit(potion_id, price)
+
+
+func _on_buy_relic_pressed(relic_id: StringName, price: int) -> void:
+	if price > _gold:
+		return
+	relic_purchase_requested.emit(relic_id, price)
 
 
 func _on_open_removal_pressed() -> void:
