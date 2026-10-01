@@ -1,9 +1,9 @@
 class_name CardChoicePanel
 extends OverlayPanel
-## 从若干张牌里选一张（药水 / 事件 / 后续更多流程共用）
+## 从若干张牌里选一张（结算界面 / 药水 / 转职 / 后续更多流程共用）
 ##
-## 与 [BattleRewardPanel] 的分工：
-##   - `BattleRewardPanel` 是**战斗结算界面**（金币 + 药水 + 卡牌一起给）
+## 与 [RewardUI] 的分工：
+##   - `RewardUI` 是**战斗结算整屏**（金币 + 药水 + 遗物 + 卡牌一起给）
 ##   - 本类是**纯粹的选牌**，可以嵌在任何流程里
 ## 两者都用 [CardView] 渲染，玩家看到的牌长得一样。
 

@@ -79,6 +79,7 @@ func bind(target: Creature, look_kind: Look = Look.WARRIOR, player_side: bool = 
 	target.power_added.connect(_on_powers_changed)
 	target.power_removed.connect(_on_powers_changed)
 	target.health_lost.connect(_on_health_lost)
+	target.block_gained.connect(_on_block_gained)
 
 	_name_label.text = target.display_name
 	_refresh_powers()
@@ -94,8 +95,37 @@ func _on_powers_changed(_power: AbstractPower) -> void:
 	queue_redraw()
 
 
-func _on_health_lost(_amount: int) -> void:
+func _on_health_lost(amount: int) -> void:
 	play_hit()
+	show_floating_text("-%d" % amount, UiPalette.HP_RED)
+
+
+func _on_block_gained(amount: int) -> void:
+	if amount <= 0:
+		return
+	play_block_gain()
+	show_floating_text("+%d 格挡" % amount, UiPalette.BLOCK_BLUE)
+
+
+## 飘字：伤害 / 格挡数字从身上冒出来然后淡出。
+##
+## 为什么需要它：日志挂在屏幕中间时，玩家要看伤害得把视线从敌人身上移开。
+## 飘字把反馈**放在事件发生的位置**，这是"手感"里最便宜也最有效的一环。
+func show_floating_text(text: String, color: Color) -> void:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_color", color)
+	label.position = Vector2(VIEW_SIZE.x * 0.5 - 14, BODY_HEIGHT * 0.25)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(label)
+
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y - 44.0, 0.7)
+	tween.tween_property(label, "modulate:a", 0.0, 0.7)
+	tween.set_parallel(false)
+	tween.tween_callback(label.queue_free)
 
 
 # ══ 动画 ════════════════════════════════════════════════════

@@ -22,6 +22,8 @@ signal settings_pressed
 signal potion_pressed(slot_index: int)
 ## 双击药水槽 → 直接使用（战斗式默认打第一个敌人）
 signal potion_double_clicked(slot_index: int)
+## 打开战斗日志（战斗中才可用）
+signal log_pressed
 
 const HUD_HEIGHT: float = 58.0
 const AVATAR_SIZE: float = 42.0
@@ -38,6 +40,7 @@ var _map_info_label: Label
 var _boss_icon: Control
 var _relic_chip: Button
 var _time_chip: Label
+var _log_button: Button
 var _potion_slots: Array[PotionSlot] = []
 
 
@@ -60,6 +63,12 @@ func _process(delta: float) -> void:
 
 func set_time_running(running: bool) -> void:
 	_timing = running
+
+
+## 战斗日志只在地图之外有意义——地图场景会把它藏起来
+func set_log_available(available: bool) -> void:
+	if _log_button != null:
+		_log_button.visible = available
 
 
 func bind_run(run: RunState) -> void:
@@ -98,6 +107,13 @@ func _build() -> void:
 	row.add_child(_gold_chip)
 	_build_potion_bar(row)
 	_build_map_info(row)
+
+	# 「战斗日志」按钮紧跟层数（用户要求：层数右边加一本书一样的按钮）。
+	# 地图上没有战斗，由 set_log_available(false) 隐藏。
+	_log_button = _make_action_button("日志")
+	_log_button.tooltip_text = "查看本场战斗的完整日志"
+	_log_button.pressed.connect(func() -> void: log_pressed.emit())
+	row.add_child(_log_button)
 
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -78,6 +78,8 @@ func _build_ui() -> void:
 	_hud.map_pressed.connect(_refresh)
 	_hud.potion_pressed.connect(_on_potion_clicked)
 	_hud.potion_double_clicked.connect(_on_potion_double_clicked)
+	# 地图上没有战斗，日志按钮无意义
+	_hud.set_log_available(false)
 
 
 func _layout() -> void:

@@ -13,8 +13,19 @@ signal back_to_boot_pressed
 
 
 func _ready() -> void:
-	back_button.pressed.connect(func() -> void: back_to_boot_pressed.emit())
+	back_button.pressed.connect(_on_back_pressed)
 	_refresh()
+
+
+## ⚠️ 这里必须**自己**处理导航。
+## GameOverUI 就是场景根节点，没有组合根帮它接线——之前只 emit 了一个
+## 没人监听的信号，按钮点了完全没反应。这类"信号发了但没人听"的 bug
+## 不会报任何错，只能靠"每加一个信号就问谁在听"来避免。
+func _on_back_pressed() -> void:
+	back_to_boot_pressed.emit()
+	# 本局已结束（存档在结算时已删除），清掉状态免得标题页读到半截数据
+	GameState.reset_run()
+	get_tree().change_scene_to_file("res://scenes/boot/main.tscn")
 
 
 func _refresh() -> void:

@@ -30,10 +30,11 @@ var _energy_label: Label
 var _draw_pile_label: Label
 var _discard_pile_label: Label
 var _turn_banner: Label
-var _log_label: Label
 var _end_turn_button: Button
+## 本场战斗的完整日志。用户要求：日志收进可滑动面板，不挂在屏幕中间——
+## 战斗中玩家的注意力在敌人意图和手牌上，实时日志反而挡视线。
+var _log_lines: PackedStringArray = PackedStringArray()
 
-var _reward_panel: BattleRewardPanel = null
 var _job_panel: JobChoicePanel = null
 var _overlay: OverlayPanel = null
 var _busy: bool = false
@@ -87,13 +88,6 @@ func _build_ui() -> void:
 	_turn_banner.modulate = Color(1, 1, 1, 0)
 	add_child(_turn_banner)
 
-	_log_label = Label.new()
-	_log_label.add_theme_font_size_override("font_size", 11)
-	_log_label.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
-	_log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_log_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_log_label)
-
 	_end_turn_button = Button.new()
 	_end_turn_button.text = "结束回合"
 	_end_turn_button.custom_minimum_size = Vector2(120, 42)
@@ -111,6 +105,7 @@ func _build_ui() -> void:
 	_hud.map_pressed.connect(_open_map_overlay)
 	_hud.potion_pressed.connect(_on_potion_clicked)
 	_hud.potion_double_clicked.connect(_on_potion_double_clicked)
+	_hud.log_pressed.connect(_open_battle_log)
 
 
 func _make_corner_label(accent: Color) -> Label:
@@ -149,8 +144,6 @@ func _layout() -> void:
 	_draw_pile_label.position = Vector2(viewport_size.x - 108, viewport_size.y - 64)
 	_turn_banner.position = Vector2(0, field_top + field_height * 0.16)
 	_turn_banner.size = Vector2(viewport_size.x, 60)
-	_log_label.position = Vector2(viewport_size.x * 0.5 - 220, field_top + field_height * 0.34)
-	_log_label.size = Vector2(440, 60)
 	_end_turn_button.position = Vector2(viewport_size.x - 152, viewport_size.y - 110)
 
 
@@ -477,7 +470,7 @@ func _on_potion_granted(potion_id: StringName) -> void:
 # ══ BattleManager 回调 ══════════════════════════════════════
 
 func _on_log(text: String) -> void:
-	_log_label.text = text
+	_log_lines.append(text)
 
 
 func _on_phase_changed(next_phase: TurnFlow.Phase) -> void:
@@ -513,7 +506,36 @@ func _on_battle_ended(player_won: bool) -> void:
 		_start_job_transfer()
 		return
 
-	_open_reward_panel(gold, _roll_potion_drop(), CardPool.new(RandomNumberGenerator.new()).roll())
+	_go_to_reward(gold)
+
+
+## 普通战斗 → **独立的结算场景**（用户要求）。
+## 奖励数据通过 GameState.pending_reward 跨场景传递，
+## 真正的写回在结算场景点「前进」时一次性完成（D24）。
+func _go_to_reward(gold: int) -> void:
+	var bundle := RewardBundle.new()
+	bundle.gold = gold
+	bundle.potion_id = _roll_potion_drop()
+	bundle.relic_id = _roll_relic_drop()
+	for card: CardData in CardPool.new(RandomNumberGenerator.new()).roll():
+		bundle.card_offer_ids.append(card.id)
+
+	GameState.pending_reward = bundle.to_dict()
+	_hud.set_time_running(false)
+	get_tree().change_scene_to_file("res://scenes/ui/reward.tscn")
+
+
+## 遗物掉落：精英必掉，普通战斗小概率。
+## 已拥有的遗物不会再掉（RelicFactory.droppable_ids 负责过滤）。
+func _roll_relic_drop() -> StringName:
+	var chance: float = 1.0 if _node_kind == MapNode.Kind.ELITE else 0.18
+	if randf() > chance:
+		return &""
+
+	var pool: Array[StringName] = RelicFactory.droppable_ids(_run.relics)
+	if pool.is_empty():
+		return &""
+	return pool[randi_range(0, pool.size() - 1)]
 
 
 func _gold_reward() -> int:
@@ -535,30 +557,17 @@ func _roll_potion_drop() -> StringName:
 	return pool[randi_range(0, pool.size() - 1)]
 
 
-# ══ 战斗结算 ════════════════════════════════════════════════
+# ══ 战斗日志 ════════════════════════════════════════════════
 
-func _open_reward_panel(gold: int, potion_id: StringName, offers: Array[CardData]) -> void:
-	_reward_panel = BattleRewardPanel.new()
-	_reward_panel.setup(gold, potion_id, offers, not _run.is_potion_bar_full())
-	_reward_panel.finished.connect(_on_reward_finished)
-	add_child(_reward_panel)
-
-
-func _on_reward_finished(result: Dictionary) -> void:
-	_run.add_gold(int(result.get("gold", 0)))
-
-	var card_id: StringName = result.get("card_id", &"")
-	if card_id != &"":
-		_run.add_card(card_id)
-
-	var potion_id: StringName = result.get("potion_id", &"")
-	if potion_id != &"" and not _run.add_potion(potion_id):
-		_on_log("药水栏已满，这瓶药水被丢弃了。")
-
-	_reward_panel = null
-	_busy = false
-	SaveManager.save_run(_run, GameState.map)
-	_go_to_map()
+## 完整日志收进可滑动面板（用户要求：不要挂在屏幕中间）
+func _open_battle_log() -> void:
+	if _overlay != null:
+		return
+	var panel := BattleLogPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(_log_lines)
+	panel.closed.connect(_close_overlay)
 
 
 # ══ 转职（第 1、2 幕 Boss 后固定触发）═══════════════════════
@@ -601,18 +610,21 @@ func _on_job_chosen(job_id: StringName) -> void:
 		if card is CardData:
 			offers.append(card as CardData)
 
-	# 复用结算面板：转职附赠只是"没有金币、没有药水"的结算
-	_reward_panel = BattleRewardPanel.new()
-	_reward_panel.setup(0, &"", offers, false)
-	_reward_panel.finished.connect(_on_job_card_finished)
-	add_child(_reward_panel)
+	if offers.is_empty():
+		_advance_act()
+		return
+
+	# 转职附赠只是"纯粹的选牌"，复用通用选牌面板即可
+	var panel := CardChoicePanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup("转职附赠：选择一张职业牌加入牌组", offers, false)
+	panel.card_chosen.connect(_on_job_card_chosen)
 
 
-func _on_job_card_finished(result: Dictionary) -> void:
-	var card_id: StringName = result.get("card_id", &"")
-	if card_id != &"":
-		_run.add_card(card_id)
-	_reward_panel = null
+func _on_job_card_chosen(card_id: StringName) -> void:
+	_run.add_card(card_id)
+	_close_overlay()
 	_advance_act()
 
 

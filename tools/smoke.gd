@@ -23,6 +23,7 @@ const SCENES: Array[String] = [
 	"res://scenes/map/map.tscn",
 	"res://scenes/battle/battle.tscn",
 	"res://scenes/ui/game_over.tscn",
+	"res://scenes/ui/reward.tscn",
 ]
 
 const SCRIPT_ROOT: String = "res://scripts"
