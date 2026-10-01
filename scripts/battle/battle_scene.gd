@@ -135,6 +135,12 @@ func _make_pile_button(accent: Color) -> Button:
 
 func _layout() -> void:
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+
+	# 背景显式设尺寸——它的父节点是普通 Node，靠锚点撑不满（见 BattleBackground 文档）
+	if _background != null:
+		_background.position = Vector2.ZERO
+		_background.size = viewport_size
+
 	var field_top: float = RunHUD.HUD_HEIGHT + 20.0
 	var hand_height: float = 200.0
 	var field_height: float = viewport_size.y - field_top - hand_height

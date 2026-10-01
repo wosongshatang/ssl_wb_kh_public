@@ -127,3 +127,25 @@ func test_act_theme_matches_act_name() -> void:
 	assert_eq(MapManager.act_name(2), "战场")
 	assert_eq(str(BattleBackground.ACT_THEMES[3]["prop"]), "ruins")
 	assert_eq(MapManager.act_name(3), "古战场")
+
+
+func test_background_has_a_drawable_area_when_sized() -> void:
+	## 回归：背景控件尺寸为 0 → `_draw()` 一开头就 return →
+	## **"背景根本没画"且不报任何错**（用户实际遇到的就是这个）
+	var view := BattleBackground.new()
+	add_child_autofree(view)
+	view.size = Vector2(1280, 720)
+
+	assert_gt(view._draw_rect_area().size.x, 1.0)
+	assert_gt(view._draw_rect_area().size.y, 1.0)
+
+
+func test_background_falls_back_to_viewport_size() -> void:
+	## size 退化时回退到视口尺寸——背景是整屏元素，
+	## "画大一点"永远比"什么都没画"好
+	var view := BattleBackground.new()
+	add_child_autofree(view)
+	view.size = Vector2.ZERO
+
+	assert_gt(view._draw_rect_area().size.x, 1.0, "尺寸为 0 时应回退到视口尺寸")
+	assert_gt(view._draw_rect_area().size.y, 1.0)
