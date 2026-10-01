@@ -66,3 +66,34 @@ func display_text() -> String:
 			return "召唤"
 		_:
 			return "未知"
+
+
+## 意图配色（UI 用）。**颜色必须与危险程度对应**——
+## 玩家扫一眼颜色就该知道这一下要不要防。
+func color() -> Color:
+	match type:
+		IntentType.ATTACK:
+			return Color(0.92, 0.42, 0.36)
+		IntentType.DEFEND:
+			return Color(0.45, 0.66, 0.9)
+		IntentType.BUFF:
+			return Color(0.55, 0.82, 0.5)
+		IntentType.DEBUFF:
+			return Color(0.75, 0.5, 0.9)
+		_:
+			return Color(0.7, 0.7, 0.7)
+
+
+## 意图图标（无美术资源，用符号占位）
+func icon_text() -> String:
+	match type:
+		IntentType.ATTACK:
+			return "⚔"
+		IntentType.DEFEND:
+			return "◈"
+		IntentType.BUFF:
+			return "▲"
+		IntentType.DEBUFF:
+			return "▼"
+		_:
+			return "·"

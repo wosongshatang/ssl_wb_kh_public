@@ -22,6 +22,7 @@ var _player: Player
 var _enemies: Array[Enemy] = []
 
 var _hud: RunHUD
+var _background: BattleBackground
 var _field: Control
 var _player_view: CombatActorView
 var _enemy_views: Array[CombatActorView] = []
@@ -57,10 +58,11 @@ func _ready() -> void:
 # ══ 界面构建 ════════════════════════════════════════════════
 
 func _build_ui() -> void:
-	var background := ColorRect.new()
-	background.color = UiPalette.BG_DEEP
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(background)
+	# 背景按幕绘制（阶段 6）：背景告诉玩家"我在哪张图上"，
+	# 而幕环境机制正是绑定在"图"上的
+	_background = BattleBackground.new()
+	add_child(_background)
+	_background.set_act(_run.current_act)
 
 	# 战场层用绝对定位——立绘要能被 Tween 挪动，放进容器会被布局系统覆盖
 	_field = Control.new()
@@ -287,7 +289,24 @@ func _refresh_all() -> void:
 	_refresh_hand()
 	_refresh_piles()
 	_refresh_energy()
+	_refresh_intents()
 	_hud.refresh()
+
+
+## 敌人意图必须**每次刷新都更新**——玩家全靠它决定"这一下要不要防"。
+## 看不到意图 = 只能盲打 = 这个游戏的核心决策就不存在了。
+func _refresh_intents() -> void:
+	if _player_view != null:
+		_player_view.set_intent(null)
+
+	for i: int in _enemy_views.size():
+		if i >= _enemies.size():
+			continue
+		var enemy: Enemy = _enemies[i]
+		if not enemy.is_alive():
+			_enemy_views[i].set_intent(null)
+			continue
+		_enemy_views[i].set_intent(enemy.current_intent())
 
 
 func _refresh_hand() -> void:

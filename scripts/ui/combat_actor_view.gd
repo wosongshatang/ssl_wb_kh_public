@@ -39,6 +39,9 @@ var is_player_side: bool = true
 
 var _name_label: Label
 var _status_box: HBoxContainer
+## 敌人意图（玩家据此决定怎么应对——**看不到意图就没法做决策**）
+var _intent_box: PanelContainer
+var _intent_label: Label
 ## 受击闪白的强度（0 = 正常）
 var _flash: float = 0.0
 
@@ -52,7 +55,9 @@ func _ready() -> void:
 
 func _build_labels() -> void:
 	_name_label = Label.new()
-	_name_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	# ⚠️ 只用 position/size 定位，**不要**再设锚点。
+	# 锚点（PRESET_TOP_WIDE 的左右不等）和 size 同时用，Godot 会在 `_ready` 之后
+	# 用锚点把 size 覆盖回去并报 "Nodes with non-equal opposite anchors..."（D31）。
 	_name_label.position = Vector2(0, BODY_HEIGHT + BAR_HEIGHT + 8)
 	_name_label.size = Vector2(VIEW_SIZE.x, 18)
 	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -68,6 +73,51 @@ func _build_labels() -> void:
 	_status_box.add_theme_constant_override("separation", 4)
 	_status_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_status_box)
+
+	_build_intent_box()
+
+
+## 意图标签悬在立绘**上方**（y 为负 = 画在控件矩形之外）。
+## 放在上方而不是下方：下方已经被血条和状态图标占满了，
+## 而且玩家的视线习惯从"敌人头顶"读它的下一步动作。
+func _build_intent_box() -> void:
+	_intent_box = PanelContainer.new()
+	_intent_box.position = Vector2(VIEW_SIZE.x * 0.5 - 56.0, -40.0)
+	_intent_box.custom_minimum_size = Vector2(112, 0)
+	_intent_box.size = Vector2(112, 0)
+	_intent_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_intent_box)
+
+	_intent_label = Label.new()
+	_intent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_intent_label.add_theme_font_size_override("font_size", 14)
+	_intent_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_intent_box.add_child(_intent_label)
+
+
+## 更新意图显示。传 null 表示"没有意图"（玩家 / 已死亡 / 无意图敌人）。
+func set_intent(intent: IntentData) -> void:
+	if _intent_box == null:
+		return
+
+	if intent == null:
+		_intent_box.visible = false
+		return
+
+	_intent_box.visible = true
+	_intent_label.text = "%s %s" % [intent.icon_text(), intent.display_text()]
+	_intent_label.add_theme_color_override("font_color", intent.color())
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.06, 0.08, 0.92)
+	style.border_color = intent.color()
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(5)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	_intent_box.add_theme_stylebox_override("panel", style)
 
 
 ## 绑定战斗单位并订阅其信号
