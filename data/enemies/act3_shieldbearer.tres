@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/creatures/enemy_data.gd" id="1_enemydata"]
+[ext_resource type="Script" path="res://scripts/battle/intent_data.gd" id="2_intentdata"]
+
+[sub_resource type="Resource" id="Intent_0"]
+script = ExtResource("2_intentdata")
+type = 1
+value = 10
+times = 1
+icon_key = &"defend"
+power_id = &""
+
+[sub_resource type="Resource" id="Intent_1"]
+script = ExtResource("2_intentdata")
+type = 0
+value = 10
+times = 1
+icon_key = &"attack"
+power_id = &""
+
+[resource]
+script = ExtResource("1_enemydata")
+id = &"act3_shieldbearer"
+display_name = "遗骸盾卫"
+max_hp = 40
+intents = Array[IntentData]([SubResource("Intent_0"), SubResource("Intent_1")])
+is_elite = false
+is_boss = false
+act = 3
+starting_powers = {}
+identity_power_ids = Array[StringName]([])
+phase2_hp_ratio = 0.0
+phase2_intents = Array[IntentData]([])

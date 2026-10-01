@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/creatures/enemy_data.gd" id="1_enemydata"]
+[ext_resource type="Script" path="res://scripts/battle/intent_data.gd" id="2_intentdata"]
+
+[sub_resource type="Resource" id="Intent_0"]
+script = ExtResource("2_intentdata")
+type = 0
+value = 4
+times = 2
+icon_key = &"attack"
+power_id = &""
+
+[resource]
+script = ExtResource("1_enemydata")
+id = &"act2_archer"
+display_name = "弩手"
+max_hp = 24
+intents = Array[IntentData]([SubResource("Intent_0")])
+is_elite = false
+is_boss = false
+act = 2
+starting_powers = {}
+identity_power_ids = Array[StringName]([])
+phase2_hp_ratio = 0.0
+phase2_intents = Array[IntentData]([])

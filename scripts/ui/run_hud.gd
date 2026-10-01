@@ -288,7 +288,9 @@ func refresh() -> void:
 		var node: MapNode = GameState.map.current_node()
 		if node != null:
 			row_index = node.row + 1
-	_map_info_label.text = "第 %d 幕 · %d/%d 层" % [_run.current_act, row_index, total_rows]
+	_map_info_label.text = "%s · %d/%d 层" % [
+		MapManager.act_name(_run.current_act), row_index, total_rows,
+	]
 
 	_refresh_potions()
 	_update_time_chip()

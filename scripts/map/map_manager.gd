@@ -34,13 +34,24 @@ const ACT_MODIFIERS: Dictionary = {
 	3: &"ancient_grudge",
 }
 
+## 每幕的地图名（设计文档 §5.2 三线九图 · 战士线）
+const ACT_NAMES: Dictionary = {
+	1: "竞技场",
+	2: "战场",
+	3: "古战场",
+}
+
 ## 每幕的普通战斗敌人池。
-## ⚠️ **毒敌人必须在池子里**——否则「克制壁垒的敌人」只存在于单测里，
-##    玩家永远遇不到，壁垒的弱点在真实对局中就不会出现。
+##
+## ⚠️ **毒敌人必须在每一幕的池子里**——否则「克制壁垒的敌人」只存在于单测里，
+## 玩家永远遇不到，壁垒的弱点在真实对局中就不会出现。
+##
+## 池内敌人的**机制要互补**，不能只是数值不同：
+## 高攻低血惩罚不格挡 / 带格挡惩罚纯攻击 / 多段惩罚单次大格挡 / 自我强化逼你提速。
 const COMBAT_POOLS: Dictionary = {
-	1: [&"act1_combat", &"act1_poisoner"],
-	2: [&"act2_combat", &"act2_poisoner"],
-	3: [&"act3_combat"],
+	1: [&"act1_combat", &"act1_gladiator", &"act1_shieldman", &"act1_poisoner"],
+	2: [&"act2_combat", &"act2_archer", &"act2_standard", &"act2_poisoner"],
+	3: [&"act3_combat", &"act3_wraith", &"act3_berserker", &"act3_shieldbearer", &"act3_poisoner"],
 }
 
 ## 事件池。**必须放真实注册的 id**——
@@ -194,6 +205,11 @@ func _pick_event() -> StringName:
 	if EVENT_POOL.is_empty():
 		return &""
 	return EVENT_POOL[_rng.randi_range(0, EVENT_POOL.size() - 1)]
+
+
+## 幕名（UI 展示用；未配置时回退成"第 N 幕"）
+static func act_name(act: int) -> String:
+	return str(ACT_NAMES.get(act, "第 %d 幕" % act))
 
 
 # ── 移动 ────────────────────────────────────────────────────

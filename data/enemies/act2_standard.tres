@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/creatures/enemy_data.gd" id="1_enemydata"]
+[ext_resource type="Script" path="res://scripts/battle/intent_data.gd" id="2_intentdata"]
+
+[sub_resource type="Resource" id="Intent_0"]
+script = ExtResource("2_intentdata")
+type = 2
+value = 2
+times = 1
+icon_key = &"buff"
+power_id = &"strength"
+
+[sub_resource type="Resource" id="Intent_1"]
+script = ExtResource("2_intentdata")
+type = 1
+value = 8
+times = 1
+icon_key = &"defend"
+power_id = &""
+
+[sub_resource type="Resource" id="Intent_2"]
+script = ExtResource("2_intentdata")
+type = 0
+value = 8
+times = 1
+icon_key = &"attack"
+power_id = &""
+
+[resource]
+script = ExtResource("1_enemydata")
+id = &"act2_standard"
+display_name = "掌旗官"
+max_hp = 28
+intents = Array[IntentData]([SubResource("Intent_0"), SubResource("Intent_1"), SubResource("Intent_2")])
+is_elite = false
+is_boss = false
+act = 2
+starting_powers = {}
+identity_power_ids = Array[StringName]([])
+phase2_hp_ratio = 0.0
+phase2_intents = Array[IntentData]([])
