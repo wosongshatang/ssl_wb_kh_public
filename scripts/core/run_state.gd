@@ -27,6 +27,17 @@ var rng_seed: int = 0
 var is_over: bool = false
 var victory: bool = false
 
+## 是否正处于一场**未结算**的战斗中。
+##
+## 「继续游戏」据此决定回到战斗还是回到地图。
+## 没有这个字段的话，读档时当前节点已被标记为「已访问」，
+## 玩家会**直接跳过战斗**落到地图的下一个节点——这正是用户报的 bug。
+var in_battle: bool = false
+
+## 待结算的战斗奖励。**随存档持久化**——
+## 否则在结算界面退出游戏，奖励就凭空消失了。
+var pending_reward: Dictionary = {}
+
 ## 牌组用**带后缀的 id** 记录升级状态：`strike` 未升级，`strike+` 已升级。
 ##
 ## 为什么不用「id + 独立升级列表」：那样两份数据要同步，
@@ -49,6 +60,8 @@ func start_new_run(character: StringName, seed_value: int) -> void:
 	play_seconds = 0.0
 	is_over = false
 	victory = false
+	in_battle = false
+	pending_reward = {}
 
 
 ## 阶段 4 只有战士；猎人 / 法师的初始牌组在阶段 5 接入
@@ -147,12 +160,19 @@ func is_potion_bar_full() -> bool:
 	return potions.size() >= MAX_POTIONS
 
 
+## 从牌组移除**第一张**该 id 的牌。
+## 无色卡与金卡删不掉（[method CardData.can_remove]）——它们是刻进灵魂的东西。
 func remove_card(card_id: StringName) -> bool:
-	var idx: int = deck_card_ids.find(card_id)
-	if idx < 0:
+	var loaded: Variant = ContentRegistry.get_card(card_id)
+	if loaded is CardData and not (loaded as CardData).can_remove():
+		push_warning("RunState.remove_card: 「%s」不可删除" % card_id)
 		return false
-	deck_card_ids.remove_at(idx)
-	return true
+
+	for i: int in deck_card_ids.size():
+		if decode_card_id(deck_card_ids[i]) == card_id:
+			deck_card_ids.remove_at(i)
+			return true
+	return false
 
 
 ## 展开成实际的 CardData 列表（从 ContentRegistry 查表）。
@@ -251,6 +271,8 @@ func to_dict() -> Dictionary:
 		"rng_seed": rng_seed,
 		"is_over": is_over,
 		"victory": victory,
+		"in_battle": in_battle,
+		"pending_reward": pending_reward,
 	}
 
 
@@ -264,6 +286,8 @@ func from_dict(data: Dictionary) -> void:
 	rng_seed = int(data.get("rng_seed", 0))
 	is_over = bool(data.get("is_over", false))
 	victory = bool(data.get("victory", false))
+	in_battle = bool(data.get("in_battle", false))
+	pending_reward = data.get("pending_reward", {}) as Dictionary
 
 	deck_card_ids.clear()
 	for raw: Variant in (data.get("deck", []) as Array):

@@ -41,11 +41,6 @@ var divinity: int = 0
 ## 人性：凡人结局需 humanity >= 3 且 divinity < 60
 var humanity: int = 0
 
-## 待结算的战斗奖励（跨场景传递：战斗 → 结算界面）。
-## 用字典而不是强类型对象，是为了让存档/调试时能直接读——
-## 转换交给 RewardBundle.from_dict()。
-var pending_reward: Dictionary = {}
-
 
 ## 开新局：生成单局状态与地图
 func start_new_run(character: StringName, seed_value: int) -> void:
@@ -79,7 +74,6 @@ func reset_run() -> void:
 	identity_power_ids.clear()
 	divinity = 0
 	humanity = 0
-	pending_reward = {}
 
 
 func has_active_run() -> bool:

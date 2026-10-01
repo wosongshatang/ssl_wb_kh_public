@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card_data.gd" id="1_carddata"]
+
+[resource]
+script = ExtResource("1_carddata")
+id = &"gold_rage_reckless"
+display_name = "莽击"
+description = "造成 {damage} 点伤害，失去 {self_hp_loss} 点生命。"
+cost = 1
+type = 0
+rarity = 5
+damage = 14
+block = 0
+draw = 0
+gain_energy = 0
+self_hp_loss = 3
+apply_to_self = {}
+apply_to_target = {}
+exhaust = false
+grant_potion_id = &""
+divinity_gain = 0
+unplayable = false
+triggers_on_turn_end = false
+deity_id = &""

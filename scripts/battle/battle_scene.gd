@@ -27,8 +27,8 @@ var _player_view: CombatActorView
 var _enemy_views: Array[CombatActorView] = []
 var _hand_box: HBoxContainer
 var _energy_label: Label
-var _draw_pile_label: Label
-var _discard_pile_label: Label
+var _draw_pile_button: Button
+var _discard_pile_button: Button
 var _turn_banner: Label
 var _end_turn_button: Button
 ## 本场战斗的完整日志。用户要求：日志收进可滑动面板，不挂在屏幕中间——
@@ -75,10 +75,16 @@ func _build_ui() -> void:
 
 	_energy_label = _make_corner_label(UiPalette.ENERGY_ORB)
 	add_child(_energy_label)
-	_discard_pile_label = _make_corner_label(UiPalette.TEXT_DIM)
-	add_child(_discard_pile_label)
-	_draw_pile_label = _make_corner_label(UiPalette.BLOCK_BLUE)
-	add_child(_draw_pile_label)
+
+	# 抽牌堆在**左下**、弃牌堆在**右下**（用户要求调换）。
+	# 两者都可点击查看内容——玩家需要知道"接下来可能抽到什么"。
+	_draw_pile_button = _make_pile_button(UiPalette.BLOCK_BLUE)
+	_draw_pile_button.pressed.connect(_open_draw_pile)
+	add_child(_draw_pile_button)
+
+	_discard_pile_button = _make_pile_button(UiPalette.TEXT_DIM)
+	_discard_pile_button.pressed.connect(_open_discard_pile)
+	add_child(_discard_pile_button)
 
 	_turn_banner = Label.new()
 	_turn_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -116,6 +122,15 @@ func _make_corner_label(accent: Color) -> Label:
 	return label
 
 
+func _make_pile_button(accent: Color) -> Button:
+	var button := Button.new()
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", 14)
+	button.add_theme_color_override("font_color", accent)
+	button.tooltip_text = "点击查看这个牌堆里的所有牌"
+	return button
+
+
 func _layout() -> void:
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	var field_top: float = RunHUD.HUD_HEIGHT + 20.0
@@ -140,8 +155,8 @@ func _layout() -> void:
 	_hand_box.size = Vector2(hand_width, 170)
 
 	_energy_label.position = Vector2(34, viewport_size.y - 214)
-	_discard_pile_label.position = Vector2(30, viewport_size.y - 64)
-	_draw_pile_label.position = Vector2(viewport_size.x - 108, viewport_size.y - 64)
+	_draw_pile_button.position = Vector2(30, viewport_size.y - 64)
+	_discard_pile_button.position = Vector2(viewport_size.x - 126, viewport_size.y - 64)
 	_turn_banner.position = Vector2(0, field_top + field_height * 0.16)
 	_turn_banner.size = Vector2(viewport_size.x, 60)
 	_end_turn_button.position = Vector2(viewport_size.x - 152, viewport_size.y - 110)
@@ -289,8 +304,27 @@ func _refresh_hand() -> void:
 func _refresh_piles() -> void:
 	if _battle.deck == null:
 		return
-	_draw_pile_label.text = "抽牌堆 %d" % _battle.deck.draw_pile.size()
-	_discard_pile_label.text = "弃牌堆 %d" % _battle.deck.discard_pile.size()
+	_draw_pile_button.text = "抽牌堆 %d" % _battle.deck.draw_pile.size()
+	_discard_pile_button.text = "弃牌堆 %d" % _battle.deck.discard_pile.size()
+
+
+## 点击牌堆 → 列出这个牌堆里的所有牌
+func _open_draw_pile() -> void:
+	_show_pile(_battle.deck.draw_pile, "抽牌堆（%d 张，顺序即抽取顺序）" % _battle.deck.draw_pile.size())
+
+
+func _open_discard_pile() -> void:
+	_show_pile(_battle.deck.discard_pile, "弃牌堆（%d 张，洗牌后会重新进抽牌堆）" % _battle.deck.discard_pile.size())
+
+
+func _show_pile(cards: Array[CardData], title: String) -> void:
+	if _overlay != null:
+		return
+	var panel := DeckViewPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(cards, title)
+	panel.closed.connect(_close_overlay)
 
 
 func _refresh_energy() -> void:
@@ -491,6 +525,8 @@ func _on_battle_ended(player_won: bool) -> void:
 	# ⚠️ 遗物结算必须在同步血量**之前**——燃烧之血会在胜利时回血
 	_player.notify_battle_end(player_won)
 	_run.sync_from_creature(_player)
+	# 战斗已结算：清掉"未完成战斗"标记，之后读档回地图而不是重打
+	_run.in_battle = false
 	_hud.refresh()
 
 	if not player_won:
@@ -526,7 +562,9 @@ func _go_to_reward(gold: int) -> void:
 	for card: CardData in CardPool.new(RandomNumberGenerator.new()).roll():
 		bundle.card_offer_ids.append(card.id)
 
-	GameState.pending_reward = bundle.to_dict()
+	# 奖励写进 RunState（随存档持久化）——在结算界面退出游戏也不该丢奖励
+	_run.pending_reward = bundle.to_dict()
+	SaveManager.save_run(_run, GameState.map)
 	_hud.set_time_running(false)
 	get_tree().change_scene_to_file("res://scenes/ui/reward.tscn")
 
@@ -617,6 +655,16 @@ func _on_job_chosen(job_id: StringName) -> void:
 		return
 
 	GameState.apply_job(job)
+
+	# 转职专属卡：**固定赠送两张**（用户要求），不可升级、不可删除。
+	# 与三选一的职业牌分开——专属卡是"这条路的标志性招式"，不该有机会错过。
+	var granted: PackedStringArray = PackedStringArray()
+	for card_id: StringName in job.signature_card_ids:
+		_run.add_card(card_id)
+		granted.append(RewardBundle.card_name(card_id))
+	if not granted.is_empty():
+		_log_lines.append("获得专属卡：%s" % "、".join(granted))
+
 	if _job_panel != null:
 		_job_panel.queue_free()
 		_job_panel = null

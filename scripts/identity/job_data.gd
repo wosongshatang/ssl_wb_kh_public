@@ -18,6 +18,10 @@ extends Resource
 @export var identity_power_ids: Array[StringName] = []
 ## 转职附赠的职业牌候选（三选一）——转职**不增加最大生命**（决策 5）
 @export var job_card_ids: Array[StringName] = []
+## 转职**固定赠送**的专属金卡（每次转职给两张，用户指定）。
+## 与 job_card_ids 的区别：那个是三选一，这个是必得——
+## 专属卡代表"这条路的标志性招式"，不该让玩家有机会错过。
+@export var signature_card_ids: Array[StringName] = []
 ## 职业卡池标签（阶段 5 接入奖励权重）
 @export var card_pool_tags: Array[StringName] = []
 

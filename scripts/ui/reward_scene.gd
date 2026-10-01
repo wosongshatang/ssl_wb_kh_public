@@ -21,7 +21,7 @@ func _ready() -> void:
 		GameState.start_new_run(&"warrior", randi())
 		_run = GameState.run
 
-	_bundle = RewardBundle.from_dict(GameState.pending_reward)
+	_bundle = RewardBundle.from_dict(_run.pending_reward)
 
 	_build_hud()
 
@@ -203,6 +203,6 @@ func _on_forward_pressed() -> void:
 	var summary: String = _bundle.commit(_run)
 	print("[Reward] %s" % summary)
 
-	GameState.pending_reward = {}
+	_run.pending_reward = {}
 	SaveManager.save_run(_run, GameState.map)
 	get_tree().change_scene_to_file("res://scenes/map/map.tscn")

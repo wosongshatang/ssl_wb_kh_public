@@ -61,6 +61,17 @@ const UPGRADE_DRAW_BY_RARITY: Array[int] = [1, 1, 1, 2, 3, 3, 3, 0]
 @export var exhaust: bool = false
 @export var grant_potion_id: StringName = &""
 
+# ══ 特殊卡标签（无色 / 诅咒 / 转职专属）══════════════════════
+
+## 获得时增加的神性（无色卡用——神明的赠礼都有代价）
+@export_range(0, 30, 1) var divinity_gain: int = 0
+## 不可打出（诅咒牌在手里就是纯粹的负担）
+@export var unplayable: bool = false
+## 在**手里**时，回合结束触发 `apply_to_self` / `self_hp_loss`（诅咒牌）
+@export var triggers_on_turn_end: bool = false
+## 对应的神明（无色卡按神明归属，事件据此筛选）
+@export var deity_id: StringName = &""
+
 # ══ 升级 ════════════════════════════════════════════════════
 
 ## 实例状态：这张牌是否已升级。
@@ -169,10 +180,23 @@ func _draw_delta() -> int:
 	return UPGRADE_DRAW_BY_RARITY[clampi(rarity, 0, UPGRADE_DRAW_BY_RARITY.size() - 1)]
 
 
+## 能否升级。**无色卡 / 金卡 / 诅咒卡都不可升级**——
+## 它们的价值与代价是设计好的定值，升级会破坏这层平衡。
 func can_upgrade() -> bool:
-	if is_upgraded or rarity == Rarity.CURSE:
+	if is_upgraded:
 		return false
-	return true
+	return not (rarity in [Rarity.CURSE, Rarity.COLORLESS, Rarity.GOLD])
+
+
+## 能否从牌组中删除。
+## 无色卡与金卡是「刻进灵魂」的东西，删不掉（与转职能力不可剥夺同理）。
+func can_remove() -> bool:
+	return not (rarity in [Rarity.COLORLESS, Rarity.GOLD])
+
+
+## 能否打出。诅咒牌恒不可打出——它的作用是在手里持续折磨你。
+func is_unplayable() -> bool:
+	return unplayable or rarity == Rarity.CURSE
 
 
 # ══ 描述渲染 ════════════════════════════════════════════════

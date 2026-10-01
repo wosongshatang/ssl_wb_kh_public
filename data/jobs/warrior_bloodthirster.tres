@@ -12,3 +12,4 @@ parent_job = &"warrior_berserker"
 identity_power_ids = Array[StringName]([&"bloodthirster"])
 job_card_ids = Array[StringName]([&"inflame", &"clothesline", &"pommel_strike"])
 card_pool_tags = Array[StringName]([&"warrior", &"aggressive"])
+signature_card_ids = Array[StringName]([&"gold_blood_feast", &"gold_blood_ritual"])

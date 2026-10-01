@@ -40,6 +40,7 @@ const COMBAT_POOLS: Dictionary = {
 ## 曾经这里写的是 `placeholder_event_N`，导致两个真事件永远不会被触发。
 const EVENT_POOL: Array[StringName] = [
 	&"shrine_of_war", &"rebel_broker", &"wandering_alchemist",
+	&"god_offer_war", &"god_offer_arcane", &"cursed_altar",
 ]
 
 ## id -> MapNode

@@ -53,7 +53,13 @@ func _on_continue_pressed() -> void:
 		return
 
 	GameState.adopt_run(restored[0] as RunState, restored[1] as MapManager)
-	get_tree().change_scene_to_file("res://scenes/map/map.tscn")
+
+	# 存档记录着"有一场没结算的战斗"→ 回到战斗，而不是跳过它去地图
+	var restored_run := restored[0] as RunState
+	if restored_run.in_battle:
+		get_tree().change_scene_to_file("res://scenes/battle/battle.tscn")
+	else:
+		get_tree().change_scene_to_file("res://scenes/map/map.tscn")
 
 
 func _on_debug_battle_pressed() -> void:

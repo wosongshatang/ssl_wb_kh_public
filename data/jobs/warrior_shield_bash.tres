@@ -12,3 +12,4 @@ parent_job = &"warrior_shield_guard"
 identity_power_ids = Array[StringName]([&"shield_bash"])
 job_card_ids = Array[StringName]([&"shrug_it_off", &"iron_wave", &"true_grit"])
 card_pool_tags = Array[StringName]([&"warrior", &"defense"])
+signature_card_ids = Array[StringName]([&"gold_bash_counter", &"gold_bash_shatter"])

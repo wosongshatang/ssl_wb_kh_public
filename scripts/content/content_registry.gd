@@ -91,6 +91,25 @@ func all_relic_ids() -> Array[StringName]:
 	return out
 
 
+## 某神明的无色卡。`deity_id` 传空则返回全部无色卡。
+func divine_cards_for(deity_id: StringName) -> Array[CardData]:
+	var out: Array[CardData] = []
+	for card: CardData in all_cards():
+		if card.rarity != CardData.Rarity.COLORLESS:
+			continue
+		if deity_id == &"" or card.deity_id == deity_id:
+			out.append(card)
+	return out
+
+
+func curse_cards() -> Array[CardData]:
+	var out: Array[CardData] = []
+	for card: CardData in all_cards():
+		if card.rarity == CardData.Rarity.CURSE:
+			out.append(card)
+	return out
+
+
 func get_relic(id: StringName) -> Variant:
 	return _relics.get(String(id))
 

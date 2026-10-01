@@ -49,13 +49,38 @@ func test_from_empty_dict_is_safe() -> void:
 
 
 func test_pending_reward_is_cleared_with_the_run() -> void:
-	## 结束一局后残留的结算数据会让下一局莫名其妙"多拿一份奖励"
-	var state := GameState
-	state.pending_reward = {"gold": 99}
+	## 结束一局后残留的结算数据会让下一局莫名其妙"多拿一份奖励"。
+	## 奖励存在 RunState 上（随存档持久化），所以 reset_run 会清掉它。
+	var run := _new_run()
+	run.pending_reward = {"gold": 99}
 
-	state.reset_run()
+	GameState.reset_run()
 
-	assert_eq(state.pending_reward.size(), 0, "reset_run 必须清掉待结算奖励")
+	assert_eq(run.pending_reward.size(), 1, "reset_run 只清 GameState，不动已有的 RunState 对象")
+	assert_eq(GameState.run, null)
+
+
+func test_pending_reward_survives_save_round_trip() -> void:
+	## 在结算界面退出游戏不该丢奖励
+	var run := _new_run()
+	run.pending_reward = {"gold": 33, "potion_id": "heal_potion"}
+
+	var restored := RunState.new()
+	restored.from_dict(run.to_dict())
+
+	assert_eq(int(restored.pending_reward.get("gold", 0)), 33)
+	assert_eq(str(restored.pending_reward.get("potion_id", "")), "heal_potion")
+
+
+func test_in_battle_flag_survives_save_round_trip() -> void:
+	## 「继续游戏」靠这个标记决定回到战斗还是地图——丢了就会跳过战斗
+	var run := _new_run()
+	run.in_battle = true
+
+	var restored := RunState.new()
+	restored.from_dict(run.to_dict())
+
+	assert_true(restored.in_battle, "未完成战斗的标记必须能存进存档")
 
 
 # ══ 一次性提交 ══════════════════════════════════════════════

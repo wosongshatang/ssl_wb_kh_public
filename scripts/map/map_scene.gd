@@ -123,7 +123,10 @@ func _on_node_selected(node_id: int) -> void:
 
 	match node.kind:
 		MapNode.Kind.COMBAT, MapNode.Kind.ELITE, MapNode.Kind.BOSS:
-			# 进战斗前存档——万一崩了还能从这一步重来
+			# ⚠️ 进战斗前必须把 `in_battle` 置位再存档。
+			# 否则读档时当前节点已被标记「已访问」，玩家会**直接跳过这场战斗**
+			# 落到地图的下一个节点——这正是用户报的 bug。
+			_run.in_battle = true
 			SaveManager.save_run(_run, _map)
 			_hud.set_time_running(false)
 			get_tree().change_scene_to_file("res://scenes/battle/battle.tscn")
@@ -459,6 +462,25 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 			if not _run.add_potion(potion_id):
 				return "药水栏已满，什么也没拿到"
 			return "获得「%s」" % _potion_name(potion_id)
+
+		EventData.Effect.ADD_DIVINE_CARD:
+			var deity: StringName = _current_event.deity_id
+			var divine_pool: Array[CardData] = ContentRegistry.divine_cards_for(deity)
+			if divine_pool.is_empty():
+				return "没有可赠予的无色卡"
+			var divine: CardData = divine_pool[_rng.randi_range(0, divine_pool.size() - 1)]
+			_run.add_card(divine.id)
+			# 神明的赠礼都有代价：拿卡的同时神性上涨
+			GameState.add_divinity(divine.divinity_gain)
+			return "获得「%s」（神性 +%d）" % [divine.display_name, divine.divinity_gain]
+
+		EventData.Effect.ADD_CURSE_CARD:
+			var curse_pool: Array[CardData] = ContentRegistry.curse_cards()
+			if curse_pool.is_empty():
+				return "没有可获得的诅咒卡"
+			var curse: CardData = curse_pool[_rng.randi_range(0, curse_pool.size() - 1)]
+			_run.add_card(curse.id)
+			return "获得诅咒「%s」" % curse.display_name
 
 		EventData.Effect.REMOVE_CARD:
 			# 阶段 5 简化：随机移除一张。阶段 6 改成让玩家选。

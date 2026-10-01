@@ -74,6 +74,10 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 	if not deck.hand.has(card):
 		_log("该牌不在手牌中")
 		return false
+	if card.is_unplayable():
+		# 诅咒牌恒不可打出——它的作用是在手里持续折磨你，不是让你花能量丢掉
+		_log("「%s」无法打出。" % card.display_name)
+		return false
 	if not player.can_afford(card.cost):
 		_log("能量不足：「%s」需要 %d，剩余 %d" % [card.display_name, card.cost, player.energy])
 		return false
@@ -109,6 +113,38 @@ func _on_player_turn_started(turn: int) -> void:
 
 func _on_player_turn_ended(_turn: int) -> void:
 	player.on_turn_end()
+	# ⚠️ 诅咒必须在**回合清理之后**发作。
+	# 放在 `player.on_turn_end()` 之前的话，它刚上的减益会被同一次清理立刻减掉一层——
+	# 「回合结束获得 1 层易伤」实际等于什么都没发生，玩家会以为这张诅咒是废牌。
+	_trigger_hand_curses()
+
+
+## 手里的诅咒牌在回合结束时发作（用户要求：「痛苦」回合结束获得 1 层易伤）。
+##
+## 为什么放在**回合结束**而不是回合开始：
+## 回合开始触发的话，玩家抽到诅咒的当回合就挨罚，完全没有应对窗口；
+## 回合结束触发给了玩家「这一回合得想办法处理它」的空间——
+## 负面效果的可玩性不在于数值多大，在于玩家有没有反应的余地。
+func _trigger_hand_curses() -> void:
+	if deck == null:
+		return
+
+	for card: CardData in deck.hand:
+		if not card.triggers_on_turn_end:
+			continue
+
+		_log("「%s」发作……" % card.display_name)
+
+		for raw_id: Variant in card.apply_to_self:
+			var power_id := StringName(str(raw_id))
+			var power := PowerFactory.create(power_id, int(card.apply_to_self[raw_id]))
+			if power != null:
+				player.apply_power(power)
+				_log("  获得 %s ×%d" % [power.display_name, power.amount])
+
+		if card.self_hp_loss > 0:
+			player.take_damage(card.self_hp_loss, null, DamageType.HP_LOSS)
+			_log("  失去 %d 点生命" % card.self_hp_loss)
 	var discarded: int = deck.discard_hand()
 	_log("玩家回合结束，弃掉手牌 %d 张" % discarded)
 

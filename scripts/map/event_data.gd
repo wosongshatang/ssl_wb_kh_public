@@ -16,7 +16,12 @@ enum Effect {
 	REMOVE_CARD,      ## 移除牌组中一张牌（进删牌页）
 	MAX_HP,           ## 最大生命增加
 	ADD_POTION,       ## 获得一瓶随机药水（药水栏满则失败）
+	ADD_DIVINE_CARD,  ## 获得一张**对应神明**的无色卡（同时增加神性）
+	ADD_CURSE_CARD,   ## 获得一张随机诅咒卡（纯负面）
 }
+
+## 事件涉及的属性（无色卡事件据此只给对应神明的卡）
+@export var deity_id: StringName = &""
 
 @export var id: StringName = &""
 @export var title: String = "事件"
@@ -53,5 +58,9 @@ static func effect_text(effect: Effect, value: int) -> String:
 			return "最大生命 +%d" % value
 		Effect.ADD_POTION:
 			return "获得一瓶随机药水"
+		Effect.ADD_DIVINE_CARD:
+			return "获得一张神明的无色卡（同时增加神性）"
+		Effect.ADD_CURSE_CARD:
+			return "获得一张诅咒卡（无法打出、无法升级）"
 		_:
 			return "什么也不会发生"

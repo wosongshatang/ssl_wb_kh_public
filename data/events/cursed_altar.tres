@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"cursed_altar"
+title = "诅咒祭坛"
+description = "祭坛上摊着一本翻烂的册子。每一页都在低声念着你的名字。\n翻开它的人，会带走一些东西。"
+option_a_label = "翻开册子"
+option_a_effect = 9
+option_a_value = 0
+option_b_label = "合上册子离开"
+option_b_effect = 1
+option_b_value = 8
