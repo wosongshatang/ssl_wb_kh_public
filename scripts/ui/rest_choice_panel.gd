@@ -27,8 +27,7 @@ func setup(heal_amount: int, max_hp: int, upgradable_count: int) -> void:
 
 
 func _build_content() -> void:
-	add_title("休息处")
-	add_text("你在篝火旁停下。可以恢复体力，也可以打磨手中的牌。")
+	add_node_banner(MapNode.Kind.REST, "休息处", "你在篝火旁停下。可以恢复体力，也可以打磨手中的牌。")
 	add_separator()
 
 	add_button("休息：回复 %d 点生命（最大生命的 %d%%）" % [

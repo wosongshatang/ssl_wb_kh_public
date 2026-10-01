@@ -24,7 +24,13 @@ var payload: Dictionary = {}
 
 
 func kind_label() -> String:
-	match kind:
+	return kind_label_of(kind)
+
+
+## 静态版：只有 kind 值（没有节点实例）时也要能拿到中文名。
+## 单一数据源——两处各写一遍迟早会不一致。
+static func kind_label_of(node_kind: Kind) -> String:
+	match node_kind:
 		Kind.COMBAT:
 			return "战斗"
 		Kind.ELITE:

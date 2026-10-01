@@ -20,8 +20,7 @@ func _build_content() -> void:
 		add_text("（事件数据缺失）")
 		return
 
-	add_title(_event.title)
-	add_text(_event.description)
+	add_node_banner(MapNode.Kind.EVENT, _event.title, _event.description)
 	add_separator()
 
 	if not _event.option_a_label.is_empty():

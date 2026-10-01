@@ -105,3 +105,46 @@ func add_button(text: String, handler: Callable) -> Button:
 
 func add_separator() -> void:
 	content_box.add_child(HSeparator.new())
+
+
+## 节点横幅：告诉玩家「你进入了什么」。
+##
+## 用户反馈：商店 / 事件 / 休息都只是一列文字，看不出自己进了哪个节点。
+## 横幅用**节点类型的配色**（与地图上的节点同色）+ 大字标题 + 一句副标题，
+## 让玩家一眼确认"我在哪"。
+func add_node_banner(kind: int, title: String, subtitle: String = "") -> void:
+	var banner := PanelContainer.new()
+	banner.custom_minimum_size = Vector2(0, 66)
+
+	var accent := UiPalette.color_for_node_kind(kind)
+	var style := StyleBoxFlat.new()
+	style.bg_color = accent.darkened(0.62)
+	style.border_color = accent
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	banner.add_theme_stylebox_override("panel", style)
+	content_box.add_child(banner)
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 2)
+	banner.add_child(column)
+
+	var title_label := Label.new()
+	title_label.text = "%s　%s" % [MapNode.kind_label_of(kind), title]
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_label.add_theme_font_size_override("font_size", 22)
+	title_label.add_theme_color_override("font_color", accent.lightened(0.35))
+	column.add_child(title_label)
+
+	if subtitle != "":
+		var subtitle_label := Label.new()
+		subtitle_label.text = subtitle
+		subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		subtitle_label.add_theme_font_size_override("font_size", 12)
+		subtitle_label.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
+		column.add_child(subtitle_label)

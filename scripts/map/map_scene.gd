@@ -116,6 +116,16 @@ func _refresh() -> void:
 func _on_node_selected(node_id: int) -> void:
 	if _overlay != null:
 		return
+
+	# ⚠️ 存档必须在 `enter_node` **之前**。
+	#
+	# `enter_node` 会把节点标记为已访问并把它设为当前位置。先 enter 再存，
+	# SL 之后就回不到"进入这个节点之前"了——用户报告的正是这个：
+	# 商店买错了想读档，回来发现商店节点已经结算完了。
+	#
+	# 这是「**进节点前留一个检查点**」的通用做法，商店 / 事件 / 休息 / 战斗都适用。
+	SaveManager.save_run(_run, _map)
+
 	if not _map.enter_node(node_id):
 		return
 
@@ -124,9 +134,8 @@ func _on_node_selected(node_id: int) -> void:
 
 	match node.kind:
 		MapNode.Kind.COMBAT, MapNode.Kind.ELITE, MapNode.Kind.BOSS:
-			# ⚠️ 进战斗前必须把 `in_battle` 置位再存档。
-			# 否则读档时当前节点已被标记「已访问」，玩家会**直接跳过这场战斗**
-			# 落到地图的下一个节点——这正是用户报的 bug。
+			# 再存一次：此时节点已标记访问 + `in_battle` 置位，
+			# 让「继续游戏」能**直接回到这场战斗**而不是回到地图再点一次
 			_run.in_battle = true
 			SaveManager.save_run(_run, _map)
 			_hud.set_time_running(false)
