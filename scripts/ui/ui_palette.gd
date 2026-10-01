@@ -28,9 +28,18 @@ const TINT_ATTACK := Color(0.52, 0.24, 0.22)
 const TINT_SKILL := Color(0.22, 0.34, 0.48)
 const TINT_POWER := Color(0.36, 0.28, 0.48)
 
-const RARITY_COMMON := Color(0.62, 0.63, 0.68)
-const RARITY_UNCOMMON := Color(0.5, 0.72, 0.52)
-const RARITY_RARE := Color(0.85, 0.7, 0.3)
+## 卡牌稀有度配色（用户指定：灰—白—绿—蓝—紫—金 / 无色 / 黑）
+## 下标 = CardData.Rarity
+const RARITY_COLORS: Array[Color] = [
+	Color(0.52, 0.53, 0.57),   # 0 STARTER 灰 —— 初始卡牌
+	Color(0.88, 0.89, 0.92),   # 1 COMMON  白
+	Color(0.42, 0.78, 0.48),   # 2 UNCOMMON 绿
+	Color(0.36, 0.6, 0.94),    # 3 RARE    蓝
+	Color(0.72, 0.46, 0.92),   # 4 EPIC    紫
+	Color(0.96, 0.78, 0.3),    # 5 GOLD    金（转职专属）
+	Color(0.88, 0.93, 0.98),   # 6 COLORLESS 无色（神明赠与）
+	Color(0.32, 0.2, 0.24),    # 7 CURSE   黑（诅咒）
+]
 
 ## 地图节点配色
 const NODE_COMBAT := Color(0.7, 0.42, 0.36)
@@ -53,13 +62,21 @@ static func tint_for_card_type(card_type: int) -> Color:
 
 
 static func color_for_rarity(rarity: int) -> Color:
-	match rarity:
-		2:
-			return RARITY_RARE
-		1:
-			return RARITY_UNCOMMON
-		_:
-			return RARITY_COMMON
+	return RARITY_COLORS[clampi(rarity, 0, RARITY_COLORS.size() - 1)]
+
+
+## 稀有度越高，边框越粗——"越贵越好看"最省事的做法
+static func rarity_border_width(rarity: int) -> int:
+	if rarity >= CardData.Rarity.GOLD:
+		return 3
+	if rarity >= CardData.Rarity.RARE:
+		return 2
+	return 1
+
+
+## 稀有度是否"高到值得发光"（金色 / 无色）
+static func rarity_is_premium(rarity: int) -> bool:
+	return rarity == CardData.Rarity.GOLD or rarity == CardData.Rarity.COLORLESS
 
 
 static func color_for_node_kind(kind: int) -> Color:

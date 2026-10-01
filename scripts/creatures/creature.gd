@@ -274,6 +274,18 @@ func set_hp(value: int) -> void:
 	health_changed.emit(hp, max_hp)
 
 
+## 预估「获得 N 点格挡」实际会拿到多少。
+##
+## 走与 [method gain_block] 相同的修正钩子，但调的是 **preview 版本**（无副作用）。
+## 盾卫的「本回合第一张格挡 +3」带状态，直接调 `modify_block` 会把加成消耗掉——
+## 结果就是 UI 一刷新卡面，玩家的加成莫名其妙没了。
+func preview_block(amount: int, card: CardData = null) -> int:
+	var value: int = amount
+	for power: AbstractPower in all_powers():
+		value = power.preview_block(value, card)
+	return maxi(0, value)
+
+
 # ══ 能量 ════════════════════════════════════════════════════
 
 func can_afford(cost: int) -> bool:

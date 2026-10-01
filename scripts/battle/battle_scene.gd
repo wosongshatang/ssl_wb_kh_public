@@ -175,6 +175,7 @@ func _start_battle() -> void:
 	enemy_view.is_player_side = false
 	enemy_view.card_dropped_on_actor.connect(_on_card_dropped)
 	enemy_view.potion_dropped_on_actor.connect(_on_potion_dropped)
+	enemy_view.status_pressed.connect(_on_status_pressed)
 	_field.add_child(enemy_view)
 	_enemy_views = [enemy_view]
 
@@ -190,6 +191,7 @@ func _start_battle() -> void:
 
 	_player_view.bind(_player, CombatActorView.Look.WARRIOR, true)
 	enemy_view.bind(enemy, _look_for(enemy_data), false)
+	_player_view.status_pressed.connect(_on_status_pressed)
 
 	_layout()
 	_refresh_all()
@@ -272,10 +274,14 @@ func _refresh_hand() -> void:
 		return
 
 	var can_act: bool = _battle.flow.is_player_turn() and not _busy
+	var target: Creature = _battle.first_alive_enemy()
 	for card: CardData in _battle.deck.hand:
 		var view := CardView.new()
 		_hand_box.add_child(view)
 		view.set_card(card)
+		# 带上预览上下文：卡面显示的是**当前实际会生效的数值**
+		# （吃力量 / 敏捷 / 易伤），而不是写死的基础值
+		view.set_preview(_player, target)
 		view.set_playable(can_act and _player.can_afford(card.cost))
 		view.card_activated.connect(_on_card_double_clicked)
 
@@ -558,6 +564,17 @@ func _roll_potion_drop() -> StringName:
 
 
 # ══ 战斗日志 ════════════════════════════════════════════════
+
+## 点击状态图标 → 状态详情（用户反馈：拿到敏捷却不知道它做什么）
+func _on_status_pressed(actor: Creature) -> void:
+	if _overlay != null or actor == null:
+		return
+	var panel := PowerDetailPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(actor.display_name, actor.all_powers())
+	panel.closed.connect(_close_overlay)
+
 
 ## 完整日志收进可滑动面板（用户要求：不要挂在屏幕中间）
 func _open_battle_log() -> void:

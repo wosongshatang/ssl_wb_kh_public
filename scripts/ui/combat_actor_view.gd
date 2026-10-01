@@ -18,6 +18,8 @@ extends Control
 signal card_dropped_on_actor(card: CardData, actor: Creature)
 ## 玩家把药水拖到本单位身上使用（战斗式药水）
 signal potion_dropped_on_actor(slot_index: int, actor: Creature)
+## 点击状态图标 → 查看状态详情
+signal status_pressed(actor: Creature)
 
 const VIEW_SIZE := Vector2(168, 214)
 const BODY_HEIGHT := 128.0
@@ -266,7 +268,10 @@ func _draw_hp_bar() -> void:
 				block_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 
 
-## 状态图标：每个 Power 一个小色片（名字首字 + 层数）
+## 状态图标：每个 Power 一个小色片（名字首字 + 层数），**可点击查看详情**。
+##
+## 用户反馈：拿到敏捷后看到 `敏2` 完全不知道它在做什么。
+## 只显示首字 + 层数就必然需要一条"点开看解释"的路径。
 func _refresh_powers() -> void:
 	for child: Node in _status_box.get_children():
 		_status_box.remove_child(child)
@@ -276,21 +281,32 @@ func _refresh_powers() -> void:
 		return
 
 	for power: AbstractPower in creature.all_powers():
-		var chip := Label.new()
+		var chip := Button.new()
 		var label_text: String = power.display_name.substr(0, 1)
 		if power.amount > 0:
 			label_text += str(power.amount)
 		chip.text = label_text
+		chip.focus_mode = Control.FOCUS_NONE
+		chip.tooltip_text = "%s（%d）\n%s" % [power.display_name, power.amount, power.description]
 		chip.add_theme_font_size_override("font_size", 10)
 		chip.add_theme_color_override("font_color", Color.WHITE)
 
 		var style := StyleBoxFlat.new()
-		style.bg_color = UiPalette.TINT_POWER if not power.is_identity else UiPalette.GOLD.darkened(0.35)
+		style.bg_color = UiPalette.GOLD.darkened(0.35) if power.is_identity else UiPalette.TINT_POWER
 		style.set_corner_radius_all(3)
 		style.content_margin_left = 4
 		style.content_margin_right = 4
 		chip.add_theme_stylebox_override("normal", style)
+		chip.add_theme_stylebox_override("hover", style)
+		chip.add_theme_stylebox_override("pressed", style)
+
+		chip.pressed.connect(_on_status_chip_pressed)
 		_status_box.add_child(chip)
+
+
+func _on_status_chip_pressed() -> void:
+	if creature != null:
+		status_pressed.emit(creature)
 
 
 # ══ 卡牌投放目标 ════════════════════════════════════════════

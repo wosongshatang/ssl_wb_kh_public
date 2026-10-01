@@ -29,6 +29,13 @@ class ShieldGuardStance extends AbstractPower:
 		_used_this_turn = true
 		return block + BONUS
 
+	## 预览版本：**不翻转标志**。否则 UI 每刷新一次卡面就会把加成消耗掉，
+	## 玩家会看到「卡面写着 +3，打出去却没加」。
+	func preview_block(block: int, _card: CardData) -> int:
+		if _used_this_turn:
+			return block
+		return block + BONUS
+
 	func on_turn_start(_owner: Creature) -> void:
 		_used_this_turn = false
 

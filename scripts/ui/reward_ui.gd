@@ -43,9 +43,15 @@ func _build() -> void:
 	margin.add_theme_constant_override("margin_bottom", 44)
 	add_child(margin)
 
+	# 整体居中（用户要求）。用 CenterContainer 而不是手算偏移——
+	# 奖励行数会变（1~4 行），手算必然对不齐。
+	var center := CenterContainer.new()
+	margin.add_child(center)
+
 	var column := VBoxContainer.new()
+	column.custom_minimum_size = Vector2(460, 0)
 	column.add_theme_constant_override("separation", 14)
-	margin.add_child(column)
+	center.add_child(column)
 
 	column.add_child(_make_banner())
 
@@ -56,19 +62,21 @@ func _build() -> void:
 	_hint_label = Label.new()
 	_hint_label.add_theme_font_size_override("font_size", 13)
 	_hint_label.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
+	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint_label.custom_minimum_size = Vector2(460, 0)
 	column.add_child(_hint_label)
 
 	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	spacer.custom_minimum_size = Vector2(0, 18)
 	column.add_child(spacer)
 
 	var forward_row := HBoxContainer.new()
-	forward_row.alignment = BoxContainer.ALIGNMENT_END
+	forward_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(forward_row)
 
 	_forward_button = Button.new()
 	_forward_button.text = "前进  ▶"
-	_forward_button.custom_minimum_size = Vector2(200, 54)
+	_forward_button.custom_minimum_size = Vector2(220, 54)
 	_forward_button.focus_mode = Control.FOCUS_NONE
 	_forward_button.add_theme_font_size_override("font_size", 20)
 	_forward_button.add_theme_color_override("font_color", Color(0.98, 0.92, 0.8))
@@ -84,11 +92,10 @@ func _build() -> void:
 	forward_row.add_child(_forward_button)
 
 
-## 顶部卷轴横幅
+## 顶部卷轴横幅（与奖励行同宽，整体居中对齐）
 func _make_banner() -> PanelContainer:
 	var banner := PanelContainer.new()
 	banner.custom_minimum_size = Vector2(ROW_WIDTH, 62)
-	banner.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.76, 0.66, 0.44)

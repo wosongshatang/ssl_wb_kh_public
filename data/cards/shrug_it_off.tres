@@ -6,7 +6,7 @@
 script = ExtResource("1_carddata")
 id = &"shrug_it_off"
 display_name = "甩脱"
-description = "获得 8 点格挡。"
+description = "获得 {block} 点格挡。"
 cost = 1
 type = 1
 damage = 0

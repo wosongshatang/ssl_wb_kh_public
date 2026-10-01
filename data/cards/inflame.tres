@@ -6,7 +6,7 @@
 script = ExtResource("1_carddata")
 id = &"inflame"
 display_name = "燃烧"
-description = "获得 2 点力量。"
+description = "获得 {strength} 点力量。"
 cost = 1
 type = 2
 rarity = 1

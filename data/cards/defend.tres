@@ -6,7 +6,7 @@
 script = ExtResource("1_carddata")
 id = &"defend"
 display_name = "防御"
-description = "获得 5 点格挡。"
+description = "获得 {block} 点格挡。"
 cost = 1
 type = 1
 damage = 0

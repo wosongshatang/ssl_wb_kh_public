@@ -6,7 +6,7 @@
 script = ExtResource("1_carddata")
 id = &"impervious"
 display_name = "铜墙铁壁"
-description = "获得 30 点格挡。"
+description = "获得 {block} 点格挡。"
 cost = 2
 type = 1
 rarity = 2

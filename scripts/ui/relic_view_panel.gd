@@ -64,11 +64,11 @@ func _make_icon(relic: RelicData) -> Control:
 	icon.size = Vector2(36, 36)
 	match relic.category:
 		RelicData.Category.DIVINE:
-			icon.color = UiPalette.RARITY_RARE
+			icon.color = UiPalette.color_for_rarity(CardData.Rarity.EPIC)
 		RelicData.Category.JOB:
 			icon.color = UiPalette.TINT_SKILL.lightened(0.2)
 		_:
-			icon.color = UiPalette.RARITY_COMMON
+			icon.color = UiPalette.color_for_rarity(CardData.Rarity.COMMON)
 	return icon
 
 

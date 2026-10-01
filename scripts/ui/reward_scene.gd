@@ -10,6 +10,7 @@ extends Node
 var _run: RunState
 var _bundle: RewardBundle
 var _ui: RewardUI
+var _hud: RunHUD
 var _overlay: OverlayPanel = null
 
 
@@ -22,10 +23,109 @@ func _ready() -> void:
 
 	_bundle = RewardBundle.from_dict(GameState.pending_reward)
 
+	_build_hud()
+
 	_ui = RewardUI.new()
 	add_child(_ui)
 	_ui.row_pressed.connect(_on_row_pressed)
 	_ui.forward_pressed.connect(_on_forward_pressed)
+	_ui.setup(_bundle)
+
+
+## 结算界面也要有顶部 HUD（用户要求）：
+## 玩家需要**看着路线和牌组**来决定拿哪张牌、拿不拿这瓶药水。
+## 没有 HUD 就只能凭记忆选，等于逼玩家做盲选。
+func _build_hud() -> void:
+	_hud = RunHUD.new()
+	add_child(_hud)
+	_hud.bind_run(_run)
+	# 结算界面不计时——时间是"游玩时长"，卡在结算画面不该被计入
+	_hud.set_time_running(false)
+	_hud.set_log_available(false)
+
+	RunOverlays.wire(self, _hud, _run, _get_overlay, _set_overlay, _on_return_to_title)
+	_hud.potion_pressed.connect(_on_potion_clicked)
+	_hud.potion_double_clicked.connect(_on_potion_double_clicked)
+
+
+func _get_overlay() -> Variant:
+	return _overlay
+
+
+func _set_overlay(panel: Variant) -> void:
+	_overlay = panel as OverlayPanel
+
+
+func _on_return_to_title() -> void:
+	SaveManager.save_run(_run, GameState.map)
+	get_tree().change_scene_to_file("res://scenes/boot/main.tscn")
+
+
+# ── 药水（结算界面也能看 / 喝，方便腾出药水栏拿奖励）────────
+
+func _on_potion_clicked(slot_index: int) -> void:
+	if _overlay != null:
+		return
+	var potion: PotionData = _potion_at(slot_index)
+	if potion == null:
+		return
+
+	# 结算界面没有战斗，按"地图上"处理（只能用通用式）
+	var blocked: String = PotionResolver.can_use(potion, false, false)
+	var panel := PotionInfoPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(potion, slot_index, blocked)
+	panel.use_requested.connect(_on_potion_use_requested)
+	panel.closed.connect(_close_overlay)
+
+
+func _on_potion_use_requested(slot_index: int) -> void:
+	_close_overlay()
+	_use_potion_on_self(slot_index)
+
+
+func _on_potion_double_clicked(slot_index: int) -> void:
+	_use_potion_on_self(slot_index)
+
+
+func _potion_at(slot_index: int) -> PotionData:
+	if slot_index < 0 or slot_index >= _run.potions.size():
+		return null
+	var loaded: Variant = ContentRegistry.get_potion(_run.potions[slot_index])
+	if loaded is PotionData:
+		return loaded as PotionData
+	return null
+
+
+func _use_potion_on_self(slot_index: int) -> void:
+	var potion: PotionData = _potion_at(slot_index)
+	if potion == null:
+		return
+
+	var blocked: String = PotionResolver.can_use(potion, false, false)
+	if blocked != "":
+		_ui.show_hint("%s 现在用不了：%s" % [potion.display_name, blocked])
+		return
+
+	var proxy := Creature.new()
+	proxy.max_hp = _run.max_hp
+	proxy.reset_for_battle()
+	proxy.set_hp(_run.hp)
+
+	var result := PotionResolver.apply(potion, proxy, null, null, RandomNumberGenerator.new())
+	if not result.success:
+		proxy.free()
+		_ui.show_hint("%s 用不了：%s" % [potion.display_name, result.message])
+		return
+
+	_run.sync_from_creature(proxy)
+	proxy.free()
+
+	_run.remove_potion_at(slot_index)
+	_ui.show_hint("使用 %s：%s" % [potion.display_name, result.message])
+	_hud.refresh()
+	# 药水栏腾出位置后，奖励行要重新判定"能不能拿"
 	_ui.setup(_bundle)
 
 

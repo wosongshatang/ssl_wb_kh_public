@@ -6,10 +6,10 @@
 script = ExtResource("1_carddata")
 id = &"true_grit"
 display_name = "真勇"
-description = "获得 7 点格挡。"
+description = "获得 {block} 点格挡。"
 cost = 1
 type = 1
-rarity = 0
+rarity = 1
 damage = 0
 block = 7
 draw = 0

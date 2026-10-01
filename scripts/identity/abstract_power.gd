@@ -105,6 +105,15 @@ func on_block_gained(_owner: Creature, _amount: int) -> void:
 	pass
 
 
+## 预估格挡修正。**不得有任何副作用。**
+##
+## 默认直接转发到 [method modify_block]——只有**带状态的** Power 才需要重写。
+## 例：盾卫的「本回合第一张格挡 +3」会翻转内部标志，
+## 若预览时直接调 `modify_block`，UI 一刷新就会把加成白白消耗掉。
+func preview_block(block: int, card: CardData) -> int:
+	return modify_block(block, card)
+
+
 func on_kill(_owner: Creature, _target: Creature) -> void:
 	pass
 

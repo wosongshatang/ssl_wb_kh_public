@@ -6,7 +6,7 @@
 script = ExtResource("1_carddata")
 id = &"clothesline"
 display_name = "晾衣绳"
-description = "造成 12 点伤害，并施加 2 层虚弱。"
+description = "造成 {damage} 点伤害，并施加 {weak} 层虚弱。"
 cost = 2
 type = 0
 rarity = 1

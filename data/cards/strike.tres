@@ -6,7 +6,7 @@
 script = ExtResource("1_carddata")
 id = &"strike"
 display_name = "打击"
-description = "造成 6 点伤害。"
+description = "造成 {damage} 点伤害。"
 cost = 1
 type = 0
 damage = 6

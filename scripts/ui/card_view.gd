@@ -89,15 +89,39 @@ func _build() -> void:
 	add_child(_cost_label)
 
 
+## 预览上下文：打出这张牌的人与目标。
+## 有了它，卡面显示的是**当前实际会生效的数值**（吃力量 / 敏捷 / 易伤），
+## 而不是写死的基础值——否则玩家会看到「卡面写 5、实际打 7」。
+var _preview_source: Creature = null
+var _preview_target: Creature = null
+
+
 func set_card(data: CardData) -> void:
 	card = data
 	if _name_label == null:
 		return
-	_name_label.text = data.display_name
-	_desc_label.text = data.description
-	_cost_label.text = str(data.cost)
+	_refresh_all()
+
+
+## 设置预览上下文（战斗手牌区用）。不设也能用——此时显示基础值。
+func set_preview(source: Creature, target: Creature = null) -> void:
+	_preview_source = source
+	_preview_target = target
+	_refresh_all()
+
+
+func _refresh_all() -> void:
+	if card == null or _name_label == null:
+		return
+
+	_name_label.text = card.display_name
+	_name_label.add_theme_color_override("font_color", _rarity_color())
+	_desc_label.text = card.format_description(_preview_source, _preview_target)
+	_cost_label.text = str(card.cost)
 	_cost_label.add_theme_color_override("font_color", UiPalette.TEXT)
-	_cost_label.add_theme_stylebox_override("normal", _make_cost_style(data))
+	_cost_label.add_theme_stylebox_override("normal", _make_cost_style(card))
+	_frame.add_theme_stylebox_override("panel", _make_frame_style())
+
 	queue_redraw()
 	if _art != null:
 		_art.queue_redraw()
@@ -109,25 +133,39 @@ func set_playable(playable: bool) -> void:
 	modulate = Color.WHITE if playable else Color(0.55, 0.55, 0.6, 0.85)
 
 
+func _rarity_color() -> Color:
+	return UiPalette.color_for_rarity(card.rarity)
+
+
+## 卡框：**边框颜色与粗细都由稀有度决定**（用户要求：越稀有越美观）
+##
+## ⚠️ `card` 可能还是 null——`_build()` 在 `_ready` 里就要摆好骨架，
+## 而 set_card() 是之后才调的。这里必须能处理"还没拿到数据"的状态。
 func _make_frame_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = UiPalette.BG_PANEL
-	style.border_color = UiPalette.BORDER_DIM
-	style.set_border_width_all(1)
 	style.set_corner_radius_all(7)
+
+	if card == null:
+		style.border_color = UiPalette.BORDER_DIM
+		style.set_border_width_all(1)
+	else:
+		style.border_color = _rarity_color()
+		style.set_border_width_all(UiPalette.rarity_border_width(card.rarity))
+
 	return style
 
 
 func _make_cost_style(data: CardData) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = UiPalette.tint_for_card_type(data.type).lightened(0.25)
-	style.border_color = UiPalette.GOLD
+	style.border_color = UiPalette.color_for_rarity(data.rarity)
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(int(COST_BADGE_SIZE / 2.0))
 	return style
 
 
-## 卡图占位：按卡牌类型画不同的几何图形。
+## 卡图占位：按卡牌类型画不同的几何图形，**底色混入稀有度颜色**。
 ## 攻击 = 斜刃；技能 = 盾牌轮廓；能力 = 菱形。全部程序绘制，不依赖美术资源。
 func _on_art_draw() -> void:
 	if card == null or _art == null:
@@ -137,13 +175,21 @@ func _on_art_draw() -> void:
 	if rect.size.x <= 1.0 or rect.size.y <= 1.0:
 		return
 
-	var tint := UiPalette.tint_for_card_type(card.type)
+	# 类型色与稀有度色混合：既看得出是攻击/技能，也看得出稀有度
+	var type_tint := UiPalette.tint_for_card_type(card.type)
+	var rarity_tint := _rarity_color()
+	var tint: Color = type_tint.lerp(rarity_tint, 0.28)
+
 	_art.draw_rect(rect, tint, true)
-	_art.draw_rect(rect, UiPalette.BORDER_DIM, false, 1.0)
+	_art.draw_rect(rect, rarity_tint, false, float(UiPalette.rarity_border_width(card.rarity)))
 
 	var center := rect.size * 0.5
 	var r: float = minf(rect.size.x, rect.size.y) * 0.28
-	var ink := UiPalette.color_for_rarity(card.rarity).lightened(0.35)
+	var ink: Color = rarity_tint.lightened(0.2)
+
+	# 金卡 / 无色卡加一圈光环（"越稀有越好看"）
+	if UiPalette.rarity_is_premium(card.rarity):
+		_art.draw_arc(center, r * 1.5, 0.0, TAU, 40, Color(rarity_tint, 0.35), 2.0)
 
 	match card.type:
 		CardData.CardType.ATTACK:

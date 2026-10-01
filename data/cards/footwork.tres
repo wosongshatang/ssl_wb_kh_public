@@ -6,7 +6,7 @@
 script = ExtResource("1_carddata")
 id = &"footwork"
 display_name = "步法"
-description = "获得 2 点敏捷。"
+description = "获得 {dexterity} 点敏捷。"
 cost = 1
 type = 2
 rarity = 1

@@ -41,9 +41,10 @@ func test_roll_never_repeats_a_card() -> void:
 
 func test_roll_clamps_when_asking_for_more_than_pool() -> void:
 	## 要的比卡池多时必须返回全部而不是死循环——这是个很容易写错的地方
-	var total: int = ContentRegistry.all_cards().size()
 	var pool := CardPool.new(_seeded_rng(3))
+	var total: int = pool.reward_candidates().size()
 
+	assert_gt(total, 0, "奖励池不该为空")
 	assert_eq(pool.roll(total + 50).size(), total)
 
 
@@ -61,25 +62,25 @@ func test_same_seed_produces_same_offers() -> void:
 	assert_eq(a_ids, b_ids, "同种子应抽出同样的牌（否则测试无从断言）")
 
 
-func test_price_increases_with_rarity() -> void:
-	var common: CardData = ContentRegistry.get_card(&"strike")
-	var rare: CardData = ContentRegistry.get_card(&"impervious")
-
-	assert_not_null(common)
-	assert_not_null(rare)
-	assert_gt(CardPool.price_of(rare), CardPool.price_of(common),
-		"稀有卡应比普通卡贵")
-
-
 func test_rarity_weights_favour_common_cards() -> void:
+	## 权重按用户指定：白 50 / 绿 30 / 蓝 15 / 紫 5
 	var pool := CardPool.new(_seeded_rng(7))
-	var common: CardData = ContentRegistry.get_card(&"strike")
-	var rare: CardData = ContentRegistry.get_card(&"impervious")
-	assert_not_null(common)
-	assert_not_null(rare)
+	var white: CardData = ContentRegistry.get_card(&"true_grit")    # 白 COMMON
+	var blue: CardData = ContentRegistry.get_card(&"heavy_blow")    # 蓝 RARE
+	assert_not_null(white)
+	assert_not_null(blue)
 
-	assert_gt(pool.weight_of(common), pool.weight_of(rare),
-		"普通卡的抽取权重应高于稀有卡")
+	assert_gt(pool.weight_of(white), pool.weight_of(blue),
+		"白卡的抽取权重应高于蓝卡")
+
+
+func test_price_increases_with_rarity() -> void:
+	var white: CardData = ContentRegistry.get_card(&"true_grit")
+	var blue: CardData = ContentRegistry.get_card(&"heavy_blow")
+	var purple: CardData = ContentRegistry.get_card(&"divine_might")
+
+	assert_gt(CardPool.price_of(blue), CardPool.price_of(white))
+	assert_gt(CardPool.price_of(purple), CardPool.price_of(blue))
 
 
 # ══ PowerFactory ════════════════════════════════════════════

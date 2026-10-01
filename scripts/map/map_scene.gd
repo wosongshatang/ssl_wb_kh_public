@@ -129,10 +129,7 @@ func _on_node_selected(node_id: int) -> void:
 			get_tree().change_scene_to_file("res://scenes/battle/battle.tscn")
 
 		MapNode.Kind.REST:
-			var healed: int = int(ceil(float(_run.max_hp) * REST_HEAL_RATIO))
-			_run.heal(healed)
-			_hint_label.text = "休息：回复 %d 点生命。" % healed
-			_persist_and_refresh()
+			_open_rest()
 
 		MapNode.Kind.SHOP:
 			_open_shop()
@@ -141,13 +138,72 @@ func _on_node_selected(node_id: int) -> void:
 			_open_event(node)
 
 		_:
-			_hint_label.text = "「%s」尚未实现。" % node.kind_label()
-			_persist_and_refresh()
+			_persist_and_refresh("「%s」尚未实现。" % node.kind_label())
 
 
-func _persist_and_refresh() -> void:
+## ⚠️ 结果文本必须在 `_refresh()` **之后**写——`_refresh()` 会重设 `_hint_label.text`。
+## 之前把结果写在 `_refresh()` 之前，玩家点了休息看不到任何反馈：
+## 血确实回了，但提示立刻被"当前位置：休息"覆盖掉，看起来就是**点了没反应**。
+func _persist_and_refresh(result: String = "") -> void:
 	SaveManager.save_run(_run, _map)
 	_refresh()
+	if result != "":
+		_hint_label.text = result
+
+
+# ── 休息点 ──────────────────────────────────────────────────
+
+func _open_rest() -> void:
+	if _overlay != null:
+		return
+
+	var heal_amount: int = int(ceil(float(_run.max_hp) * RestChoicePanel.HEAL_RATIO))
+	var panel := RestChoicePanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(heal_amount, _run.max_hp, _run.upgradable_card_ids().size())
+	panel.rest_chosen.connect(_on_rest_chosen)
+	panel.upgrade_chosen.connect(_on_forge_chosen)
+	panel.cancelled.connect(_close_overlay)
+
+
+func _on_rest_chosen() -> void:
+	_close_overlay()
+	var healed: int = int(ceil(float(_run.max_hp) * RestChoicePanel.HEAL_RATIO))
+	_run.heal(healed)
+	_persist_and_refresh("休息：回复 %d 点生命。" % healed)
+
+
+func _on_forge_chosen() -> void:
+	_close_overlay()
+	_open_forge()
+
+
+func _open_forge() -> void:
+	var cards: Array[CardData] = []
+	for card_id: StringName in _run.upgradable_card_ids():
+		var loaded: Variant = ContentRegistry.get_card(card_id)
+		if loaded is CardData:
+			cards.append(loaded as CardData)
+
+	if cards.is_empty():
+		_persist_and_refresh("牌组里没有可升级的牌。")
+		return
+
+	var panel := CardUpgradePanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(cards)
+	panel.card_chosen.connect(_on_upgrade_card_chosen)
+	panel.cancelled.connect(_close_overlay)
+
+
+func _on_upgrade_card_chosen(card_id: StringName) -> void:
+	_close_overlay()
+	if _run.upgrade_card(card_id):
+		_persist_and_refresh("锻造：升级了「%s」。" % _card_name(card_id))
+	else:
+		_persist_and_refresh("升级失败——这张牌可能已经升级过了。")
 
 
 # ── 药水 ────────────────────────────────────────────────────

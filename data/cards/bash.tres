@@ -6,7 +6,7 @@
 script = ExtResource("1_carddata")
 id = &"bash"
 display_name = "重击"
-description = "造成 8 点伤害。"
+description = "造成 {damage} 点伤害。"
 cost = 2
 type = 0
 damage = 8

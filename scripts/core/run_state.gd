@@ -20,13 +20,19 @@ var deck_card_ids: Array[StringName] = []
 var relics: Array[StringName] = []
 ## 药水栏（最多 MAX_POTIONS 个）
 var potions: Array[StringName] = []
+const MAX_POTIONS: int = 3
 ## 本局累计游玩秒数
 var play_seconds: float = 0.0
 var rng_seed: int = 0
 var is_over: bool = false
 var victory: bool = false
 
-const MAX_POTIONS: int = 3
+## 牌组用**带后缀的 id** 记录升级状态：`strike` 未升级，`strike+` 已升级。
+##
+## 为什么不用「id + 独立升级列表」：那样两份数据要同步，
+## 一旦错位就会出现「明明升级了却打出未升级的牌」——而且极难查。
+## 后缀编码让"这张牌是什么"永远是**一个值**。
+const UPGRADE_SUFFIX: String = "+"
 
 
 func start_new_run(character: StringName, seed_value: int) -> void:
@@ -65,8 +71,55 @@ func _starting_relics_for(character: StringName) -> Array[StringName]:
 
 # ── 牌组 ────────────────────────────────────────────────────
 
-func add_card(card_id: StringName) -> void:
-	deck_card_ids.append(card_id)
+func add_card(card_id: StringName, upgraded: bool = false) -> void:
+	deck_card_ids.append(encode_card_id(card_id, upgraded))
+
+
+static func encode_card_id(card_id: StringName, upgraded: bool) -> StringName:
+	if not upgraded:
+		return card_id
+	return StringName(String(card_id) + UPGRADE_SUFFIX)
+
+
+static func decode_card_id(entry: StringName) -> StringName:
+	var text: String = String(entry)
+	if text.ends_with(UPGRADE_SUFFIX):
+		return StringName(text.trim_suffix(UPGRADE_SUFFIX))
+	return entry
+
+
+static func is_upgraded_entry(entry: StringName) -> bool:
+	return String(entry).ends_with(UPGRADE_SUFFIX)
+
+
+## 升级牌组里的**第一张**该 id 的未升级牌。返回是否成功。
+func upgrade_card(card_id: StringName) -> bool:
+	for i: int in deck_card_ids.size():
+		var entry: StringName = deck_card_ids[i]
+		if is_upgraded_entry(entry) or decode_card_id(entry) != card_id:
+			continue
+		deck_card_ids[i] = encode_card_id(card_id, true)
+		return true
+	return false
+
+
+## 可升级的卡 id（去重）。诅咒与已升级的不在内。
+func upgradable_card_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	var seen: Dictionary = {}
+
+	for entry: StringName in deck_card_ids:
+		if is_upgraded_entry(entry):
+			continue
+		var base_id: StringName = decode_card_id(entry)
+		if seen.has(base_id):
+			continue
+		var loaded: Variant = ContentRegistry.get_card(base_id)
+		if loaded is CardData and (loaded as CardData).can_upgrade():
+			seen[base_id] = true
+			out.append(base_id)
+
+	return out
 
 
 # ── 药水 ────────────────────────────────────────────────────
@@ -112,12 +165,17 @@ func remove_card(card_id: StringName) -> bool:
 ## 阶段 3 的卡都是只读的，暂时看不出问题；阶段 6 的卡牌升级一上就爆。
 func build_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []
-	for id: StringName in deck_card_ids:
-		var source: Variant = ContentRegistry.get_card(id)
-		if source is CardData:
-			deck.append((source as CardData).duplicate() as CardData)
-		else:
-			push_warning("RunState.build_deck: 找不到卡牌 %s，已跳过" % id)
+	for entry: StringName in deck_card_ids:
+		var base_id: StringName = decode_card_id(entry)
+		var source: Variant = ContentRegistry.get_card(base_id)
+		if not (source is CardData):
+			push_warning("RunState.build_deck: 找不到卡牌 %s，已跳过" % base_id)
+			continue
+
+		var card: CardData = (source as CardData).duplicate() as CardData
+		if is_upgraded_entry(entry):
+			card = card.create_upgraded()
+		deck.append(card)
 	return deck
 
 

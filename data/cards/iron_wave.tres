@@ -6,7 +6,7 @@
 script = ExtResource("1_carddata")
 id = &"iron_wave"
 display_name = "铁斩波"
-description = "造成 5 点伤害，并获得 5 点格挡。"
+description = "造成 {damage} 点伤害，并获得 {block} 点格挡。"
 cost = 1
 type = 0
 damage = 5
