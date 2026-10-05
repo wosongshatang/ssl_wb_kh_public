@@ -206,6 +206,9 @@ func _start_battle() -> void:
 	# 它的 apply_battle_start 要在开战时立刻生效
 	_battle.set_act_modifier(GameState.current_act_modifier())
 	_battle.environment_announced.connect(_on_environment_announced)
+	_battle.card_upgrade_requested.connect(_on_card_upgrade_requested)
+	_battle.divinity_requested.connect(_on_divinity_requested)
+	_battle.oracle_revealed.connect(_on_oracle_revealed)
 	_battle.start_battle(_player, _enemies, _run.build_deck())
 
 	# ⚠️ 下面全部必须在 start_battle **之后**——它内部会 reset_for_battle()
@@ -612,6 +615,49 @@ func _on_environment_announced(text: String) -> void:
 	_log_lines.append("〔环境〕%s" % text)
 	if _player_view != null:
 		_player_view.show_floating_text("〔环境〕%s" % text, UiPalette.GOLD)
+
+
+## ── 特殊牌（P6-12）──────────────────────────────────────────
+
+## 神化牌：**永久**升级牌组里的若干张牌
+func _on_card_upgrade_requested(count: int) -> void:
+	var upgraded: Array[StringName] = _run.upgrade_random_cards(count, _battle.rng())
+	if upgraded.is_empty():
+		_log_lines.append("〔神化〕牌组里已经没有可升级的牌了。")
+		return
+
+	var names: PackedStringArray = PackedStringArray()
+	for card_id: StringName in upgraded:
+		names.append(RewardBundle.card_name(card_id))
+	_log_lines.append("〔神化〕升级了：%s" % "、".join(names))
+
+
+## 契约牌：永久神性（不可逆）
+func _on_divinity_requested(amount: int) -> void:
+	GameState.add_divinity(amount)
+	_hud.refresh()
+	_log_lines.append("〔契约〕神性 +%d，现在是 %d。" % [amount, GameState.divinity])
+
+
+## 神谕牌：把抽牌堆展示给玩家——"看穿未来"必须是**真的看到**
+func _on_oracle_revealed(pile: Array) -> void:
+	if _overlay != null:
+		return
+
+	var cards: Array[CardData] = []
+	for entry: Variant in pile:
+		if entry is CardData:
+			cards.append(entry as CardData)
+
+	if cards.is_empty():
+		_log_lines.append("〔神谕〕抽牌堆是空的。")
+		return
+
+	var panel := DeckViewPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(cards, "神谕：接下来的抽牌顺序（%d 张）" % cards.size())
+	panel.closed.connect(_close_overlay)
 
 
 ## 永久属性加成（神坛献祭换来的力量）。

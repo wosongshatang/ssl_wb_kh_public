@@ -104,6 +104,15 @@ func divine_cards_for(deity_id: StringName) -> Array[CardData]:
 	return out
 
 
+## 全部特殊牌（P6-12）
+func special_cards() -> Array[CardData]:
+	var out: Array[CardData] = []
+	for card: CardData in all_cards():
+		if card.is_special():
+			out.append(card)
+	return out
+
+
 func curse_cards() -> Array[CardData]:
 	var out: Array[CardData] = []
 	for card: CardData in all_cards():

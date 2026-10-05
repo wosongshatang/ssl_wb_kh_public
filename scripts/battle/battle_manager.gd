@@ -15,6 +15,11 @@ signal phase_changed(phase: TurnFlow.Phase)
 signal battle_ended(player_won: bool)
 ## 卡牌获得药水（BattleManager 够不着 RunState，所以抛给场景去记账）
 signal potion_granted(potion_id: StringName)
+## 特殊牌要改**局外状态**时走这三个信号（P6-12）。
+## BattleManager 够不着 RunState / GameState，硬塞引用会让它变成上帝对象。
+signal card_upgrade_requested(count: int)   ## 神化：升级牌组里的若干张牌
+signal divinity_requested(amount: int)      ## 契约：永久神性
+signal oracle_revealed(pile: Array)         ## 神谕：把抽牌堆展示给玩家
 ## 幕环境机制生效（阶段 6）。与遗物同理：**必须看得见**，
 ## 否则玩家会以为"这关怎么突然变难了"是自己算错了。
 signal environment_announced(text: String)
@@ -101,6 +106,7 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 	_log("打出「%s」（剩余能量 %d）" % [card.display_name, player.energy])
 
 	player.notify_card_played(card)
+	_apply_special_effect(card)
 	if act_modifier != null:
 		act_modifier.on_card_played(player, card)
 	_resolve_card_effects(card, target)
@@ -127,6 +133,53 @@ func _on_player_turn_started(turn: int) -> void:
 	var drawn: Array[CardData] = deck.draw(HAND_SIZE)
 	_log("── 第 %d 回合 · 玩家 ──（能量 %d/%d）" % [turn, player.energy, player.max_energy])
 	_log("抽到 %d 张：%s" % [drawn.size(), get_hand_names()])
+
+
+## 特殊牌效果（P6-12）。
+##
+## ⚠️ 神化要改**局外的牌组**、契约要改**局外的神性**——这两个都不归
+## BattleManager 管，所以走信号交给场景去记账（与 potion_granted 同一套做法）。
+## 直接持有 RunState 引用会让 BattleManager 变成上帝对象，也没法单独测试。
+func _apply_special_effect(card: CardData) -> void:
+	match card.special_kind:
+		CardData.SpecialKind.APOTHEOSIS:
+			_log("〔神化〕你的牌组被改写了……")
+			card_upgrade_requested.emit(card.special_value)
+
+		CardData.SpecialKind.PACT:
+			# 用 divinity_gain 而不是 special_value——
+			# 「获得时涨神性」在无色卡上已经是这个字段，同一个概念不该有两个字段
+			_log("〔契约〕神性 +%d" % card.divinity_gain)
+			divinity_requested.emit(card.divinity_gain)
+
+		CardData.SpecialKind.ORACLE:
+			var drawn: Array[CardData] = deck.draw(card.special_value)
+			_log("〔神谕〕看穿未来，抽 %d 张" % drawn.size())
+			oracle_revealed.emit(deck.draw_pile.duplicate())
+
+		CardData.SpecialKind.TRIAL:
+			_apply_trial(card)
+
+		_:
+			pass
+
+
+## 考题：**手牌数**达到门槛时额外获得格挡。
+##
+## 条件刻意用"手牌数"而不是"牌的类型"——
+## 后者考的是运气（你有没有抽到对的牌），前者考的是决策（你有没有留住牌）。
+## 考题应该考决策。
+func _apply_trial(card: CardData) -> void:
+	if card.trial_block_bonus <= 0:
+		return
+
+	var hand_size: int = deck.hand.size()
+	if hand_size < card.special_value:
+		_log("〔考题〕手牌 %d 张，未达门槛 %d——没有额外格挡" % [hand_size, card.special_value])
+		return
+
+	player.gain_block(card.trial_block_bonus, card)
+	_log("〔考题〕手牌 %d 张，达标——额外 %d 点格挡" % [hand_size, card.trial_block_bonus])
 
 
 func _on_player_turn_ended(_turn: int) -> void:
@@ -354,6 +407,12 @@ func _setup_act_modifier() -> void:
 	act_modifier = ActModifiers.create(_pending_act_modifier, self)
 	if act_modifier != null:
 		act_modifier.apply_battle_start(player, enemies)
+
+
+## 暴露本场战斗的 RNG。神化牌要随机挑牌升级，
+## **必须用同一个随机源**，否则"同一局同一种子"无法复现。
+func rng() -> RandomNumberGenerator:
+	return _rng
 
 
 func _log(text: String) -> void:

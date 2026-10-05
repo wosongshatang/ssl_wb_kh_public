@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"god_gift_special"
+title = "神赐之牌"
+description = "一张牌浮在半空，正面朝着你。\n它没有来历，也没有主人。"
+option_a_label = "接过它"
+option_a_effect = 12
+option_a_value = 0
+option_b_label = "不看它"
+option_b_effect = 1
+option_b_value = 10

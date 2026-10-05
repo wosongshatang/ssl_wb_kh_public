@@ -16,6 +16,18 @@ extends Resource
 
 enum CardType { ATTACK, SKILL, POWER }
 
+## 特殊牌类别（P6-12）。与**稀有度正交**——
+## 稀有度说的是"这张牌多珍贵"，特殊类别说的是"这张牌怎么运作"。
+## 一张金卡也可以是契约牌。
+enum SpecialKind {
+	NONE,
+	APOTHEOSIS,  ## 神化：打出后**永久升级牌组**里的若干张牌
+	PACT,        ## 契约：强力效果，代价是**永久神性**
+	ORACLE,      ## 神谕：打出后抽牌，并**看穿抽牌堆**
+	TRIAL,       ## 考题：满足条件（手牌数 ≥ 门槛）时额外获得格挡
+}
+
+
 enum Rarity {
 	STARTER = 0,    ## 灰 —— 初始卡牌
 	COMMON = 1,     ## 白
@@ -71,6 +83,21 @@ const UPGRADE_DRAW_BY_RARITY: Array[int] = [1, 1, 1, 2, 3, 3, 3, 0]
 @export var triggers_on_turn_end: bool = false
 ## 对应的神明（无色卡按神明归属，事件据此筛选）
 @export var deity_id: StringName = &""
+
+# ══ 特殊牌（P6-12）════════════════════════════════════════════
+
+@export var special_kind: SpecialKind = SpecialKind.NONE
+
+## 特殊效果的强度。各 kind 的含义不同：
+## APOTHEOSIS = 升级几张 / PACT = 神性代价 / ORACLE = 抽几张 / TRIAL = 手牌门槛
+@export_range(0, 20, 1) var special_value: int = 0
+
+## TRIAL 专用：达成门槛时额外获得的格挡
+@export_range(0, 30, 1) var trial_block_bonus: int = 0
+
+
+func is_special() -> bool:
+	return special_kind != SpecialKind.NONE
 
 # ══ 升级 ════════════════════════════════════════════════════
 
@@ -217,6 +244,9 @@ func format_description(source: Creature = null, target: Creature = null) -> Str
 	text = text.replace("{draw}", str(draw))
 	text = text.replace("{gain_energy}", str(gain_energy))
 	text = text.replace("{self_hp_loss}", str(self_hp_loss))
+	text = text.replace("{special_value}", str(special_value))
+	text = text.replace("{divinity_gain}", str(divinity_gain))
+	text = text.replace("{trial_block_bonus}", str(trial_block_bonus))
 
 	for key: Variant in apply_to_self:
 		text = text.replace("{%s}" % str(key), str(int(apply_to_self[key])))

@@ -595,6 +595,19 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 			GameState.add_divinity(divine.divinity_gain)
 			return "获得「%s」（神性 +%d）" % [divine.display_name, divine.divinity_gain]
 
+		EventData.Effect.ADD_SPECIAL_CARD:
+			var special_pool: Array[CardData] = ContentRegistry.special_cards()
+			if special_pool.is_empty():
+				return "没有可获得的神赐之牌"
+			var special: CardData = special_pool[_rng.randi_range(0, special_pool.size() - 1)]
+			_run.add_card(special.id)
+			if special.divinity_gain > 0:
+				GameState.add_divinity(special.divinity_gain)
+			return "获得神赐之牌「%s」%s" % [
+				special.display_name,
+				"（神性 +%d）" % special.divinity_gain if special.divinity_gain > 0 else "",
+			]
+
 		EventData.Effect.ADD_CURSE_CARD:
 			var curse_pool: Array[CardData] = ContentRegistry.curse_cards()
 			if curse_pool.is_empty():

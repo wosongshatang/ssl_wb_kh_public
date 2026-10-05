@@ -59,6 +59,10 @@ func reward_candidates() -> Array[CardData]:
 	for card: CardData in ContentRegistry.all_cards():
 		if REWARD_EXCLUDED.has(card.rarity):
 			continue
+		# 特殊牌（神化/契约/神谕/考题）**不进普通奖励池**——
+		# 它们是特定来源的产物，混进常规三选一会让"特殊"两个字失去意义
+		if card.is_special():
+			continue
 		out.append(card)
 	return out
 

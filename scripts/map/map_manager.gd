@@ -61,6 +61,7 @@ const COMBAT_POOLS: Dictionary = {
 const EVENT_POOL: Array[StringName] = [
 	&"shrine_of_war", &"rebel_broker", &"wandering_alchemist",
 	&"god_offer_war", &"god_offer_arcane", &"cursed_altar", &"usurp_power",
+	&"god_gift_special",
 ]
 
 ## id -> MapNode

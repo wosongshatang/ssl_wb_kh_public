@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card_data.gd" id="1_carddata"]
+
+[resource]
+script = ExtResource("1_carddata")
+id = &"apotheosis_minor"
+display_name = "小神化"
+description = "永久升级牌组中的 {special_value} 张牌。"
+cost = 1
+type = 1
+rarity = 6
+damage = 0
+block = 0
+draw = 0
+gain_energy = 0
+self_hp_loss = 0
+apply_to_self = {}
+apply_to_target = {}
+exhaust = false
+grant_potion_id = &""
+divinity_gain = 5
+unplayable = false
+triggers_on_turn_end = false
+deity_id = &"arcane"
+special_kind = 1
+special_value = 2
+trial_block_bonus = 0

@@ -20,6 +20,10 @@ enum Effect {
 	ADD_CURSE_CARD,   ## 获得一张随机诅咒卡（纯负面）
 	ADD_RELIC,        ## 获得一件普通遗物
 	ADD_DIVINE_RELIC, ## 获得一件**神格遗物**（窃权事件专用，同时增加神性）
+	ADD_SPECIAL_CARD, ## 获得一张**特殊牌**（神化/契约/神谕/考题，P6-12）
+	## ⚠️ **新增枚举值一律追加在末尾**。
+	## 插在中间会让所有已存盘的 .tres 整数值集体错位——
+	## 而 .tres 里存的是数字，不是符号，错了不会报错，只会静默变成别的东西。
 }
 
 ## 事件涉及的属性（无色卡事件据此只给对应神明的卡）
@@ -64,6 +68,8 @@ static func effect_text(effect: Effect, value: int) -> String:
 			return "获得一张神明的无色卡（同时增加神性）"
 		Effect.ADD_CURSE_CARD:
 			return "获得一张诅咒卡（无法打出、无法升级）"
+		Effect.ADD_SPECIAL_CARD:
+			return "获得一张特殊牌（神化 / 契约 / 神谕 / 考题）"
 		Effect.ADD_RELIC:
 			return "获得一件遗物"
 		Effect.ADD_DIVINE_RELIC:

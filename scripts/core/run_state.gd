@@ -120,6 +120,24 @@ func upgrade_card(card_id: StringName) -> bool:
 	return false
 
 
+## 随机升级牌组里的 count 张牌（神化牌的产物）。返回实际升级的 id 列表。
+##
+## 需要注入 RNG 而不是用全局 randf——否则"同一局同一种子"无法复现，
+## 测试也无从断言。
+func upgrade_random_cards(count: int, rng: RandomNumberGenerator) -> Array[StringName]:
+	var upgraded: Array[StringName] = []
+
+	for _i: int in count:
+		var candidates: Array[StringName] = upgradable_card_ids()
+		if candidates.is_empty():
+			break
+		var pick: StringName = candidates[rng.randi_range(0, candidates.size() - 1)]
+		if upgrade_card(pick):
+			upgraded.append(pick)
+
+	return upgraded
+
+
 ## 可升级的卡 id（去重）。诅咒与已升级的不在内。
 func upgradable_card_ids() -> Array[StringName]:
 	var out: Array[StringName] = []
