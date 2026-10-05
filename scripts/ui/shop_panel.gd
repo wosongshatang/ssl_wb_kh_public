@@ -28,6 +28,7 @@ var _offers: Array[CardData] = []
 var _deck: Array[CardData] = []
 var _potion_offers: Array[PotionData] = []
 var _relic_offers: Array[StringName] = []
+var _confirm: ConfirmPanel = null
 
 
 func setup(
@@ -297,10 +298,37 @@ func _on_back_to_offers_pressed() -> void:
 	rebuild_content()
 
 
+## 点牌 → **先弹确认**，确认了才真的删。
+##
+## 删牌不可逆，而玩家常常是"随便点点看"——没有确认的话，
+## 一次误触就永久少一张牌，而牌组是一局的核心资产。
 func _on_remove_pressed(card_id: StringName) -> void:
 	if _gold < REMOVAL_PRICE:
 		return
+	if _confirm != null:
+		return
+
+	_confirm = ConfirmPanel.new()
+	add_child(_confirm)
+	_confirm.setup(
+		"删除卡牌",
+		"确定要永久删除「%s」吗？\n删除后无法恢复。" % RewardBundle.card_name(card_id),
+		"删除",
+		"再想想"
+	)
+	_confirm.confirmed.connect(_on_remove_confirmed.bind(card_id))
+	_confirm.cancelled.connect(_close_confirm)
+
+
+func _on_remove_confirmed(card_id: StringName) -> void:
+	_close_confirm()
 	removal_requested.emit(card_id, REMOVAL_PRICE)
+
+
+func _close_confirm() -> void:
+	if _confirm != null:
+		_confirm.queue_free()
+		_confirm = null
 
 
 ## 药水定价：稀有度越高越贵（与卡牌定价同一套思路）

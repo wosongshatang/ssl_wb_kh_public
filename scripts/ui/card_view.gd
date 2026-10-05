@@ -36,6 +36,15 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_build()
 
+	# ⚠️ **必须补一次刷新**。
+	# `set_card()` 可能在 `_ready()` **之前**被调用——
+	# 只要外层容器当时还没挂到树上（例如商店先建 slot 再 add_child(row)），
+	# `_ready()` 就不会触发，`_name_label` 还是 null，`_refresh_all()` 直接 return。
+	# 等容器挂树时标签才被建出来，而**那时已经没人再填文本**——卡面永远空白。
+	#
+	# 这类「看起来是渲染问题、其实是生命周期顺序」的 bug 不会报任何错。
+	_refresh_all()
+
 
 func _build() -> void:
 	_frame = PanelContainer.new()

@@ -139,3 +139,88 @@ func test_all_node_internal_handlers_pass_save_false() -> void:
 		if body.contains("_persist_and_refresh"):
 			assert_true(body.contains("false"),
 				"%s 里的 _persist_and_refresh 必须传 save=false" % handler)
+
+
+# ══ ④ 卡面文本在「先 set_card 再挂树」时不能丢 ═════════════════
+## 真实缺陷：商店的 `_make_card_slot` 是「先建 slot → 建 CardView →
+## set_card → 最后才 row.add_child(slot)」。
+## `set_card()` 调用时外层容器还没挂树 → `CardView._ready()` 没触发 →
+## `_name_label` 是 null → `_refresh_all()` 直接 return。
+## 等挂树时标签才建出来，而**那时已经没人再填文本** —— 卡面永远空白。
+##
+## 表现是「商店的卡没有名字没有效果」，而它是**生命周期顺序**问题，
+## 不是渲染问题——不报任何错。
+
+func test_card_view_renders_when_set_card_precedes_tree_entry() -> void:
+	var holder := VBoxContainer.new()          # 刻意不挂树
+	var view := CardView.new()
+	holder.add_child(view)
+	view.set_card(ContentRegistry.get_card(&"strike"))   # 此时 view 还没 _ready
+
+	add_child_autofree(holder)                 # 现在才挂树
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(view._name_label.text, "打击",
+		"卡名丢了——`set_card()` 早于 `_ready()` 时必须补一次刷新")
+	assert_true(view._desc_label.text.contains("伤害"),
+		"卡牌描述丢了")
+
+
+func test_card_view_still_renders_when_added_first() -> void:
+	## 反过来（先挂树再 set_card）本来就能用，别改坏了
+	var view := CardView.new()
+	add_child_autofree(view)
+	view.set_card(ContentRegistry.get_card(&"defend"))
+	await get_tree().process_frame
+
+	assert_eq(view._name_label.text, "防御")
+
+
+func test_shop_card_slots_show_name_and_effect() -> void:
+	## 直接建一个真实的商店面板，断言卡槽里的卡面**有名字**
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var offers: Array[CardData] = CardPool.new(rng, &"warrior").roll(3)
+
+	var shop := ShopPanel.new()
+	add_child_autofree(shop)
+	shop.setup(999, offers, [], [], [])
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var found: int = 0
+	for child: Node in shop.content_box.get_children():
+		for slot: Node in child.get_children():
+			for inner: Node in slot.get_children():
+				if inner is CardView:
+					var view := inner as CardView
+					assert_ne(view._name_label.text, "",
+						"商店卡面没有名字")
+					found += 1
+	assert_gt(found, 0, "没找到任何卡槽——商店结构变了？")
+
+
+# ══ ⑤ 删牌要二次确认 ════════════════════════════════════════
+
+func test_removal_asks_for_confirmation_first() -> void:
+	## 删牌不可逆，玩家常常是"随便点点看"——必须拦一道
+	var source := FileAccess.get_file_as_string("res://scripts/ui/shop_panel.gd")
+	var start: int = source.find("func _on_remove_pressed(")
+	assert_gt(start, 0)
+	var end: int = source.find("\nfunc ", start + 1)
+	var body: String = source.substr(start, end - start)
+
+	assert_true(body.contains("ConfirmPanel"),
+		"点删牌必须先弹确认，不能直接 emit removal_requested")
+	assert_false(body.contains("removal_requested.emit"),
+		"确认之前不该发出删除请求")
+
+
+func test_confirm_panel_has_both_buttons_in_footer() -> void:
+	var panel := ConfirmPanel.new()
+	add_child_autofree(panel)
+	panel.setup("标题", "正文")
+	await get_tree().process_frame
+
+	assert_eq(panel.footer_box.get_child_count(), 2, "确认 / 取消都该在固定页脚")
