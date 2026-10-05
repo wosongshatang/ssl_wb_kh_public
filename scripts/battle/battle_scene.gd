@@ -212,6 +212,7 @@ func _start_battle() -> void:
 	_inject_identity_and_relics()
 	_player.set_hp(_run.hp)
 	enemy.apply_starting_powers()
+	_apply_god_mirror(enemy, enemy_data)
 	_assign_opponents()
 	# 遗物上下文必须在 notify_battle_start **之前**注入——
 	# 有些遗物（提灯 / 幸运币）要在开场或结算时用到牌堆与战斗对象
@@ -544,7 +545,46 @@ func _on_potion_granted(potion_id: StringName) -> void:
 
 # ══ BattleManager 回调 ══════════════════════════════════════
 
-## 幕环境机制生效时的提示（阶段 6）。
+## 神战 P4：神会**变成你**——用你终职的能力，但更强（P6-06）。
+##
+## 镜像**完全数据驱动**：敌人 `.tres` 只写 `uses_player_mirror = true`，
+## 具体模仿哪个职业、强度多少，全部从玩家的转职结果查出来。
+##
+## 如果硬编码进 Boss 脚本（"if 玩家是壁垒 then 给神加壁垒能力"），
+## **每加一个终职就要改一次 Boss 代码**，而且神只能模仿设计时想到的那几个职业。
+## 现在加终职只要补一个 `mirror_*.tres`，这里一行都不用动。
+func _apply_god_mirror(enemy: Enemy, enemy_data: EnemyData) -> void:
+	if not enemy_data.uses_player_mirror:
+		return
+
+	var player_job: JobData = GameState.final_job()
+	if player_job == null:
+		_log_lines.append("〔神战〕你还没有职业，神找不到可以模仿的东西。")
+		return
+
+	var mirror: JobData = JobDatabase.mirror_for(player_job.id)
+	if mirror == null:
+		_log_lines.append("〔神战〕神没有对应「%s」的镜像形态。" % player_job.display_name)
+		return
+
+	_log_lines.append("〔神战〕神化用「%s」的形态——%s" % [
+		player_job.display_name, mirror.description,
+	])
+
+	for power_id: StringName in mirror.identity_power_ids:
+		var power: AbstractPower = IdentityPowers.create(power_id)
+		if power != null:
+			enemy.apply_identity_power(power, mirror.power_scale)
+
+	# 额外开场属性。**必须有**：身份能力大多是比例型（amount = 0），
+	# 光靠倍率放大不出任何强度（见 JobData.mirror_starting_powers 的说明）。
+	for raw_id: Variant in mirror.mirror_starting_powers:
+		var buff_id := StringName(str(raw_id))
+		var amount: int = int(mirror.mirror_starting_powers[raw_id])
+		var buff: AbstractPower = PowerFactory.create(buff_id, amount)
+		if buff != null:
+			enemy.apply_power(buff)
+			_log_lines.append("〔神战〕神获得 %s ×%d" % [buff.display_name, amount])
 ## 与遗物同理：环境如果完全静默，玩家会以为"这关怎么突然变难了"是自己算错了。
 func _on_environment_announced(text: String) -> void:
 	_log_lines.append("〔环境〕%s" % text)

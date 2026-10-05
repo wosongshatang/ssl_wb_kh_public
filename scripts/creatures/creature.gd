@@ -122,11 +122,20 @@ func apply_power(power: AbstractPower) -> AbstractPower:
 
 
 ## 施加身份能力（不可剥夺）。同 id 已存在则忽略重复注入。
-func apply_identity_power(power: AbstractPower) -> AbstractPower:
+func apply_identity_power(power: AbstractPower, scale: float = 1.0) -> AbstractPower:
+	if power == null:
+		return null
+
 	var existing: AbstractPower = get_power(power.id)
 	if existing != null:
 		push_warning("apply_identity_power: %s 已存在，忽略重复注入" % power.id)
 		return existing
+
+	# 神级镜像：同一个能力，更强的层数（P6-06）。
+	# 用倍率而不是另写一套能力类——加新终职时不用再写一份镜像能力。
+	if scale != 1.0 and power.amount > 0:
+		power.amount = maxi(1, int(round(float(power.amount) * scale)))
+
 	_attach(power, true)
 	return power
 

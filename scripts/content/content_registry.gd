@@ -147,6 +147,13 @@ func all_act_modifier_ids() -> Array[StringName]:
 	return out
 
 
+func all_enemy_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key: Variant in _enemies:
+		out.append(StringName(str(key)))
+	return out
+
+
 func all_potion_ids() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for key: Variant in _potions:

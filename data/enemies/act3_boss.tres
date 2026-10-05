@@ -40,3 +40,4 @@ starting_powers = {}
 identity_power_ids = Array[StringName]([&"god_of_war_stance"])
 phase2_hp_ratio = 0.4
 phase2_intents = Array[IntentData]([SubResource("Intent_rage")])
+uses_player_mirror = true

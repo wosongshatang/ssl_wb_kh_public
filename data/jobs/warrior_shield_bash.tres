@@ -13,3 +13,4 @@ identity_power_ids = Array[StringName]([&"shield_bash"])
 job_card_ids = Array[StringName]([&"shrug_it_off", &"iron_wave", &"true_grit"])
 card_pool_tags = Array[StringName]([&"warrior", &"defense"])
 signature_card_ids = Array[StringName]([&"gold_bash_counter", &"gold_bash_shatter"])
+mirror_job_id = &"mirror_warrior_shield_bash"

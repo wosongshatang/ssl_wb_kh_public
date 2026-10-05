@@ -84,6 +84,22 @@ func has_active_run() -> bool:
 	return run != null and not run.is_over
 
 
+## 玩家当前的**终职** id（转职路径的最后一环）。
+## 没转职时返回空串——神战镜像据此决定"神该变成什么"。
+func final_job_id() -> StringName:
+	if job_path.is_empty():
+		return &""
+	return job_path[job_path.size() - 1]
+
+
+## 玩家当前的终职数据（没有则返回 null）
+func final_job() -> JobData:
+	var job_id: StringName = final_job_id()
+	if job_id == &"":
+		return null
+	return JobDatabase.get_job(job_id)
+
+
 ## 当前幕的环境机制（阶段 6）。没有配置时返回 null——机制是可选增强，不是必需依赖。
 func current_act_modifier() -> ActModifier:
 	if run == null:

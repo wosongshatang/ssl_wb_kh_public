@@ -25,6 +25,32 @@ extends Resource
 ## 职业卡池标签（阶段 5 接入奖励权重）
 @export var card_pool_tags: Array[StringName] = []
 
+# ══ 神级镜像（阶段 6 · P6-06）═══════════════════════════════
+## 该终职对应的「神级镜像」职业 id。神战 P4 时神会**变成你**。
+## 留空表示这个职业没有镜像（一阶职业都没有）。
+@export var mirror_job_id: StringName = &""
+
+## 这是哪个终职的镜像（留空 = 普通职业，玩家可选）。
+## ⚠️ **镜像不是可转职的职业**，它只出现在神战的敌人身上。
+@export var mirror_of: StringName = &""
+
+## 镜像的强度倍率：同一个身份能力，层数按此放大。
+## 用倍率而不是新写一套能力类——**神用的是你的招式，只是更强**，
+## 加一个新终职时不用再写一份镜像能力。
+@export_range(1.0, 4.0, 0.5) var power_scale: float = 1.0
+
+## 镜像的额外开场属性：{power_id: 层数}
+##
+## ⚠️ **光有 `power_scale` 不够**：我们的身份能力大多是**比例型 / 标记型**
+## （壁垒保留一半、盾猛按格挡反伤），它们的 `amount` 是 0——
+## 乘任何倍率都还是 0。所以镜像必须另外带一点"神才有的东西"，
+## 否则「神用你的招式」实际等于「神什么都没用」。
+@export var mirror_starting_powers: Dictionary = {}
+
+
+func is_mirror() -> bool:
+	return mirror_of != &""
+
 
 func is_first_tier() -> bool:
 	return tier == 1
