@@ -92,6 +92,9 @@ const UPGRADE_DRAW_BY_RARITY: Array[int] = [1, 1, 1, 2, 3, 3, 3, 0]
 ## 靠后者的话，通用牌会被所有角色的奖励池排除掉——**永远抽不到**。
 @export var card_pool_tags: Array[StringName] = []
 
+## 打出后召唤的友方单位（猎人线）
+@export var summon_ally_id: StringName = &""
+
 @export var special_kind: SpecialKind = SpecialKind.NONE
 
 ## 特殊效果的强度。各 kind 的含义不同：

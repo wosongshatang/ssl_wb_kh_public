@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"hunter_ranger"
+display_name = "游侠"
+description = "一个人，一把弓，足够了。"
+tier = 1
+parent_job = &""
+identity_power_ids = Array[StringName]([&"hunter_mark"])
+job_card_ids = Array[StringName]([&"trap", &"quick_shot", &"hunters_focus"])
+card_pool_tags = Array[StringName]([&"hunter"])
+signature_card_ids = Array[StringName]([&"gold_ranger_aim", &"gold_ranger_step"])
+mirror_job_id = &""
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

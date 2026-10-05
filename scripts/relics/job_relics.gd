@@ -158,6 +158,80 @@ class ArcanistNotes extends AbstractRelic:
 		announce("+%d 敏捷" % DEXTERITY)
 
 
+## ══ 猎人线职业遗物（阶段 5 横向扩展 · 第三条线）════════════
+
+class TamerWhistle extends AbstractRelic:
+	const STRENGTH: int = 2
+	func _init() -> void:
+		id = &"job_tamer"
+		display_name = "驯兽师的哨子"
+		description = "战斗开始时获得 %d 点力量。" % STRENGTH
+		trigger_text = "战斗开始时"
+	func at_battle_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Strength.new(STRENGTH))
+		announce("+%d 力量" % STRENGTH)
+
+
+class RangerQuiver extends AbstractRelic:
+	const DEXTERITY: int = 2
+	func _init() -> void:
+		id = &"job_ranger"
+		display_name = "游侠的箭袋"
+		description = "战斗开始时获得 %d 点敏捷。" % DEXTERITY
+		trigger_text = "战斗开始时"
+	func at_battle_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Dexterity.new(DEXTERITY))
+		announce("+%d 敏捷" % DEXTERITY)
+
+
+class BeastKingFang extends AbstractRelic:
+	const STRENGTH: int = 3
+	func _init() -> void:
+		id = &"job_beast_king"
+		display_name = "兽王的獠牙"
+		description = "战斗开始时获得 %d 点力量。" % STRENGTH
+		trigger_text = "战斗开始时"
+	func at_battle_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Strength.new(STRENGTH))
+		announce("+%d 力量" % STRENGTH)
+
+
+class FalconerBracer extends AbstractRelic:
+	const BLOCK: int = 2
+	func _init() -> void:
+		id = &"job_falconer"
+		display_name = "驯鹰者的护腕"
+		description = "每回合开始时获得 %d 点格挡。" % BLOCK
+		trigger_text = "每回合开始时"
+	func on_turn_start(owner: Creature) -> void:
+		owner.gain_block(BLOCK)
+		announce("+%d 格挡" % BLOCK)
+
+
+class TrackerKnife extends AbstractRelic:
+	const STRENGTH: int = 3
+	func _init() -> void:
+		id = &"job_tracker"
+		display_name = "追猎者的猎刀"
+		description = "战斗开始时获得 %d 点力量。" % STRENGTH
+		trigger_text = "战斗开始时"
+	func at_battle_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Strength.new(STRENGTH))
+		announce("+%d 力量" % STRENGTH)
+
+
+class ThornCharm extends AbstractRelic:
+	const THORNS: int = 3
+	func _init() -> void:
+		id = &"job_thorn"
+		display_name = "荆棘护符"
+		description = "战斗开始时获得 %d 点荆棘。" % THORNS
+		trigger_text = "战斗开始时"
+	func at_battle_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Thorns.new(THORNS))
+		announce("+%d 荆棘" % THORNS)
+
+
 ## ══ 法师线职业遗物（阶段 5 横向扩展）════════════════════════
 
 ## 烈焰的余烬 —— 战斗开始 +3 力量
@@ -235,6 +309,18 @@ static func create(relic_id: StringName) -> AbstractRelic:
 			return BloodthirsterFang.new()
 		&"job_momentum_banner":
 			return MomentumBanner.new()
+		&"job_tamer":
+			return TamerWhistle.new()
+		&"job_ranger":
+			return RangerQuiver.new()
+		&"job_beast_king":
+			return BeastKingFang.new()
+		&"job_falconer":
+			return FalconerBracer.new()
+		&"job_tracker":
+			return TrackerKnife.new()
+		&"job_thorn":
+			return ThornCharm.new()
 		&"job_elementalist":
 			return ElementalistRing.new()
 		&"job_arcanist":
@@ -255,6 +341,8 @@ static func ids() -> Array[StringName]:
 	return [
 		&"job_shield_guard_bracer", &"job_berserker_chain", &"job_bastion_keystone",
 		&"job_shield_bash_spur", &"job_bloodthirster_fang", &"job_momentum_banner",
+		&"job_tamer", &"job_ranger", &"job_beast_king",
+		&"job_falconer", &"job_tracker", &"job_thorn",
 		&"job_elementalist", &"job_arcanist",
 		&"job_pyromancer", &"job_cryomancer", &"job_archmage", &"job_chronomancer",
 	]
@@ -275,6 +363,18 @@ static func for_job(job_id: StringName) -> StringName:
 			return &"job_bloodthirster_fang"
 		&"warrior_momentum":
 			return &"job_momentum_banner"
+		&"hunter_tamer":
+			return &"job_tamer"
+		&"hunter_ranger":
+			return &"job_ranger"
+		&"hunter_beast_king":
+			return &"job_beast_king"
+		&"hunter_falconer":
+			return &"job_falconer"
+		&"hunter_tracker":
+			return &"job_tracker"
+		&"hunter_thorn":
+			return &"job_thorn"
 		&"mage_elementalist":
 			return &"job_elementalist"
 		&"mage_arcanist":

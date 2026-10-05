@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"hunter_thorn"
+display_name = "荆棘游侠"
+description = "靠近的人自己会后悔。"
+tier = 2
+parent_job = &"hunter_ranger"
+identity_power_ids = Array[StringName]([&"thorn_hide"])
+job_card_ids = Array[StringName]([&"multi_shot", &"dodge_roll", &"volley"])
+card_pool_tags = Array[StringName]([&"hunter", &"thorn"])
+signature_card_ids = Array[StringName]([&"gold_thorn_hide", &"gold_thorn_lash"])
+mirror_job_id = &"mirror_hunter_thorn"
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

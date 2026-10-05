@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"hunter_tamer"
+display_name = "驯兽师"
+description = "它们不是工具，只是愿意跟你走一段。"
+tier = 1
+parent_job = &""
+identity_power_ids = Array[StringName]([&"beast_bond"])
+job_card_ids = Array[StringName]([&"call_wolf", &"dodge_roll", &"quick_shot"])
+card_pool_tags = Array[StringName]([&"hunter"])
+signature_card_ids = Array[StringName]([&"gold_tame_bond", &"gold_tame_roar"])
+mirror_job_id = &""
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

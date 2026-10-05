@@ -29,6 +29,10 @@ signal environment_announced(text: String)
 var bonus_gold: int = 0
 
 ## 本场的幕环境机制（阶段 6）。没有配置时为 null。
+## 友方单位（猎人线的召唤兽）。
+## 与 `enemies` 对称：都在战斗里存活、都能被打、都有 Power。
+var allies: Array[Ally] = []
+
 var act_modifier: ActModifiers.Runtime = null
 var _pending_act_modifier: ActModifier = null
 
@@ -107,6 +111,8 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 
 	player.notify_card_played(card)
 	_apply_special_effect(card)
+	if card.summon_ally_id != &"":
+		_summon_ally(card.summon_ally_id)
 	if act_modifier != null:
 		act_modifier.on_card_played(player, card)
 	_resolve_card_effects(card, target)
@@ -140,6 +146,28 @@ func _on_player_turn_started(turn: int) -> void:
 ## ⚠️ 神化要改**局外的牌组**、契约要改**局外的神性**——这两个都不归
 ## BattleManager 管，所以走信号交给场景去记账（与 potion_granted 同一套做法）。
 ## 直接持有 RunState 引用会让 BattleManager 变成上帝对象，也没法单独测试。
+## 召唤一个友方单位（猎人线）
+func _summon_ally(ally_id: StringName) -> Ally:
+	var loaded: Variant = ContentRegistry.get_ally(ally_id)
+	if not (loaded is AllyData):
+		push_warning("BattleManager: 未知召唤兽「%s」" % ally_id)
+		return null
+
+	var ally := Ally.new()
+	ally.setup_from_data(loaded as AllyData)
+
+	for raw_id: Variant in (loaded as AllyData).starting_powers:
+		var power := PowerFactory.create(StringName(str(raw_id)), int((loaded as AllyData).starting_powers[raw_id]))
+		if power != null:
+			ally.apply_power(power)
+
+	allies.append(ally)
+	ally.died.connect(func() -> void:
+		_log("  ☠ %s 倒下了" % ally.display_name))
+	_log("召唤了 %s（%d 血 / %d 攻）" % [ally.display_name, ally.max_hp, ally.attack_power()])
+	return ally
+
+
 func _apply_special_effect(card: CardData) -> void:
 	match card.special_kind:
 		CardData.SpecialKind.APOTHEOSIS:
@@ -218,6 +246,7 @@ func _trigger_hand_curses() -> void:
 			_log("  失去 %d 点生命" % card.self_hp_loss)
 	var discarded: int = deck.discard_hand()
 	_log("玩家回合结束，弃掉手牌 %d 张" % discarded)
+	_allies_act()
 
 
 func _on_enemy_turn_started(_turn: int) -> void:
@@ -308,19 +337,61 @@ func _apply_powers(receiver: Creature, table: Dictionary, label: String) -> void
 
 # ── 意图执行 ────────────────────────────────────────────────
 
+## 敌人这一下打谁。
+##
+## ## 规则（刻意做成**确定性**的）
+## 1. 有**嘲讽**盟友 → 打嘲讽的（血最少的那个）
+## 2. 否则 → 打玩家
+##
+## 不用"随机选一个"：随机会让玩家的决策失去意义——
+## 你没法围绕一个掷骰子做规划。嘲讽把"谁挨打"变成玩家**主动选择**的结果。
+func _enemy_target() -> Creature:
+	var taunting: Ally = null
+	for ally: Ally in allies:
+		if not ally.is_alive() or not ally.is_taunt:
+			continue
+		if taunting == null or ally.hp < taunting.hp:
+			taunting = ally
+	return taunting if taunting != null else player
+
+
+## 盟友回合结束时自动行动（不需要玩家操作）
+func _allies_act() -> void:
+	if allies.is_empty():
+		return
+
+	var living_enemies: Array[Creature] = []
+	for enemy: Enemy in enemies:
+		if enemy.is_alive():
+			living_enemies.append(enemy)
+
+	for ally: Ally in allies:
+		if not ally.is_alive() or living_enemies.is_empty():
+			continue
+		ally.on_turn_start()
+		if ally.act(living_enemies):
+			_log("%s 攻击了 %s" % [ally.display_name, living_enemies[0].display_name])
+		ally.on_turn_end()
+
+
 func _execute_intent(enemy: Enemy) -> void:
 	var intent: IntentData = enemy.advance_intent()
 	if intent == null:
 		return
 
+	var target: Creature = _enemy_target()
+
 	match intent.type:
 		IntentData.IntentType.ATTACK:
 			# 多段攻击逐段结算——每段独立触发格挡与荆棘
 			for _i: int in intent.times:
-				if not player.is_alive():
-					break
-				_log("%s 发动攻击（%d）" % [enemy.display_name, intent.value])
-				_deal_damage(enemy, player, intent.value)
+				if not target.is_alive():
+					# 目标倒了就重新选（嘲讽盟友死了，剩下的打在玩家身上）
+					target = _enemy_target()
+					if not target.is_alive():
+						break
+				_log("%s 攻击 %s（%d）" % [enemy.display_name, target.display_name, intent.value])
+				_deal_damage(enemy, target, intent.value)
 		IntentData.IntentType.DEFEND:
 			var gained: int = enemy.gain_block(intent.value)
 			_log("%s 获得 %d 格挡" % [enemy.display_name, gained])
@@ -329,8 +400,9 @@ func _execute_intent(enemy: Enemy) -> void:
 			# 毒是**壁垒的天敌**——它无视格挡，所以「格挡滚雪球」在它面前完全失效。
 			var debuff := PowerFactory.create(intent.power_id, intent.value)
 			if debuff != null:
-				player.apply_power(debuff)
-				_log("%s 施加了 %s ×%d" % [enemy.display_name, debuff.display_name, intent.value])
+				target.apply_power(debuff)
+				_log("%s 对 %s 施加了 %s ×%d" % [
+					enemy.display_name, target.display_name, debuff.display_name, intent.value])
 			else:
 				push_warning("BattleManager: 意图引用了未知 Power「%s」" % intent.power_id)
 		IntentData.IntentType.BUFF:

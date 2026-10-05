@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"mirror_hunter_beast_king"
+display_name = "神·兽王"
+description = "神用你的招式——但它不会累。"
+tier = 2
+parent_job = &""
+identity_power_ids = Array[StringName]([&"alpha_howl"])
+job_card_ids = Array[StringName]([])
+card_pool_tags = Array[StringName]([])
+signature_card_ids = Array[StringName]([])
+mirror_of = &"hunter_beast_king"
+power_scale = 2.0
+mirror_starting_powers = {
+"strength": 2
+}

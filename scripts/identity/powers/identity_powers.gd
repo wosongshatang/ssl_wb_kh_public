@@ -400,6 +400,110 @@ class TimeFlow extends AbstractPower:
 		owner.apply_power(BasePowers.Dexterity.new(DEXTERITY))
 
 
+## ══ 猎人线（阶段 5 横向扩展 · 第三条线）══════════════════════
+##
+## 猎人引入**友方单位**——这条线风险最高，所以排最后（设计文档 R5）。
+
+## 兽之羁绊（一阶 · 驯兽师）—— 每回合结束获得格挡
+class BeastBond extends AbstractPower:
+	const BLOCK: int = 3
+
+	func _init() -> void:
+		id = &"beast_bond"
+		display_name = "兽之羁绊"
+		description = "每回合结束时获得 %d 点格挡。" % BLOCK
+		is_identity = true
+
+	func on_turn_end(owner: Creature) -> void:
+		owner.gain_block(BLOCK)
+
+
+## 猎手印记（一阶 · 游侠）—— 每回合第一次攻击牌施加易伤
+class HunterMark extends AbstractPower:
+	const VULNERABLE: int = 2
+
+	var _used_this_turn: bool = false
+
+	func _init() -> void:
+		id = &"hunter_mark"
+		display_name = "猎手印记"
+		description = "每回合第一次打出攻击牌时，给予目标 %d 层易伤。" % VULNERABLE
+		is_identity = true
+
+	func on_turn_start(_owner: Creature) -> void:
+		_used_this_turn = false
+
+	func on_card_played(owner: Creature, card: CardData) -> void:
+		if _used_this_turn or card.type != CardData.CardType.ATTACK:
+			return
+		_used_this_turn = true
+		for opponent: Creature in owner.opponents:
+			if opponent.is_alive():
+				opponent.apply_power(BasePowers.Vulnerable.new(VULNERABLE))
+				break
+
+
+## 头狼嗥叫（终职 · 兽王）—— 每回合 +2 力量
+class AlphaHowl extends AbstractPower:
+	const STRENGTH: int = 2
+
+	func _init() -> void:
+		id = &"alpha_howl"
+		display_name = "头狼嗥叫"
+		description = "每回合开始时获得 %d 点力量。" % STRENGTH
+		is_identity = true
+
+	func on_turn_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Strength.new(STRENGTH))
+
+
+## 群猎战术（终职 · 驯鹰者）—— 每回合 +2 格挡 +1 敏捷
+class PackTactics extends AbstractPower:
+	const BLOCK: int = 2
+	const DEXTERITY: int = 1
+
+	func _init() -> void:
+		id = &"pack_tactics"
+		display_name = "群猎战术"
+		description = "每回合开始时获得 %d 点格挡与 %d 点敏捷。" % [BLOCK, DEXTERITY]
+		is_identity = true
+
+	func on_turn_start(owner: Creature) -> void:
+		owner.gain_block(BLOCK)
+		owner.apply_power(BasePowers.Dexterity.new(DEXTERITY))
+
+
+## 追猎（终职 · 追猎者）—— 每次造成伤害额外 +4
+##
+## 用 `at_damage_give`（修正链第 ② 步，**最先介入**），所以会被力量/虚弱/易伤放大。
+## 与"施加 Power"的模式相反：这是**一次性、可被放大**的加值。
+class Pursuer extends AbstractPower:
+	const BONUS: int = 4
+
+	func _init() -> void:
+		id = &"pursuer"
+		display_name = "追猎"
+		description = "每次造成伤害额外 +%d（会被力量 / 易伤放大）。" % BONUS
+		is_identity = true
+
+	func at_damage_give(value: float, _info: DamageInfo) -> float:
+		return value + float(BONUS)
+
+
+## 荆棘之皮（终职 · 荆棘游侠）—— 开场带荆棘
+class ThornHide extends AbstractPower:
+	const THORNS: int = 4
+
+	func _init() -> void:
+		id = &"thorn_hide"
+		display_name = "荆棘之皮"
+		description = "战斗开始时获得 %d 点荆棘。" % THORNS
+		is_identity = true
+
+	func at_battle_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Thorns.new(THORNS))
+
+
 ## id → 构造器。新增身份能力时只需在这里加一行。
 static func create(power_id: StringName) -> AbstractPower:
 	match power_id:
@@ -439,6 +543,18 @@ static func create(power_id: StringName) -> AbstractPower:
 			return ArcaneFocus.new()
 		&"time_flow":
 			return TimeFlow.new()
+		&"beast_bond":
+			return BeastBond.new()
+		&"hunter_mark":
+			return HunterMark.new()
+		&"alpha_howl":
+			return AlphaHowl.new()
+		&"pack_tactics":
+			return PackTactics.new()
+		&"pursuer":
+			return Pursuer.new()
+		&"thorn_hide":
+			return ThornHide.new()
 		_:
 			push_warning("IdentityPowers: 未知身份能力 id「%s」" % power_id)
 			return null

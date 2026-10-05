@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"hunter_beast_king"
+display_name = "兽王"
+description = "整片林子都听你的。"
+tier = 2
+parent_job = &"hunter_tamer"
+identity_power_ids = Array[StringName]([&"alpha_howl"])
+job_card_ids = Array[StringName]([&"call_bear", &"call_serpent", &"hunters_focus"])
+card_pool_tags = Array[StringName]([&"hunter", &"beast"])
+signature_card_ids = Array[StringName]([&"gold_alpha_howl", &"gold_alpha_pack"])
+mirror_job_id = &"mirror_hunter_beast_king"
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

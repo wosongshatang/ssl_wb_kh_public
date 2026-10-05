@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/relics/relic_data.gd" id="1_relicdata"]
+
+[resource]
+script = ExtResource("1_relicdata")
+id = &"job_tracker"
+display_name = "追猎者的猎刀"
+description = "战斗开始时获得 3 点力量。"
+trigger_text = "战斗开始时"
+category = 2
+divinity_cost = 0
+rarity = 1
+deity_id = &""

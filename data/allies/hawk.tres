@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="AllyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/creatures/ally_data.gd" id="1_allydata"]
+
+[resource]
+script = ExtResource("1_allydata")
+id = &"hawk"
+display_name = "猎鹰"
+max_hp = 9
+attack = 7
+is_taunt = false
+starting_powers = {}

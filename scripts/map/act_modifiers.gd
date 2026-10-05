@@ -148,6 +148,43 @@ class CausalityField extends Runtime:
 		announce("因果未动：+%d 力量" % AMOUNT)
 
 
+## 埋伏（翠林猎场）—— 战斗开始时获得敏捷
+##
+## 猎场是"先手"的图：**在敌人碰到你之前解决它**。
+class Ambush extends Runtime:
+	const DEXTERITY: int = 3
+
+	func apply_battle_start(player: Creature, _enemies: Array) -> void:
+		player.apply_power(BasePowers.Dexterity.new(DEXTERITY))
+		announce("埋伏成功：+%d 敏捷" % DEXTERITY)
+
+
+## 兽群迁徙（大荒野）—— 每回合敌人 +1 力量
+##
+## 与"军势"（双方都涨）不同：**只涨敌人**。大荒野逼你提速，
+## 因为时间站在兽群那边。
+class Migration extends Runtime:
+	const AMOUNT: int = 1
+
+	func on_turn_start(player: Creature, _turn_number: int) -> void:
+		for opponent: Creature in player.opponents:
+			if opponent.is_alive():
+				opponent.apply_power(BasePowers.Strength.new(AMOUNT))
+		announce("兽群逼近：敌人 +%d 力量" % AMOUNT)
+
+
+## 本能（万兽冢）—— 每回合开始时玩家 +1 力量 +1 格挡
+##
+## 万兽冢是"回归本能"的图：**越打越顺**，惩罚的是犹豫。
+class Instinct extends Runtime:
+	const STRENGTH: int = 1
+	const BLOCK: int = 1
+
+	func on_turn_start(player: Creature, _turn_number: int) -> void:
+		player.apply_power(BasePowers.Strength.new(STRENGTH))
+		player.gain_block(BLOCK)
+
+
 static func create(modifier: ActModifier, battle: BattleManager) -> Runtime:
 	var runtime: Runtime = null
 	match modifier.id:
@@ -163,6 +200,12 @@ static func create(modifier: ActModifier, battle: BattleManager) -> Runtime:
 			runtime = ManaTide.new()
 		&"causality_field":
 			runtime = CausalityField.new()
+		&"ambush":
+			runtime = Ambush.new()
+		&"migration":
+			runtime = Migration.new()
+		&"instinct":
+			runtime = Instinct.new()
 		_:
 			push_warning("ActModifiers: 未知幕环境机制「%s」" % modifier.id)
 			return null
@@ -175,4 +218,5 @@ static func is_known(modifier_id: StringName) -> bool:
 	return modifier_id in [
 		&"arena_crowd_cheer", &"battlefield_momentum", &"ancient_grudge",
 		&"tower_lesson", &"mana_tide", &"causality_field",
+		&"ambush", &"migration", &"instinct",
 	]

@@ -86,6 +86,14 @@ const LINES: Dictionary = {
 		{"name": "万法归墟", "modifier": &"causality_field",
 			"enemies": [&"mage_act3_arbiter", &"mage_act3_echo", &"mage_act3_voice"]},
 	],
+	&"hunter": [
+		{"name": "翠林猎场", "modifier": &"ambush",
+			"enemies": [&"hunter_act1_boar", &"hunter_act1_spider", &"hunter_act1_wolf"]},
+		{"name": "大荒野", "modifier": &"migration",
+			"enemies": [&"hunter_act2_stalker", &"hunter_act2_viper", &"hunter_act2_bull"]},
+		{"name": "万兽冢", "modifier": &"instinct",
+			"enemies": [&"hunter_act3_ancestor", &"hunter_act3_reborn", &"hunter_act3_instinct"]},
+	],
 }
 
 
