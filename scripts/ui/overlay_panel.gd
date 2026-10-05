@@ -17,6 +17,7 @@ signal closed
 var content_box: VBoxContainer
 ## **固定页脚**：退出 / 关键动作放这里，永不被内容挤走
 var footer_box: HBoxContainer
+var _scroll: ScrollContainer = null
 ## 内容区最大宽度（牌组网格这类宽内容需要调大）
 var frame_min_width: int = CARD_MIN_WIDTH
 
@@ -58,12 +59,19 @@ func _ready() -> void:
 	root_column.add_theme_constant_override("separation", 10)
 	margin.add_child(root_column)
 
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# 上限：视口高度的 78%，给页脚与边距留位置
-	scroll.custom_minimum_size = Vector2(0, 0)
-	root_column.add_child(scroll)
+	# ⚠️ ScrollContainer **不能**用 EXPAND_FILL 塞进自适应容器里。
+	#
+	# `PanelContainer` 的高度由内容撑开，而 ScrollContainer 的最小高度是 0——
+	# 两者互相等待，结果是 **ScrollContainer 塌缩成 0 高度、内容完全看不见**。
+	# 表现是"面板打开了但什么都没有"，而且**不报任何错**。
+	#
+	# 正确做法：让它**贴合内容**，只在超过视口上限时才滚动。
+	# 具体尺寸在 `_fit_scroll()` 里按内容实测（`_ready` 之后才量得准）。
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.custom_minimum_size = Vector2(0, 0)
+	root_column.add_child(_scroll)
+	var scroll := _scroll
 
 	content_box = VBoxContainer.new()
 	content_box.add_theme_constant_override("separation", 10)
@@ -76,6 +84,7 @@ func _ready() -> void:
 	root_column.add_child(footer_box)
 
 	_build_content()
+	_fit_scroll()
 
 
 ## ESC 关闭弹层（用户要求：「点击 esc 回到游戏界面」）
@@ -101,6 +110,24 @@ func rebuild_content() -> void:
 		content_box.remove_child(child)
 		child.queue_free()
 	_build_content()
+	_fit_scroll()
+	_fit_scroll()
+
+
+## 让内容区**贴合内容高度**，但不超过视口的 78%。
+##
+## 在 `_ready` 里直接量是量不准的（容器还没排过版），所以延迟一帧。
+func _fit_scroll() -> void:
+	if _scroll == null or content_box == null:
+		return
+	var content_height: float = content_box.get_combined_minimum_size().y
+	var cap: float = get_viewport_rect().size.y * 0.78
+	_scroll.custom_minimum_size.y = minf(content_height, cap)
+
+
+## 重建内容后必须重新量一次——否则内容变多时高度不会跟着变
+func _refit() -> void:
+	_fit_scroll()
 
 
 # ── 构建辅助 ────────────────────────────────────────────────
