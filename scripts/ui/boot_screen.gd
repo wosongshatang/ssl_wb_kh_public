@@ -14,6 +14,8 @@ const BUILD_STAGE: String = "阶段 3 · 单局骨架"
 @onready var continue_button: Button = %ContinueButton
 @onready var debug_battle_button: Button = %DebugBattleButton
 
+var _select_panel: CharacterSelectPanel = null
+
 
 func _ready() -> void:
 	new_game_button.pressed.connect(_on_new_game_pressed)
@@ -40,9 +42,29 @@ func _ready() -> void:
 	print("[Boot] 引擎版本 4.6 / 渲染后端 GL Compatibility")
 
 
+## 新游戏 → **先选角色**（多角色前置 ③）。
+## 之前写死 `&"warrior"`，加多少角色都只有战士能玩。
 func _on_new_game_pressed() -> void:
-	GameState.start_new_run(&"warrior", randi())
+	if _select_panel != null:
+		return
+
+	_select_panel = CharacterSelectPanel.new()
+	add_child(_select_panel)
+	_select_panel.setup()
+	_select_panel.character_chosen.connect(_on_character_chosen)
+	_select_panel.closed.connect(_close_select)
+
+
+func _on_character_chosen(character: StringName) -> void:
+	_close_select()
+	GameState.start_new_run(character, randi())
 	get_tree().change_scene_to_file("res://scenes/map/map.tscn")
+
+
+func _close_select() -> void:
+	if _select_panel != null:
+		_select_panel.queue_free()
+		_select_panel = null
 
 
 func _on_continue_pressed() -> void:

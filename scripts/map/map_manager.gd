@@ -78,6 +78,14 @@ const LINES: Dictionary = {
 			],
 		},
 	],
+	&"mage": [
+		{"name": "学徒白塔", "modifier": &"tower_lesson",
+			"enemies": [&"mage_act1_acolyte", &"mage_act1_construct", &"mage_act1_shard"]},
+		{"name": "元素裂隙", "modifier": &"mana_tide",
+			"enemies": [&"mage_act2_wraith", &"mage_act2_devourer", &"mage_act2_tide"]},
+		{"name": "万法归墟", "modifier": &"causality_field",
+			"enemies": [&"mage_act3_arbiter", &"mage_act3_echo", &"mage_act3_voice"]},
+	],
 }
 
 

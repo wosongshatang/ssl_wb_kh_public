@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"mage_elementalist"
+display_name = "元素使"
+description = "火与冰是两个方向，但都从同一双手里出去。"
+tier = 1
+parent_job = &""
+identity_power_ids = Array[StringName]([&"elemental_attunement"])
+job_card_ids = Array[StringName]([&"flame_arrow", &"ice_shard", &"ignite"])
+card_pool_tags = Array[StringName]([&"mage"])
+signature_card_ids = Array[StringName]([&"gold_elem_spark", &"gold_elem_veil"])
+mirror_job_id = &""
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

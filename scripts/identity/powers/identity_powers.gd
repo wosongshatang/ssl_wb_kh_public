@@ -277,6 +277,129 @@ class Causality extends AbstractPower:
 		return value * 0.5
 
 
+## ══ 法师线（阶段 5 横向扩展 · 第二条线）══════════════════════
+##
+## 法师的机制核心是**资源管线本身**（设计文档：元素反应 / 奥术蓄力是纯资源管线，
+## 不依赖任何新实体系统）——所以这条线风险最低，排在猎人前面。
+
+## 元素亲和（一阶 · 元素使）—— 每回合第一次打出攻击牌时施加易伤
+##
+## "第一次"而不是"每次"：每次的话它会退化成"多打攻击牌就完事"，
+## 而第一次逼玩家**把最重的那张牌放在第一位**——这才是元素的节奏感。
+class ElementalAttunement extends AbstractPower:
+	const VULNERABLE: int = 2
+
+	var _used_this_turn: bool = false
+
+	func _init() -> void:
+		id = &"elemental_attunement"
+		display_name = "元素亲和"
+		description = "每回合第一次打出攻击牌时，给予目标 %d 层易伤。" % VULNERABLE
+		is_identity = true
+
+	func on_turn_start(_owner: Creature) -> void:
+		_used_this_turn = false
+
+	func on_card_played(owner: Creature, card: CardData) -> void:
+		if _used_this_turn or card.type != CardData.CardType.ATTACK:
+			return
+		_used_this_turn = true
+		for opponent: Creature in owner.opponents:
+			if opponent.is_alive():
+				opponent.apply_power(BasePowers.Vulnerable.new(VULNERABLE))
+				break
+
+
+## 奥术蓄力（一阶 · 奥术师）—— 回合结束时把没用掉的能量转成格挡
+##
+## 惩罚"留一手"的同时给一条出路：**能量不浪费，但只能变成防御**。
+class ArcaneCharge extends AbstractPower:
+	const BLOCK_PER_ENERGY: int = 3
+
+	func _init() -> void:
+		id = &"arcane_charge"
+		display_name = "奥术蓄力"
+		description = "回合结束时，每点未使用的能量转化为 %d 点格挡。" % BLOCK_PER_ENERGY
+		is_identity = true
+
+	func on_turn_end(owner: Creature) -> void:
+		if owner.energy <= 0:
+			return
+		owner.gain_block(owner.energy * BLOCK_PER_ENERGY)
+
+
+## 烈焰之心（终职 · 烈焰）—— 攻击牌附带燃烧
+class FlameHeart extends AbstractPower:
+	const POISON: int = 2
+
+	func _init() -> void:
+		id = &"flame_heart"
+		display_name = "烈焰之心"
+		description = "每次打出攻击牌，额外给予目标 %d 层中毒。" % POISON
+		is_identity = true
+
+	func on_card_played(owner: Creature, card: CardData) -> void:
+		if card.type != CardData.CardType.ATTACK:
+			return
+		for opponent: Creature in owner.opponents:
+			if opponent.is_alive():
+				opponent.apply_power(BasePowers.Poison.new(POISON))
+				break
+
+
+## 霜之护盾（终职 · 冰霜）—— 每回合第一次受到的伤害减半
+class FrostShield extends AbstractPower:
+	var _used_this_turn: bool = false
+
+	func _init() -> void:
+		id = &"frost_shield"
+		display_name = "霜之护盾"
+		description = "每回合第一次受到的伤害减半。"
+		is_identity = true
+
+	func on_turn_start(_owner: Creature) -> void:
+		_used_this_turn = false
+
+	func at_damage_take(value: float, _info: DamageInfo) -> float:
+		if _used_this_turn:
+			return value
+		_used_this_turn = true
+		return value * 0.5
+
+
+## 秘法专注（终职 · 秘法）—— 每回合稳定增长的力量
+class ArcaneFocus extends AbstractPower:
+	const STRENGTH_PER_TURN: int = 2
+
+	func _init() -> void:
+		id = &"arcane_focus"
+		display_name = "秘法专注"
+		description = "每回合开始时获得 %d 点力量。" % STRENGTH_PER_TURN
+		is_identity = true
+
+	func on_turn_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Strength.new(STRENGTH_PER_TURN))
+
+
+## 时序流转（终职 · 时序）—— 每回合开始获得格挡与敏捷
+##
+## 与"力量"路线的对照：秘法涨伤害，时序涨生存。
+## **同一个一阶分出的两个终职应该给出相反的建议**，否则选哪个都一样。
+class TimeFlow extends AbstractPower:
+	const BLOCK: int = 3
+	const DEXTERITY: int = 1
+
+	func _init() -> void:
+		id = &"time_flow"
+		display_name = "时序流转"
+		description = "每回合开始时获得 %d 点格挡与 %d 点敏捷。" % [BLOCK, DEXTERITY]
+		is_identity = true
+
+	func on_turn_start(owner: Creature) -> void:
+		owner.gain_block(BLOCK)
+		owner.apply_power(BasePowers.Dexterity.new(DEXTERITY))
+
+
 ## id → 构造器。新增身份能力时只需在这里加一行。
 static func create(power_id: StringName) -> AbstractPower:
 	match power_id:
@@ -304,6 +427,18 @@ static func create(power_id: StringName) -> AbstractPower:
 			return WildRebirth.new()
 		&"causality":
 			return Causality.new()
+		&"elemental_attunement":
+			return ElementalAttunement.new()
+		&"arcane_charge":
+			return ArcaneCharge.new()
+		&"flame_heart":
+			return FlameHeart.new()
+		&"frost_shield":
+			return FrostShield.new()
+		&"arcane_focus":
+			return ArcaneFocus.new()
+		&"time_flow":
+			return TimeFlow.new()
 		_:
 			push_warning("IdentityPowers: 未知身份能力 id「%s」" % power_id)
 			return null

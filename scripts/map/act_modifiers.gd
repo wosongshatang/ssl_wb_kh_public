@@ -86,6 +86,68 @@ class UndyingGrudge extends Runtime:
 		announce("%s 的执念反噬，失去 %d 点生命" % [enemy.display_name, damage])
 
 
+## 教学机关（学徒白塔）—— 每回合第一次打出技能牌时额外获得格挡
+##
+## 白塔是"教学"图，所以机制是**奖励正确的出牌顺序**：
+## 先技能后攻击，比反过来强。玩家在这里学会"顺序也是资源"。
+class TowerLesson extends Runtime:
+	const BONUS_BLOCK: int = 4
+
+	var _used_this_turn: bool = false
+
+	func on_turn_start(_player: Creature, _turn_number: int) -> void:
+		_used_this_turn = false
+
+	func on_card_played(player: Creature, card: CardData) -> void:
+		if _used_this_turn or card.type != CardData.CardType.SKILL:
+			return
+		_used_this_turn = true
+		player.gain_block(BONUS_BLOCK)
+		announce("第一张技能牌，+%d 格挡" % BONUS_BLOCK)
+
+
+## 魔力潮汐（元素裂隙）—— 力量在双方之间来回涨落
+##
+## **奇数回合给玩家，偶数回合给敌人**。它惩罚的是"按自己的节奏打"——
+## 玩家必须学会"趁涨潮的那一回合多打"。
+class ManaTide extends Runtime:
+	const AMOUNT: int = 2
+
+	func on_turn_start(player: Creature, turn_number: int) -> void:
+		if turn_number % 2 == 1:
+			player.apply_power(BasePowers.Strength.new(AMOUNT))
+			announce("涨潮：你 +%d 力量" % AMOUNT)
+		else:
+			for opponent: Creature in player.opponents:
+				if opponent.is_alive():
+					opponent.apply_power(BasePowers.Strength.new(AMOUNT))
+			announce("落潮：敌人 +%d 力量" % AMOUNT)
+
+
+## 因果律（万法归墟）—— 没被打到，就变强
+##
+## 它把"防守成功"直接折算成进攻资源，于是**格挡不再是纯消耗**。
+class CausalityField extends Runtime:
+	const AMOUNT: int = 2
+
+	var _hurt_this_turn: bool = false
+
+	func on_turn_start(_player: Creature, _turn_number: int) -> void:
+		_hurt_this_turn = false
+
+	func apply_battle_start(player: Creature, _enemies: Array) -> void:
+		player.health_lost.connect(func(_amount: int) -> void: _hurt_this_turn = true)
+
+	func on_card_played(_player: Creature, _card: CardData) -> void:
+		pass
+
+	func on_turn_end(player: Creature) -> void:
+		if _hurt_this_turn:
+			return
+		player.apply_power(BasePowers.Strength.new(AMOUNT))
+		announce("因果未动：+%d 力量" % AMOUNT)
+
+
 static func create(modifier: ActModifier, battle: BattleManager) -> Runtime:
 	var runtime: Runtime = null
 	match modifier.id:
@@ -95,6 +157,12 @@ static func create(modifier: ActModifier, battle: BattleManager) -> Runtime:
 			runtime = WarMomentum.new()
 		&"ancient_grudge":
 			runtime = UndyingGrudge.new()
+		&"tower_lesson":
+			runtime = TowerLesson.new()
+		&"mana_tide":
+			runtime = ManaTide.new()
+		&"causality_field":
+			runtime = CausalityField.new()
 		_:
 			push_warning("ActModifiers: 未知幕环境机制「%s」" % modifier.id)
 			return null
@@ -106,4 +174,5 @@ static func create(modifier: ActModifier, battle: BattleManager) -> Runtime:
 static func is_known(modifier_id: StringName) -> bool:
 	return modifier_id in [
 		&"arena_crowd_cheer", &"battlefield_momentum", &"ancient_grudge",
+		&"tower_lesson", &"mana_tide", &"causality_field",
 	]
