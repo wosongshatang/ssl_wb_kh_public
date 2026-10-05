@@ -13,6 +13,10 @@ const MAX_ACTS: int = 3
 const POTION_DROP_CHANCE: float = 0.35
 const HAND_CARD_SPACING: int = 6
 const ENEMY_SLOT_SPACING: float = 190.0
+## 盟友站位：玩家与敌人**之间**——既看得出"它站你这边"，
+## 也看得出"它挡在你前面"（嘲讽的视觉表达）
+const ALLY_SLOT_SPACING: float = 96.0
+const ALLY_X_RATIO: float = 0.44
 const ACTOR_Y_RATIO: float = 0.56
 
 var _run: RunState
@@ -26,6 +30,8 @@ var _background: BattleBackground
 var _field: Control
 var _player_view: CombatActorView
 var _enemy_views: Array[CombatActorView] = []
+## 盟友视图。**每次刷新与 `_battle.allies` 对齐**，不逐个监听增删。
+var _ally_views: Array[CombatActorView] = []
 var _hand_box: HBoxContainer
 var _energy_label: Label
 var _draw_pile_button: Button
@@ -149,6 +155,16 @@ func _layout() -> void:
 	if _player_view != null:
 		_player_view.position = Vector2(
 			viewport_size.x * 0.24 - CombatActorView.VIEW_SIZE.x * 0.5, actor_y)
+
+	# 盟友站在玩家与敌人之间
+	for i: int in _ally_views.size():
+		var ally_count: int = _ally_views.size()
+		var ally_x: float = viewport_size.x * ALLY_X_RATIO
+		if ally_count > 1:
+			ally_x += (float(i) - float(ally_count - 1) * 0.5) * ALLY_SLOT_SPACING
+		# 略低一点：视觉上区分"我方前排"，也不挡玩家立绘
+		_ally_views[i].position = Vector2(
+			ally_x - CombatActorView.VIEW_SIZE.x * 0.5, actor_y + 26.0)
 
 	for i: int in _enemy_views.size():
 		var count: int = _enemy_views.size()
@@ -297,11 +313,46 @@ func _assign_opponents() -> void:
 
 # ══ 刷新 ════════════════════════════════════════════════════
 
+## 把盟友视图对齐到当前的盟友列表。
+##
+## ## 为什么用「每次刷新对齐」而不是「监听增删信号」
+## `allies` 的变动来源有三处：**召唤 / 死亡 / 战斗重置**。
+## 逐个监听容易漏一处，而漏了的表现是"召唤兽看不见"或"死了还站着"——
+## **不报错，只是画面和状态不一致**。
+##
+## 每次刷新对齐一次，数量对不上就补/删，逻辑只有一段。
+func _sync_ally_views() -> void:
+	if _field == null or _battle == null:
+		return
+
+	var allies: Array[Ally] = _battle.allies
+
+	while _ally_views.size() < allies.size():
+		var view := CombatActorView.new()
+		_field.add_child(view)
+		view.status_pressed.connect(_on_status_pressed)
+		_ally_views.append(view)
+
+	while _ally_views.size() > allies.size():
+		var extra: CombatActorView = _ally_views.pop_back()
+		extra.queue_free()
+
+	for i: int in _ally_views.size():
+		var ally: Ally = allies[i]
+		if _ally_views[i].creature == ally:
+			continue
+		# 盟友用 BEAST 外观，与敌人区分开
+		_ally_views[i].bind(ally, CombatActorView.Look.BEAST, true)
+
+	_layout()
+
+
 func _refresh_all() -> void:
 	_refresh_hand()
 	_refresh_piles()
 	_refresh_energy()
 	_refresh_intents()
+	_sync_ally_views()
 	_hud.refresh()
 
 

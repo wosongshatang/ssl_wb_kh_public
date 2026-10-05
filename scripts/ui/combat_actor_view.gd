@@ -31,6 +31,7 @@ enum Look {
 	SLIME,     ## 软泥类
 	BRUTE,     ## 人形敌人
 	GOD,       ## 神（Boss）
+	BEAST,     ## 召唤兽（猎人线的友方单位）
 }
 
 var creature: Creature = null
