@@ -63,24 +63,11 @@ func _build_offers() -> void:
 	_build_card_shelf()
 	_build_consumable_shelf()
 
-	add_separator()
-	var actions := HBoxContainer.new()
-	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	actions.add_theme_constant_override("separation", 12)
-	content_box.add_child(actions)
-
-	var remove_button := Button.new()
-	remove_button.text = "删除一张牌（%d 金币）" % REMOVAL_PRICE
-	remove_button.focus_mode = Control.FOCUS_NONE
-	remove_button.disabled = _gold < REMOVAL_PRICE
-	remove_button.pressed.connect(_on_open_removal_pressed)
-	actions.add_child(remove_button)
-
-	var leave_button := Button.new()
-	leave_button.text = "离开商店"
-	leave_button.focus_mode = Control.FOCUS_NONE
-	leave_button.pressed.connect(func() -> void: closed.emit())
-	actions.add_child(leave_button)
+	# ⚠️ 「删牌 / 离开」必须放**固定页脚**，不能放内容区。
+	# 用户反馈：商店内容一多（卡牌 + 药水 + 遗物）就把这两个按钮挤出屏幕，
+	# 玩家**进得去出不来**。退出路径永远不能被内容挤掉。
+	add_footer_button("删除一张牌（%d 金币）" % REMOVAL_PRICE, _on_open_removal_pressed)
+	add_footer_button("离开商店", func() -> void: closed.emit(), true)
 
 
 ## 卡牌货架：横排卡面，每张下面一个价格按钮
@@ -253,8 +240,7 @@ func _build_removal() -> void:
 
 	if _deck.is_empty():
 		add_text("（牌组为空）")
-		add_separator()
-		add_button("返回商品页", _on_back_to_offers_pressed)
+		add_footer_button("返回商品页", _on_back_to_offers_pressed, true)
 		return
 
 	var scroll := ScrollContainer.new()
@@ -276,8 +262,7 @@ func _build_removal() -> void:
 		view.set_playable(card.can_remove())
 		view.card_clicked.connect(_on_remove_pressed.bind(card.id))
 
-	add_separator()
-	add_button("返回商品页", _on_back_to_offers_pressed)
+	add_footer_button("返回商品页", _on_back_to_offers_pressed, true)
 
 
 # ══ 交互 ════════════════════════════════════════════════════

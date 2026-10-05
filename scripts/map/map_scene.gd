@@ -63,7 +63,7 @@ func _build_ui() -> void:
 	add_child(_hint_label)
 
 	_save_button = Button.new()
-	_save_button.text = "保存并返回标题"
+	_save_button.text = "返回标题"
 	_save_button.custom_minimum_size = Vector2(140, 34)
 	_save_button.focus_mode = Control.FOCUS_NONE
 	_save_button.pressed.connect(_on_save_and_exit)
@@ -163,8 +163,18 @@ func _on_node_selected(node_id: int) -> void:
 ## ⚠️ 结果文本必须在 `_refresh()` **之后**写——`_refresh()` 会重设 `_hint_label.text`。
 ## 之前把结果写在 `_refresh()` 之前，玩家点了休息看不到任何反馈：
 ## 血确实回了，但提示立刻被"当前位置：休息"覆盖掉，看起来就是**点了没反应**。
-func _persist_and_refresh(result: String = "") -> void:
-	SaveManager.save_run(_run, _map)
+## `save = false` 用于**节点内部的中间操作**（商店买东西）。
+##
+## ⚠️ 为什么中间操作不能落盘：
+## 存档时机是「**进入节点时**」——那是玩家 SL 的锚点。
+## 如果买一件东西就存一次，SL 就回不到"进商店之前"，
+## 玩家买错了没有任何补救手段（用户实际遇到的就是这个）。
+##
+## 节点**离开时**才落盘，所以整个节点对玩家是**原子的**：
+## 要么全接受，要么读档重来。
+func _persist_and_refresh(result: String = "", save: bool = true) -> void:
+	if save:
+		SaveManager.save_run(_run, _map)
 	_refresh()
 	if result != "":
 		_hint_label.text = result
@@ -690,8 +700,16 @@ func _close_overlay() -> void:
 
 # ── 退出 ────────────────────────────────────────────────────
 
+## 返回标题。
+##
+## ## ⚠️ 这里**绝对不能存档**——这是 SL 能不能用的关键
+## 存档时机是「**进入节点时**」，那是玩家的 SL 锚点。
+## 玩家在商店里买错了东西、想读档重来——如果此时退出时存一次，
+## 存下去的会是"节点已访问"的状态，SL 之后就**直接跳过这个节点**了。
+##
+## 换句话说：**"退出时保存"会亲手毁掉玩家唯一的补救手段。**
+## 该存的地方（进节点 / 开战 / 结算）都已经存过了，这里什么都不用做。
 func _on_save_and_exit() -> void:
-	SaveManager.save_run(_run, _map)
 	_hud.set_time_running(false)
 	get_tree().change_scene_to_file("res://scenes/boot/main.tscn")
 

@@ -15,6 +15,8 @@ const CARD_MIN_WIDTH: int = 320
 signal closed
 
 var content_box: VBoxContainer
+## **固定页脚**：退出 / 关键动作放这里，永不被内容挤走
+var footer_box: HBoxContainer
 ## 内容区最大宽度（牌组网格这类宽内容需要调大）
 var frame_min_width: int = CARD_MIN_WIDTH
 
@@ -34,7 +36,12 @@ func _ready() -> void:
 
 	var frame := PanelContainer.new()
 	frame.custom_minimum_size = Vector2(frame_min_width, 0)
+	# 面板整体不超过视口的 92%——超过就靠内容区的 ScrollContainer 滚
+	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	center.add_child(frame)
+	center.resized.connect(func() -> void:
+		frame.custom_minimum_size.y = 0
+		frame.size.y = minf(frame.size.y, center.size.y * 0.92))
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 24)
@@ -43,9 +50,30 @@ func _ready() -> void:
 	margin.add_theme_constant_override("margin_bottom", 20)
 	frame.add_child(margin)
 
+	# ⚠️ 内容放进**可滚动区**，动作按钮放进**固定页脚**。
+	#
+	# 用户反馈：商店内容一多（卡牌 + 药水 + 遗物）就把「删牌 / 离开」挤出屏幕，
+	# 玩家进得去出不来。**面板的退出路径永远不能被内容挤掉。**
+	var root_column := VBoxContainer.new()
+	root_column.add_theme_constant_override("separation", 10)
+	margin.add_child(root_column)
+
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# 上限：视口高度的 78%，给页脚与边距留位置
+	scroll.custom_minimum_size = Vector2(0, 0)
+	root_column.add_child(scroll)
+
 	content_box = VBoxContainer.new()
 	content_box.add_theme_constant_override("separation", 10)
-	margin.add_child(content_box)
+	content_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content_box)
+
+	footer_box = HBoxContainer.new()
+	footer_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	footer_box.add_theme_constant_override("separation", 12)
+	root_column.add_child(footer_box)
 
 	_build_content()
 
@@ -105,6 +133,20 @@ func add_button(text: String, handler: Callable) -> Button:
 
 func add_separator() -> void:
 	content_box.add_child(HSeparator.new())
+
+
+## 往**固定页脚**加一个按钮。退出路径必须放这里——
+## 放进内容区的话，内容一多它就被滚出屏幕（用户实际遇到的就是这个）。
+func add_footer_button(text: String, handler: Callable, prominent: bool = false) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(0, 40)
+	if prominent:
+		button.add_theme_font_size_override("font_size", 16)
+	button.pressed.connect(handler)
+	footer_box.add_child(button)
+	return button
 
 
 ## 节点横幅：告诉玩家「你进入了什么」。
