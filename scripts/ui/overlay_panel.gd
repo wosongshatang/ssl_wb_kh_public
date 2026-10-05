@@ -109,6 +109,15 @@ func rebuild_content() -> void:
 	for child: Node in content_box.get_children():
 		content_box.remove_child(child)
 		child.queue_free()
+
+	# ⚠️ **页脚也要清**。
+	# 只清内容不清页脚的话，每次 rebuild 都会往页脚追加一批按钮——
+	# 商店切一次"删牌页"就多一个「返回商品页」，四次之后页脚挤满了没用的按钮。
+	# 这类泄漏不会报错，只会让界面越用越乱。
+	for child: Node in footer_box.get_children():
+		footer_box.remove_child(child)
+		child.queue_free()
+
 	_build_content()
 	_fit_scroll()
 	_fit_scroll()

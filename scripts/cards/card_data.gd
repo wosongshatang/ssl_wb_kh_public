@@ -159,8 +159,19 @@ static func make_skill(
 # ══ 升级 ════════════════════════════════════════════════════
 
 ## 返回这张牌的**升级副本**（不修改自身——注册表里的模板必须保持未升级）。
+##
+## ## ⚠️ 必须**深拷贝字典**
+## `Resource.duplicate()` 是**浅拷贝**：`apply_to_self` / `apply_to_target`
+## 这两个 Dictionary 会和原牌**共享同一个引用**。
+##
+## 后果非常严重且完全不报错：
+##   · `apply_upgrade()` 里的 `apply_to_self[key] += delta` 会**改到模板**
+##   · 而 `ContentRegistry` 在整个进程里只加载一次 → **污染跨局残留**
+##   · 更糟的是**升级界面一预览就污染**（预览也在调 `create_upgraded()`）
+##
+## 表现是「能力牌升级好像没生效」——因为第一次预览时模板已经被改过了。
 func create_upgraded() -> CardData:
-	var copy := duplicate() as CardData
+	var copy := duplicate(true) as CardData   # true = 深拷贝
 	copy.is_upgraded = true
 	copy.display_name = "%s+" % display_name
 	copy.apply_upgrade()

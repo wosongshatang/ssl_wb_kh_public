@@ -163,7 +163,9 @@ func _on_node_selected(node_id: int) -> void:
 ## ⚠️ 结果文本必须在 `_refresh()` **之后**写——`_refresh()` 会重设 `_hint_label.text`。
 ## 之前把结果写在 `_refresh()` 之前，玩家点了休息看不到任何反馈：
 ## 血确实回了，但提示立刻被"当前位置：休息"覆盖掉，看起来就是**点了没反应**。
-## `save = false` 用于**节点内部的中间操作**（商店买东西）。
+## `save = false` 用于**节点内部的全部操作**（买东西 / 休息 / 事件 / 锻造 / 神坛 / 叛神者）。
+##
+## **整个节点对玩家是原子的**：要么全接受，要么读档重来。
 ##
 ## ⚠️ 为什么中间操作不能落盘：
 ## 存档时机是「**进入节点时**」——那是玩家 SL 的锚点。
@@ -200,7 +202,7 @@ func _on_rest_chosen() -> void:
 	_close_overlay()
 	var healed: int = int(ceil(float(_run.max_hp) * RestChoicePanel.HEAL_RATIO))
 	_run.heal(healed)
-	_persist_and_refresh("休息：回复 %d 点生命。" % healed)
+	_persist_and_refresh("休息：回复 %d 点生命。" % healed, false)
 
 
 func _on_forge_chosen() -> void:
@@ -248,13 +250,13 @@ func _on_altar_sacrifice() -> void:
 	_persist_and_refresh("献祭了 %d 点生命，获得 %d 点永久力量（神性 +%d）。" % [
 		int(ceil(float(_run.max_hp) * GodAltarPanel.HP_COST_RATIO)),
 		GodAltarPanel.STRENGTH_GAIN, GodAltarPanel.DIVINITY_GAIN,
-	])
+	], false)
 
 
 func _on_altar_leave() -> void:
 	_close_overlay()
 	_run.heal(maxi(1, int(ceil(float(_run.max_hp) * GodAltarPanel.LEAVE_HEAL_RATIO))))
-	_persist_and_refresh("你没有伸手。")
+	_persist_and_refresh("你没有伸手。", false)
 
 
 ## ── 叛神者（P6-10）──────────────────────────────────────────
@@ -277,13 +279,13 @@ func _on_traitor_strip() -> void:
 
 	var pool: Array[StringName] = RelicFactory.droppable_ids(_run.relics)
 	if pool.is_empty():
-		_persist_and_refresh("神性 -%d，但没有可拿的遗物了。" % TraitorPanel.DIVINITY_DELTA)
+		_persist_and_refresh("神性 -%d，但没有可拿的遗物了。" % TraitorPanel.DIVINITY_DELTA, false)
 		return
 
 	var relic_id: StringName = pool[_rng.randi_range(0, pool.size() - 1)]
 	_run.relics.append(relic_id)
 	_persist_and_refresh("剥离了神性（-%d），获得遗物「%s」。" % [
-		TraitorPanel.DIVINITY_DELTA, _relic_name(relic_id)])
+		TraitorPanel.DIVINITY_DELTA, _relic_name(relic_id)], false)
 
 
 func _on_traitor_deepen() -> void:
@@ -300,15 +302,15 @@ func _on_traitor_deepen() -> void:
 			granted += 1
 
 	_persist_and_refresh("神性 +%d，获得 %d 瓶药水。" % [
-		TraitorPanel.DIVINITY_DELTA, granted])
+		TraitorPanel.DIVINITY_DELTA, granted], false)
 
 
 func _on_upgrade_card_chosen(card_id: StringName) -> void:
 	_close_overlay()
 	if _run.upgrade_card(card_id):
-		_persist_and_refresh("锻造：升级了「%s」。" % _card_name(card_id))
+		_persist_and_refresh("锻造：升级了「%s」。" % _card_name(card_id), false)
 	else:
-		_persist_and_refresh("升级失败——这张牌可能已经升级过了。")
+		_persist_and_refresh("升级失败——这张牌可能已经升级过了。", false)
 
 
 # ── 药水 ────────────────────────────────────────────────────
@@ -477,9 +479,17 @@ func _on_removal_requested(card_id: StringName, price: int) -> void:
 	_show_shop()
 
 
+## ⚠️ **离开商店不落盘**。
+##
+## 存档时机是「**进入节点时**」——那是玩家的 SL 锚点。
+## 如果离开商店就存一次，玩家在商店里买错东西、离开后再退出，
+## SL 就会跳过这个节点（用户实际遇到的就是这个）。
+##
+## 节点结果**在进入下一个节点时才提交**：
+## 那时 `_on_node_selected` 存的检查点自然包含了上一个节点的结果。
 func _on_shop_closed() -> void:
 	_close_shop()
-	_persist_and_refresh()
+	_persist_and_refresh("", false)
 
 
 func _on_potion_purchase_requested(potion_id: StringName, price: int) -> void:
@@ -575,7 +585,7 @@ func _on_event_option_chosen(index: int) -> void:
 		get_tree().change_scene_to_file("res://scenes/ui/game_over.tscn")
 		return
 
-	_persist_and_refresh()
+	_persist_and_refresh("", false)
 
 
 ## 效果结算。**必须与 [method EventData.effect_text] 的描述一致**——
