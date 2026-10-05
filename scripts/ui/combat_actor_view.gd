@@ -36,6 +36,14 @@ enum Look {
 
 var creature: Creature = null
 var look: Look = Look.WARRIOR
+
+## 立绘 id（阶段 8）。有对应 PNG 就画图，没有就回退到 `look` 的几何剪影。
+##
+## ## 为什么是「按 id 查表」而不是扩 `Look` 枚举
+## `Look` 只有 5 个值，而敌人有 46 个、盟友 4 个、玩家 3 套——
+## 靠枚举的话 46 个敌人会共用 4 张图。
+## id 查表让每个单位都能有自己的立绘，**而代码一行都不用改**。
+var portrait_id: StringName = &""
 var is_player_side: bool = true
 
 var _name_label: Label
@@ -122,9 +130,10 @@ func set_intent(intent: IntentData) -> void:
 
 
 ## 绑定战斗单位并订阅其信号
-func bind(target: Creature, look_kind: Look = Look.WARRIOR, player_side: bool = true) -> void:
+func bind(target: Creature, look_kind: Look = Look.WARRIOR, player_side: bool = true, portrait: StringName = &"") -> void:
 	creature = target
 	look = look_kind
+	portrait_id = portrait
 	is_player_side = player_side
 
 	target.health_changed.connect(_on_any_change)
@@ -230,7 +239,20 @@ func _draw() -> void:
 	_draw_hp_bar()
 
 
+## 画立绘。
+##
+## **先试资源，再回退占位**——`assets/portraits/<id>.png` 存在就画它，
+## 不存在就画几何剪影。这样"美术没到位"和"美术到位了"用的是同一段代码，
+## 而**缺图不会崩，只会不好看**。
 func _draw_body() -> void:
+	# **资源优先**：有立绘就画立绘，没有才回退几何剪影。
+	# 放在死亡判断**之前**——死了也该用同一张立绘（由调用方决定怎么变暗）。
+	var texture: Texture2D = ContentRegistry.get_portrait(portrait_id)
+	if texture != null:
+		draw_texture_rect(texture, Rect2(Vector2.ZERO, Vector2(VIEW_SIZE.x, BODY_HEIGHT)), false)
+		return
+
+	# ── 回退：几何剪影（阶段 8 前的占位）──
 	var body_rect := Rect2(Vector2(0, 0), Vector2(VIEW_SIZE.x, BODY_HEIGHT))
 	var center := Vector2(VIEW_SIZE.x * 0.5, BODY_HEIGHT * 0.55)
 

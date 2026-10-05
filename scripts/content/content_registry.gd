@@ -147,6 +147,22 @@ func get_potion(id: StringName) -> Variant:
 	return _potions.get(String(id))
 
 
+## 按 id 找立绘（阶段 8）。
+##
+## **约定优于配置**：`res://assets/portraits/<id>.png` 存在就用它。
+## 找不到返回 null —— 调用方回退到几何剪影，**而不是崩**。
+##
+## 为什么不做成 `.tres` 字段：立绘有 50+ 个，
+## 让「丢一张图就生效」比「改 50 个数据文件」重要得多。
+func get_portrait(portrait_id: StringName) -> Texture2D:
+	if portrait_id == &"":
+		return null
+	var path: String = "res://assets/portraits/%s.png" % portrait_id
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+
 func get_ally(id: StringName) -> Variant:
 	return _allies.get(String(id))
 

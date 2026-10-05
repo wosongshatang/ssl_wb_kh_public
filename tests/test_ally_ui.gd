@@ -67,3 +67,44 @@ func test_ally_views_are_laid_out_between_player_and_enemies() -> void:
 	var source := FileAccess.get_file_as_string("res://scripts/battle/battle_scene.gd")
 	assert_true(source.contains("ALLY_X_RATIO"), "盟友应有独立站位比例")
 	assert_true(source.contains("_ally_views[i].position"), "_layout 应给盟友定位")
+
+
+# ══ 立绘查表（阶段 8 接入点）═════════════════════════════════
+
+func test_portrait_id_defaults_to_own_id() -> void:
+	## ★ 「约定优于配置」：留空时用自己的 id，
+	## 这样往 assets/portraits/ 丢一张 <id>.png 就直接生效，
+	## **不用回头改 46 个 .tres**。
+	var data: EnemyData = ContentRegistry.get_enemy(&"act1_combat")
+	assert_eq(data.effective_portrait_id(), &"act1_combat",
+		"没配 portrait_id 时应回退到自己的 id")
+
+
+func test_explicit_portrait_id_wins() -> void:
+	## 需要"两个敌人共用一张图"时可以显式指定
+	var data := EnemyData.new()
+	data.id = &"some_enemy"
+	data.portrait_id = &"shared_beast"
+	assert_eq(data.effective_portrait_id(), &"shared_beast")
+
+
+func test_missing_portrait_returns_null_not_crash() -> void:
+	## 美术没到位时**必须回退到几何剪影，而不是崩**
+	assert_null(ContentRegistry.get_portrait(&"definitely_no_such_portrait"))
+	assert_null(ContentRegistry.get_portrait(&""), "空 id 应直接返回 null")
+
+
+func test_actor_view_falls_back_when_no_portrait() -> void:
+	var view := CombatActorView.new()
+	add_child_autofree(view)
+	await get_tree().process_frame
+
+	var enemy := Enemy.new()
+	autofree(enemy)
+	enemy.setup_from_data(ContentRegistry.get_enemy(&"act1_combat"))
+
+	# 没有立绘资源，绑定不该报错
+	view.bind(enemy, CombatActorView.Look.BRUTE, false, &"no_such_portrait")
+
+	assert_eq(view.portrait_id, &"no_such_portrait")
+	assert_true(view.creature == enemy, "缺图时仍应完成绑定")

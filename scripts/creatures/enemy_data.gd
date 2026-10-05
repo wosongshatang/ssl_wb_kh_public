@@ -30,6 +30,20 @@ extends Resource
 ## 字段式每加一阶段就要改 `Enemy` 的代码，列表式只需要补一行数据。
 @export var phases: Array[EnemyPhase] = []
 
+# ══ 美术资源（阶段 8）═══════════════════════════════════════
+
+## 立绘 id。**留空时用单位自己的 id**——
+## 这样往 `assets/portraits/` 里丢一张 `<id>.png` 就直接生效，
+## 不用回头改 46 个 `.tres`。
+##
+## 需要"两个单位共用一张图"时才显式填这里。
+@export var portrait_id: StringName = &""
+
+
+## 实际生效的立绘 id
+func effective_portrait_id() -> StringName:
+	return portrait_id if portrait_id != &"" else id
+
 
 func has_phases() -> bool:
 	return not phases.is_empty()

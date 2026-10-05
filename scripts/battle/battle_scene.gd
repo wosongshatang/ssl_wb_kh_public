@@ -245,7 +245,7 @@ func _start_battle() -> void:
 	_apply_divinity_manifest()
 
 	_player_view.bind(_player, CombatActorView.Look.WARRIOR, true)
-	enemy_view.bind(enemy, _look_for(enemy_data), false)
+	enemy_view.bind(enemy, _look_for(enemy_data), false, enemy_data.effective_portrait_id())
 	_player_view.status_pressed.connect(_on_status_pressed)
 
 	_layout()
@@ -342,7 +342,7 @@ func _sync_ally_views() -> void:
 		if _ally_views[i].creature == ally:
 			continue
 		# 盟友用 BEAST 外观，与敌人区分开
-		_ally_views[i].bind(ally, CombatActorView.Look.BEAST, true)
+		_ally_views[i].bind(ally, CombatActorView.Look.BEAST, true, ally.data.effective_portrait_id())
 
 	_layout()
 
