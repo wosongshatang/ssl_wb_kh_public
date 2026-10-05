@@ -23,6 +23,8 @@ enum Effect {
 	HEAL_PERCENT,        ## 增益类：回复最大生命的 N%
 	HEAL_FLAT,           ## 增益类：回复固定生命
 	ENERGY,              ## 增益类：能量
+	CLEANSE,             ## 特殊：清除自身所有负面状态（只清 powers，碰不到身份层）
+	APPLY_POWER,         ## 特殊：施加 power_id x value（正负皆可）
 }
 
 enum Targeting {
@@ -42,6 +44,9 @@ enum Targeting {
 @export var battle_only: bool = true
 ## 0 普通 / 1 罕见 / 2 稀有（影响掉落与商店定价）
 @export_range(0, 2, 1) var rarity: int = 0
+
+## APPLY_POWER 专用：要施加的 Power id
+@export var power_id: StringName = &""
 
 
 ## 是否需要玩家指定敌人（决定是「拖到敌人身上」还是「双击即用」）

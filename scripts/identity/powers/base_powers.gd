@@ -42,6 +42,7 @@ class Weak extends AbstractPower:
 
 	func _init(amount_value: int = 1) -> void:
 		id = &"weak"
+		is_debuff = true
 		display_name = "虚弱"
 		description = "攻击伤害 ×0.75，持续 %d 回合。" % amount_value
 		amount = amount_value
@@ -61,6 +62,7 @@ class Vulnerable extends AbstractPower:
 
 	func _init(amount_value: int = 1) -> void:
 		id = &"vulnerable"
+		is_debuff = true
 		display_name = "易伤"
 		description = "受到攻击伤害 ×1.5，持续 %d 回合。" % amount_value
 		amount = amount_value
@@ -94,6 +96,7 @@ class Thorns extends AbstractPower:
 class Poison extends AbstractPower:
 	func _init(amount_value: int = 1) -> void:
 		id = &"poison"
+		is_debuff = true
 		display_name = "中毒"
 		description = "回合开始时失去 %d 点生命（无视格挡），然后层数 -1。" % amount_value
 		amount = amount_value
@@ -121,3 +124,23 @@ class Buffer extends AbstractPower:
 			return hp_loss
 		amount -= 1
 		return 0
+
+
+## 兽化 —— 兽性药剂的代价
+##
+## 给力量，但每回合抽走生命。**不是纯增益**：
+## 玩家得判断"这一场还撑得住几回合"，而不是无脑喝。
+class BeastForm extends AbstractPower:
+	const STRENGTH: int = 3
+	const HP_LOSS_PER_TURN: int = 1
+
+	func _init() -> void:
+		id = &"beast_form"
+		display_name = "兽化"
+		description = "获得 %d 点力量；每回合开始时失去 %d 点生命。" % [
+			STRENGTH, HP_LOSS_PER_TURN,
+		]
+		is_debuff = true
+
+	func on_turn_start(owner: Creature) -> void:
+		owner.take_damage(HP_LOSS_PER_TURN, null, DamageType.HP_LOSS)

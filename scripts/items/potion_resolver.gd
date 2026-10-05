@@ -107,6 +107,23 @@ static func apply(
 			result.success = true
 			result.message = "获得 %d 点能量" % potion.value
 
+		PotionData.Effect.CLEANSE:
+			var cleared: int = user.clear_negative_powers()
+			result.success = true
+			result.message = "清除了 %d 个负面状态" % cleared if cleared > 0 else "没有需要清除的状态"
+
+		PotionData.Effect.APPLY_POWER:
+			if potion.power_id == &"":
+				result.message = "这瓶药水没有配置要施加的状态"
+				return result
+			var power: AbstractPower = PowerFactory.create(potion.power_id, potion.value)
+			if power == null:
+				result.message = "未知状态「%s」" % potion.power_id
+				return result
+			(user if potion.targeting == PotionData.Targeting.SELF else target).apply_power(power)
+			result.success = true
+			result.message = "获得 %s ×%d" % [power.display_name, power.amount]
+
 		_:
 			result.message = "该药水效果尚未实现"
 

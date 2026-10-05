@@ -196,6 +196,22 @@ func has_relic(relic_id: StringName) -> bool:
 	return false
 
 
+## 清除所有**负面状态**（忘川水）。返回清掉的条数。
+##
+## 只搜 `powers`——**碰不到身份层**。这是身份层隔离规则的自然延伸：
+## 一瓶药水不该能拿走「刻进灵魂」的东西。
+func clear_negative_powers() -> int:
+	var removed: int = 0
+	for i: int in range(powers.size() - 1, -1, -1):
+		var power: AbstractPower = powers[i]
+		if not power.is_debuff:
+			continue
+		powers.remove_at(i)
+		power_removed.emit(power)
+		removed += 1
+	return removed
+
+
 func get_power(id: StringName) -> AbstractPower:
 	for power: AbstractPower in all_powers():
 		if power.id == id:

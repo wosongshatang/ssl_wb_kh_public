@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PotionData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/potion_data.gd" id="1_potiondata"]
+
+[resource]
+script = ExtResource("1_potiondata")
+id = &"beast_draught"
+display_name = "兽性药剂"
+description = "获得 3 点力量，但每回合失去 1 点生命。"
+effect = 9
+value = 1
+targeting = 1
+battle_only = true
+rarity = 2
+power_id = &"beast_form"

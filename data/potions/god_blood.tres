@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PotionData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/potion_data.gd" id="1_potiondata"]
+
+[resource]
+script = ExtResource("1_potiondata")
+id = &"god_blood"
+display_name = "神血"
+description = "回复最大生命的 30%。"
+effect = 5
+value = 30
+targeting = 1
+battle_only = false
+rarity = 2
+power_id = &""

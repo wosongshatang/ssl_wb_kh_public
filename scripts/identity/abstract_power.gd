@@ -33,6 +33,11 @@ var priority: int = 0
 var is_identity: bool = false
 ## 是否随回合递减。**身份能力恒为 false**
 var is_turn_based: bool = false
+
+## 负面状态（虚弱 / 易伤 / 中毒 / 兽化…）。
+## 忘川水这类「清除负面」的消耗品据此筛选——
+## 靠 id 白名单判断的话，新加一个 debuff 就会漏掉。
+var is_debuff: bool = false
 ## 持有者，由 Creature.apply_power 注入
 var owner_creature: Creature = null
 

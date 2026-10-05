@@ -196,7 +196,9 @@ func test_act3_boss_carries_the_god_identity_power() -> void:
 
 	var e := _make_enemy(&"act3_boss")
 	assert_true(e.has_power(&"god_of_war_stance"), "装配后应带上身份能力")
-	assert_eq(e.identity_powers.size(), 1)
+	# 战神 P4 还带「无尽战意」软狂暴——身份能力不止一个是对的
+	assert_true(e.has_power(&"endless_will"), "战神应带软狂暴")
+	assert_eq(e.identity_powers.size(), data.identity_power_ids.size())
 
 
 func test_poison_is_the_answer_to_the_god() -> void:

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PotionData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/potion_data.gd" id="1_potiondata"]
+
+[resource]
+script = ExtResource("1_potiondata")
+id = &"mana_spring"
+display_name = "法力涌泉"
+description = "获得 3 点能量。"
+effect = 7
+value = 3
+targeting = 1
+battle_only = true
+rarity = 1
+power_id = &""

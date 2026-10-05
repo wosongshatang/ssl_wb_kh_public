@@ -215,6 +215,68 @@ class DivinityManifest extends AbstractPower:
 		owner.take_damage(HP_LOSS_PER_TURN, null, DamageType.HP_LOSS)
 
 
+## 无尽战意（战神软狂暴）—— 每回合 +1 力量，**没有上限**
+##
+## 它惩罚的是"拖"：玩家每多打一回合，神就强一分。
+## 用软狂暴而不是硬性回合上限，是为了让"我还能再撑一回合"这个判断保留意义。
+class EndlessWill extends AbstractPower:
+	const PER_TURN: int = 1
+
+	func _init() -> void:
+		id = &"endless_will"
+		display_name = "无尽战意"
+		description = "每回合开始时获得 %d 点力量。" % PER_TURN
+		is_identity = true
+
+	func on_turn_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Strength.new(PER_TURN))
+
+
+## 野性轮回（兽神软狂暴）—— 每 3 回合回复 15% 最大生命
+##
+## 惩罚的是"慢慢磨"：靠小伤害消耗的战术在这里会失效。
+class WildRebirth extends AbstractPower:
+	const CYCLE: int = 3
+	const HEAL_PERCENT: int = 15
+
+	var _turns: int = 0
+
+	func _init() -> void:
+		id = &"wild_rebirth"
+		display_name = "野性轮回"
+		description = "每 %d 回合回复最大生命的 %d%%。" % [CYCLE, HEAL_PERCENT]
+		is_identity = true
+
+	func on_turn_start(owner: Creature) -> void:
+		_turns += 1
+		if _turns % CYCLE != 0:
+			return
+		owner.heal(int(ceil(float(owner.max_hp) * float(HEAL_PERCENT) / 100.0)))
+
+
+## 因果律（法神软狂暴）—— 每回合第一次受到的伤害**减半**
+##
+## 惩罚的是"攒一波大爆发"：单次巨额伤害被腰斩，逼玩家改成多段小伤害——
+## 与"多段敌人"形成镜像对照。
+class Causality extends AbstractPower:
+	var _used_this_turn: bool = false
+
+	func _init() -> void:
+		id = &"causality"
+		display_name = "因果律"
+		description = "每回合第一次受到的伤害减半。"
+		is_identity = true
+
+	func on_turn_start(_owner: Creature) -> void:
+		_used_this_turn = false
+
+	func at_damage_take(value: float, _info: DamageInfo) -> float:
+		if _used_this_turn:
+			return value
+		_used_this_turn = true
+		return value * 0.5
+
+
 ## id → 构造器。新增身份能力时只需在这里加一行。
 static func create(power_id: StringName) -> AbstractPower:
 	match power_id:
@@ -236,6 +298,12 @@ static func create(power_id: StringName) -> AbstractPower:
 			return BerserkerPreview.new()
 		&"divinity_manifest":
 			return DivinityManifest.new()
+		&"endless_will":
+			return EndlessWill.new()
+		&"wild_rebirth":
+			return WildRebirth.new()
+		&"causality":
+			return Causality.new()
 		_:
 			push_warning("IdentityPowers: 未知身份能力 id「%s」" % power_id)
 			return null

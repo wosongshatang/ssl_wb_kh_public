@@ -23,6 +23,8 @@ static func create(id: StringName, amount: int) -> AbstractPower:
 			return BasePowers.Vulnerable.new(amount)
 		&"poison":
 			return BasePowers.Poison.new(amount)
+		&"beast_form":
+			return BasePowers.BeastForm.new()
 		&"thorns":
 			return BasePowers.Thorns.new(amount)
 		&"buffer":
