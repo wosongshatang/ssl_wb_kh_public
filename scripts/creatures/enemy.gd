@@ -57,6 +57,12 @@ func phase_display_name() -> String:
 ## 检查是否该进入下一个形态。BattleManager 在敌人行动**前**调用——
 ## 这样血量刚掉下去的当回合就能变招，玩家能立刻感受到"它变了"。
 ##
+## ## ⚠️ 一次爆发跨过多个形态时，**中间形态的能力照样要补上**
+## 如果直接跳到最后一个形态，玩家一轮把 Boss 从满血打到残血，
+## 就会**跳过**「代行者」「真身」的能力与提示——
+## 于是"爆发秒杀"变成严格更优解，四阶段设计等于不存在。
+## 神被快速打下去也应该积累它的力量，只是你没看见过程。
+##
 ## 返回是否发生了切换。
 func refresh_phase() -> bool:
 	if data == null or not data.has_phases() or max_hp <= 0:
@@ -66,10 +72,13 @@ func refresh_phase() -> bool:
 	if target <= _phase:
 		return false
 
-	_phase = target
-	_apply_phase_intents(_phase, false)
-	_apply_phase_powers(_phase)
-	phase_changed.emit(_phase, data.phases[_phase])
+	# 逐个补上被跨过的形态（含目标形态）
+	for i: int in range(_phase + 1, target + 1):
+		_apply_phase_powers(i)
+		_phase = i
+		phase_changed.emit(i, data.phases[i])
+
+	_apply_phase_intents(target, false)
 	return true
 
 

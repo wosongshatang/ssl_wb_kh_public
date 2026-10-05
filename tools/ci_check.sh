@@ -40,6 +40,19 @@ echo "$PASS_MARK 资源导入完成"
 
 # ── ① 脚本解析检查 ────────────────────────────────────────────────
 echo "── ① 脚本解析检查 ──────────────────────────────────────"
+
+# ⚠️ 顺带扫一遍「字面量 /n」。
+# 用脚本批量生成 GDScript 时，`"\n"` 很容易被写成字面量 `/n` 落进文件，
+# 造成 `func xxx() -> int:/n	var ...` 这种语法错误。
+# 它会让**整个脚本**解析失败，而报错信息往往指向完全无关的地方。
+# 这条扫描花不到一秒，能省掉半小时定位。
+LITERAL_N="$(grep -rn '/n\s' "$PROJECT_DIR"/scripts "$PROJECT_DIR"/tests --include=*.gd 2>/dev/null || true)"
+if [ -n "$LITERAL_N" ]; then
+  echo "$FAIL_MARK 检测到字面量 /n（应为换行）："
+  echo "$LITERAL_N" | head -10
+  FAILED=1
+fi
+
 PARSE_OUT="$("$GODOT" --headless --quit --path "$PROJECT_DIR" 2>&1 \
   | grep -iE 'SCRIPT ERROR|Parse Error' \
   | grep -v '/addons/gut/' || true)"
@@ -93,10 +106,47 @@ fi
 # ── ④ 单元测试（GUT）────────────────────────────────────────────
 echo
 echo "── ④ 单元测试（GUT）────────────────────────────────────"
+
+# ⚠️ 先数一遍源码里有多少个 test_ 函数，**跑完再对账**。
+#
+# 为什么需要这个：GUT 曾经**静默漏跑**整个脚本文件——
+# 23 个测试文件只跑了 22 个、444 个用例只跑了 424 个，
+# 却照样打印 "All tests passed"。
+#
+# **报绿但实际没跑，比测试红了危险得多**：红着的测试会有人去看，
+# 绿灯下的盲区没人会看。所以这条检查必须存在，而且必须让"对不上"直接失败。
+EXPECTED_TESTS="$(grep -h '^func test_' "$PROJECT_DIR"/tests/*.gd | wc -l | tr -d ' ')"
+EXPECTED_FILES="$(ls "$PROJECT_DIR"/tests/test_*.gd 2>/dev/null | wc -l | tr -d ' ')"
+
 TEST_OUT="$("$GODOT" --headless -s addons/gut/gut_cmdln.gd -gexit --path "$PROJECT_DIR" 2>&1)"
+
 if echo "$TEST_OUT" | grep -q 'All tests passed'; then
   echo "$TEST_OUT" | sed -n '/^Totals$/,/^Time/p' || true
-  echo "$PASS_MARK 全部测试通过"
+
+  REPORTED_TESTS="$(echo "$TEST_OUT" | sed -n 's/^Tests *\([0-9][0-9]*\)$/\1/p' | head -1)"
+  REPORTED_FILES="$(echo "$TEST_OUT" | sed -n 's/^Scripts *\([0-9][0-9]*\)$/\1/p' | head -1)"
+  : "${REPORTED_TESTS:=0}"
+  : "${REPORTED_FILES:=0}"
+
+  # ⚠️ 最要命的一条：测试文件**解析失败**时，GUT 会静默跳过整个文件，
+  # 然后照样打印 "All tests passed"。所以这里直接把解析错误捞出来。
+  BROKEN="$(echo "$TEST_OUT" | grep -oE 'Failed to load script "res://tests/[^"]+"' | sort -u || true)"
+  if [ -n "$BROKEN" ]; then
+    echo "$FAIL_MARK 有测试文件解析失败（GUT 会**静默跳过**它，然后照样报绿）："
+    echo "$BROKEN" | sed 's/^/   /'
+    echo "   单独跑它看具体错误：-gselect=<文件名>"
+    FAILED=1
+  fi
+
+  if [ "$REPORTED_TESTS" -lt "$EXPECTED_TESTS" ]; then
+    echo "$FAIL_MARK 用例数对不上：GUT 只跑了 $REPORTED_TESTS 个，源码里有 $EXPECTED_TESTS 个"
+    echo "   （$REPORTED_FILES/$EXPECTED_FILES 个文件）—— **有脚本被静默跳过了**"
+    FAILED=1
+  fi
+
+  if [ "$FAILED" -eq 0 ]; then
+    echo "$PASS_MARK 全部测试通过（$REPORTED_FILES 文件 / $REPORTED_TESTS 用例，与源码对得上）"
+  fi
 else
   echo "$FAIL_MARK 单元测试失败："
   echo "$TEST_OUT" | tail -40

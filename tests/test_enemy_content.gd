@@ -50,7 +50,11 @@ func test_every_enemy_loads_with_intents_and_hp() -> void:
 	for enemy_id: StringName in ALL_ENEMY_IDS:
 		var data: EnemyData = ContentRegistry.get_enemy(enemy_id)
 		assert_not_null(data, "%s 应能加载为 EnemyData" % enemy_id)
-		assert_gt(data.intents.size(), 0, "%s 的意图序列不应为空" % enemy_id)
+		# 意图**既可以挂在敌人上，也可以挂在形态上**——Boss 现在全部走形态
+		var intent_total: int = data.intents.size()
+		for phase: EnemyPhase in data.phases:
+			intent_total += phase.intents.size()
+		assert_gt(intent_total, 0, "%s 的意图序列不应为空（敌人与形态都没有）" % enemy_id)
 		assert_gt(data.max_hp, 0, "%s 的血量应大于 0" % enemy_id)
 		assert_ne(data.display_name, "", "%s 应有显示名" % enemy_id)
 
@@ -232,7 +236,36 @@ func test_god_war_stance_is_reachable_through_phases() -> void:
 	assert_true(e.refresh_phase(), "血量掉到 25% 以下应进入最后的形态")
 	assert_true(e.has_power(&"god_of_war_stance"),
 		"进入最后形态后应带上战神姿态")
-	assert_eq(e.identity_powers.size(), data.identity_power_ids.size())
+	assert_eq(e.identity_powers.size(), 2,
+		"最后形态应同时带上战神姿态与无尽战意")
+
+
+func test_burst_damage_does_not_skip_intermediate_phase_powers() -> void:
+	## ★ 一轮把 Boss 从满血打到残血时，**中间形态的能力必须补上**。
+	## 否则"爆发秒杀"会跳过「代行者」「真身」，
+	## 变成严格更优解——四阶段设计就白做了。
+	var e := _make_enemy(&"act3_boss")
+
+	# 直接打到 25% 以下，一次跨过代行者（P2）与真身（P3）
+	e.take_damage(e.max_hp * 3 / 4 + 1)
+	e.refresh_phase()
+
+	assert_true(e.has_power(&"endless_will"),
+		"被跨过的「代行者」形态的能力也应该补上")
+	assert_true(e.has_power(&"god_of_war_stance"),
+		"目标形态的能力当然也要有")
+
+
+func test_phase_signal_fires_for_every_crossed_phase() -> void:
+	## 提示也要一条不漏——玩家至少能在日志里看到"它一路变强了"
+	var e := _make_enemy(&"act3_boss")
+	watch_signals(e)
+
+	e.take_damage(e.max_hp * 3 / 4 + 1)
+	e.refresh_phase()
+
+	assert_signal_emit_count(e, "phase_changed", 3,
+		"从 P1 跨到 P4 应依次触发 3 次形态切换信号")
 
 
 func test_poison_is_the_answer_to_the_god() -> void:
