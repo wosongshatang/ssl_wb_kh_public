@@ -128,9 +128,17 @@ func _refresh_all() -> void:
 
 
 ## 置灰：不可出牌但仍要显示（玩家需要看见自己有哪些牌、为什么打不出）
+## 置灰并**阻止交互**。
+##
+## ⚠️ 只改 `modulate` 是不够的——置灰的卡仍然能点、能拖。
+## 用户实际遇到过：商店删牌页点了一张**不可删除**的无色卡，
+## 钱扣了、牌没删，而界面看起来"这张卡是灰的不能点"。
+##
+## **"看起来不能点"和"真的不能点"必须一致**，否则玩家会为不存在的操作付钱。
 func set_playable(playable: bool) -> void:
 	is_playable = playable
 	modulate = Color.WHITE if playable else Color(0.55, 0.55, 0.6, 0.85)
+	mouse_filter = Control.MOUSE_FILTER_STOP if playable else Control.MOUSE_FILTER_IGNORE
 
 
 func _rarity_color() -> Color:

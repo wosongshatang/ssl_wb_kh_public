@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ActModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/act_modifier.gd" id="1_actmodifier"]
+
+[resource]
+script = ExtResource("1_actmodifier")
+id = &"causality_field"
+display_name = "万法归墟 · 因果律"
+description = "回合结束时若本回合未受到伤害，获得 2 点力量。把防守折算成进攻。"
+params = {}

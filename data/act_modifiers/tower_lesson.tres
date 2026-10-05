@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ActModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/act_modifier.gd" id="1_actmodifier"]
+
+[resource]
+script = ExtResource("1_actmodifier")
+id = &"tower_lesson"
+display_name = "学徒白塔 · 教学机关"
+description = "每回合第一次打出技能牌时额外获得 4 点格挡。先技能后攻击，比反过来强。"
+params = {}

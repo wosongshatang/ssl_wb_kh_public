@@ -456,11 +456,22 @@ func _on_purchase_requested(card_id: StringName, price: int) -> void:
 	_show_shop()
 
 
+## ⚠️ **先删、成功才扣钱**。
+##
+## 反过来（先扣钱再删）的话，删不掉的情况会让玩家**为一次没发生的操作付钱**：
+## 无色卡 / 金卡删不掉，但钱已经扣了。
+## 与「药水先结算再消耗」是同一条规则（D29）：**失败的操作不该有代价**。
 func _on_removal_requested(card_id: StringName, price: int) -> void:
-	if not _run.spend_gold(price):
+	if _run.gold < price:
 		return
 
-	_run.remove_card(card_id)
+	if not _run.remove_card(card_id):
+		_hint_label.text = "「%s」无法删除（神赐之牌与专属卡刻进灵魂）。" % _card_name(card_id)
+		_hud.refresh()
+		_show_shop()
+		return
+
+	_run.spend_gold(price)
 	_hint_label.text = "移除了「%s」（花费 %d 金币）。" % [_card_name(card_id), price]
 	_hud.refresh()
 	_show_shop()
@@ -526,22 +537,29 @@ func _open_event(node: MapNode) -> void:
 	add_child(_event_panel)
 
 
+## ⚠️ **消费即置空**：`_current_event` 必须在进入处理时立刻清掉。
+##
+## 不清的话，快速双击会让**两个选项都触发**——玩家白拿两份收益。
+## `queue_free()` 是延迟的，所以"面板关了"并不能保证信号只发一次。
 func _on_event_option_chosen(index: int) -> void:
 	if _current_event == null:
 		return
+
+	var event: EventData = _current_event
+	_current_event = null   # 立刻消费，防止重复触发
 
 	var label: String = ""
 	var effect: EventData.Effect = EventData.Effect.NONE
 	var value: int = 0
 
 	if index == 0:
-		label = _current_event.option_a_label
-		effect = _current_event.option_a_effect
-		value = _current_event.option_a_value
+		label = event.option_a_label
+		effect = event.option_a_effect
+		value = event.option_a_value
 	else:
-		label = _current_event.option_b_label
-		effect = _current_event.option_b_effect
-		value = _current_event.option_b_value
+		label = event.option_b_label
+		effect = event.option_b_effect
+		value = event.option_b_value
 
 	var result: String = _apply_effect(effect, value)
 	_hint_label.text = "「%s」→ %s" % [label, result]

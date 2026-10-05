@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ActModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/act_modifier.gd" id="1_actmodifier"]
+
+[resource]
+script = ExtResource("1_actmodifier")
+id = &"instinct"
+display_name = "万兽冢 · 本能"
+description = "每回合开始时获得 1 点力量与 1 点格挡。越打越顺。"
+params = {}

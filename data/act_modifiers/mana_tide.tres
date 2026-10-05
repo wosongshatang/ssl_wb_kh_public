@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ActModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/act_modifier.gd" id="1_actmodifier"]
+
+[resource]
+script = ExtResource("1_actmodifier")
+id = &"mana_tide"
+display_name = "元素裂隙 · 魔力潮汐"
+description = "奇数回合你获得 2 点力量，偶数回合敌人获得 2 点力量。趁涨潮的那一回合多打。"
+params = {}

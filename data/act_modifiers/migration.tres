@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ActModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/act_modifier.gd" id="1_actmodifier"]
+
+[resource]
+script = ExtResource("1_actmodifier")
+id = &"migration"
+display_name = "大荒野 · 兽群迁徙"
+description = "每回合开始时，所有敌人获得 1 点力量。时间站在兽群那边。"
+params = {}

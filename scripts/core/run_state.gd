@@ -224,10 +224,18 @@ func build_deck() -> Array[CardData]:
 # ── 资源 ────────────────────────────────────────────────────
 
 func add_gold(amount: int) -> void:
-	gold = maxi(0, gold + amount)
+	if amount < 0:
+		push_error("RunState.add_gold: 请用 spend_gold 扣钱（收到 %d）" % amount)
+		return
+	gold += amount
 
 
+## 花钱。**负数会被拒绝**——传负数等于凭空印钱，
+## 而调用方一个手滑的 `-price` 不会有任何报错。
 func spend_gold(amount: int) -> bool:
+	if amount < 0:
+		push_error("RunState.spend_gold: 金额不能为负（收到 %d）" % amount)
+		return false
 	if gold < amount:
 		return false
 	gold -= amount

@@ -67,6 +67,10 @@ func start_battle(
 	enemies = p_enemies
 	_rng = p_rng if p_rng != null else RandomNumberGenerator.new()
 
+	# 盟友是**单场战斗**的东西——不清空的话，同一实例复用时会跨战斗残留
+	allies.clear()
+	bonus_gold = 0
+
 	player.reset_for_battle()
 	for enemy: Enemy in enemies:
 		enemy.reset_for_battle()
@@ -162,8 +166,11 @@ func _summon_ally(ally_id: StringName) -> Ally:
 			ally.apply_power(power)
 
 	allies.append(ally)
+	# 死了就移出数组——否则它会一直占着位置，
+	# 而 `_enemy_target` / `_allies_act` 每次都要重新判活。
 	ally.died.connect(func() -> void:
-		_log("  ☠ %s 倒下了" % ally.display_name))
+		_log("  ☠ %s 倒下了" % ally.display_name)
+		allies.erase(ally))
 	_log("召唤了 %s（%d 血 / %d 攻）" % [ally.display_name, ally.max_hp, ally.attack_power()])
 	return ally
 
@@ -428,10 +435,17 @@ func _deal_damage(source: Creature, target: Creature, amount: int, damage_type: 
 	])
 	if not target.is_alive():
 		_log("  ☠ %s 被击败" % target.display_name)
-		if source != null:
-			source.notify_kill(target)
-		if act_modifier != null:
-			act_modifier.on_enemy_killed(player, target)
+		# ⚠️ **只有敌人被击败才触发击杀逻辑**。
+		#
+		# 不区分的话，敌人打死你的召唤兽会触发：
+		#   · 幕环境的「执念」（古战场：每次击杀玩家受 4 点伤害）——**盟友死了你还挨罚**
+		#   · 敌人的 on_kill 遗物/能力——**敌人杀你的盟友算它的战功**
+		# 两条都是"结果与因果不符"，而且不会报错，只会让人觉得"这游戏在乱扣血"。
+		if target is Enemy:
+			if source != null:
+				source.notify_kill(target)
+			if act_modifier != null:
+				act_modifier.on_enemy_killed(player, target)
 
 
 func _check_battle_end() -> bool:

@@ -89,11 +89,19 @@ func test_gold_can_be_added_and_spent() -> void:
 
 
 func test_gold_never_goes_negative() -> void:
-	var run := _new_run()
-	run.add_gold(-99999)
+	## 契约更新：`add_gold` 只负责**加钱**，扣钱走 `spend_gold`。
+	## 两边都不允许让金币变成负数——只是方式不同：
+	##   · `spend_gold` 钱不够时**拒绝**并返回 false
+	##   · `add_gold` 收到负数时**报错并忽略**（传负数等于凭空印钱，必须响）
+	var run := RunState.new()
+	run.start_new_run(&"warrior", 1)
+	run.gold = 10
 
-	assert_eq(run.gold, 0, "金币不应为负")
+	assert_false(run.spend_gold(100), "钱不够时应拒绝")
+	assert_eq(run.gold, 10, "拒绝的交易不该改动金币")
 
+	assert_true(run.spend_gold(10))
+	assert_eq(run.gold, 0)
 
 func test_heal_cannot_exceed_max_hp() -> void:
 	var run := _new_run()
