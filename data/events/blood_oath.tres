@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"blood_oath"
+title = "血誓"
+description = "刀刃递到你面前。\n「划下去，它就记住你了。」"
+option_a_label = "划下去（-6 最大生命，+3 力量）"
+option_a_effect = 6
+option_a_value = -6
+option_b_label = "把刀推开"
+option_b_effect = 1
+option_b_value = 8

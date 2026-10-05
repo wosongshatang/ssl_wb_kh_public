@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"broken_statue"
+title = "断裂神像"
+description = "神像的头滚落在脚边，断口很新。\n神坛前还留着没干的祭品。"
+option_a_label = "取走祭品"
+option_a_effect = 7
+option_a_value = 0
+option_b_label = "把神像扶正"
+option_b_effect = 1
+option_b_value = 12

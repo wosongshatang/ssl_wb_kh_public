@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"wandering_merchant"
+title = "游方商人"
+description = "他把箱子打开一条缝，让你看里面的东西。\n「先付钱，后看货。」"
+option_a_label = "买一瓶药水（60 金币）"
+option_a_effect = 3
+option_a_value = -60
+option_b_label = "什么也不买"
+option_b_effect = 1
+option_b_value = 5

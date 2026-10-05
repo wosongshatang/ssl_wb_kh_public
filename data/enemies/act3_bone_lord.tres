@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/creatures/enemy_data.gd" id="1_enemydata"]
+[ext_resource type="Script" path="res://scripts/battle/intent_data.gd" id="2_intentdata"]
+
+[sub_resource type="Resource" id="I_0"]
+script = ExtResource("2_intentdata")
+type = 0
+value = 15
+times = 1
+icon_key = &"attack"
+power_id = &""
+
+[sub_resource type="Resource" id="I_1"]
+script = ExtResource("2_intentdata")
+type = 1
+value = 12
+times = 1
+icon_key = &"defend"
+power_id = &""
+
+[resource]
+script = ExtResource("1_enemydata")
+id = &"act3_bone_lord"
+display_name = "白骨领主"
+max_hp = 46
+intents = Array[IntentData]([SubResource("I_0"), SubResource("I_1")])
+is_elite = false
+is_boss = false
+act = 3
+starting_powers = {}
+identity_power_ids = Array[StringName]([])
+phases = Array[EnemyPhase]([])

@@ -13,7 +13,21 @@ extends RefCounted
 signal node_entered(node: MapNode)
 signal map_completed()
 
-const ROWS_PER_ACT: int = 6
+## 每幕层数。**12 层**（阶段 7 平衡：原为 6 层）。
+##
+## 为什么加倍：6 层时玩家打 4~5 场就到 Boss，
+## **卡牌/遗物的成长窗口不够**——三选一才拿 3~4 张牌，构筑根本没成型。
+## 12 层大约对应 9~10 场战斗，是"能凑出一套东西"的最小长度。
+const ROWS_PER_ACT: int = 12
+
+## 每幕的**保底**节点数。
+##
+## 纯随机会出现"12 层里一个休息都没有"的情况——
+## 玩家会因为"没有恢复手段"而必败，而这不是他的决策造成的。
+## **随机性可以决定过程，但不该决定一局有没有恢复机会。**
+const MIN_REST_PER_ACT: int = 3
+const MIN_SHOP_PER_ACT: int = 2
+const MIN_ELITE_PER_ACT: int = 2
 const MIN_NODES_PER_ROW: int = 2
 const MAX_NODES_PER_ROW: int = 4
 const STARTING_NODES: int = 3
@@ -51,9 +65,12 @@ const ACT_NAMES: Dictionary = {
 ## 池内敌人的**机制要互补**，不能只是数值不同：
 ## 高攻低血惩罚不格挡 / 带格挡惩罚纯攻击 / 多段惩罚单次大格挡 / 自我强化逼你提速。
 const COMBAT_POOLS: Dictionary = {
-	1: [&"act1_combat", &"act1_gladiator", &"act1_shieldman", &"act1_poisoner"],
-	2: [&"act2_combat", &"act2_archer", &"act2_standard", &"act2_poisoner"],
-	3: [&"act3_combat", &"act3_wraith", &"act3_berserker", &"act3_shieldbearer", &"act3_poisoner"],
+	1: [&"act1_combat", &"act1_gladiator", &"act1_shieldman", &"act1_poisoner",
+		&"act1_beast", &"act1_champion", &"act1_javelin"],
+	2: [&"act2_combat", &"act2_archer", &"act2_standard", &"act2_poisoner",
+		&"act2_cavalry", &"act2_shieldwall", &"act2_war_drum"],
+	3: [&"act3_combat", &"act3_wraith", &"act3_berserker", &"act3_shieldbearer", &"act3_poisoner",
+		&"act3_revenant", &"act3_bone_lord", &"act3_mirror"],
 }
 
 ## 事件池。**必须放真实注册的 id**——
@@ -61,7 +78,8 @@ const COMBAT_POOLS: Dictionary = {
 const EVENT_POOL: Array[StringName] = [
 	&"shrine_of_war", &"rebel_broker", &"wandering_alchemist",
 	&"god_offer_war", &"god_offer_arcane", &"cursed_altar", &"usurp_power",
-	&"god_gift_special",
+	&"god_gift_special", &"wandering_merchant", &"blood_oath",
+	&"forgotten_library", &"broken_statue",
 ]
 
 ## id -> MapNode
@@ -107,6 +125,9 @@ func generate(p_rng: RandomNumberGenerator, p_act: int = 1) -> void:
 	for r: int in ROWS_PER_ACT:
 		for node_id: int in rows[r]:
 			_assign_kind(nodes[node_id] as MapNode, r)
+
+	# 4) 保底补齐：随机不该决定一局有没有恢复机会
+	_ensure_minimum_kinds()
 
 
 func _node_count_for_row(r: int) -> int:
@@ -167,6 +188,49 @@ func _assign_kind(node: MapNode, r: int) -> void:
 
 	node.kind = _pick_kind(weights)
 	node.payload = _payload_for(node.kind, r)
+
+
+## 保底补齐（阶段 7）。
+##
+## 把普通战斗节点改造成缺的那类，直到每类都达标。
+## 只改**中间层**的普通战斗——Boss / 起点 / 已定的休息商店都不动。
+func _ensure_minimum_kinds() -> void:
+	_ensure_kind(MapNode.Kind.REST, MIN_REST_PER_ACT)
+	_ensure_kind(MapNode.Kind.SHOP, MIN_SHOP_PER_ACT)
+	_ensure_kind(MapNode.Kind.ELITE, MIN_ELITE_PER_ACT)
+
+
+func _ensure_kind(kind: MapNode.Kind, minimum: int) -> void:
+	var candidates: Array[MapNode] = []
+
+	for r: int in range(2, ROWS_PER_ACT - 1):
+		var count: int = 0
+		for node_id: int in rows[r]:
+			var node: MapNode = nodes[node_id]
+			if node.kind == kind:
+				count += 1
+			elif node.kind == MapNode.Kind.COMBAT:
+				candidates.append(node)
+		if count >= minimum:
+			return
+
+	# 缺多少补多少（候选不够就补到没得补为止）
+	var missing: int = minimum - _count_kind(kind)
+	var index: int = 0
+	while missing > 0 and index < candidates.size():
+		var node: MapNode = candidates[index]
+		node.kind = kind
+		node.payload = _payload_for(kind, node.row)
+		index += 1
+		missing -= 1
+
+
+func _count_kind(kind: MapNode.Kind) -> int:
+	var total: int = 0
+	for node_id: int in nodes:
+		if (nodes[node_id] as MapNode).kind == kind:
+			total += 1
+	return total
 
 
 func _pick_kind(weights: Dictionary) -> MapNode.Kind:

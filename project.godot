@@ -22,6 +22,7 @@ config/icon="res://icon.svg"
 GameState="*res://scripts/core/game_state.gd"
 EventBus="*res://scripts/core/event_bus.gd"
 ContentRegistry="*res://scripts/content/content_registry.gd"
+MetaState="*res://scripts/core/meta_state.gd"
 
 [debug]
 

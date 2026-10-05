@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"forgotten_library"
+title = "遗忘书库"
+description = "书架上全是没人读过的书。\n它们似乎希望被读。"
+option_a_label = "读一本书"
+option_a_effect = 4
+option_a_value = 0
+option_b_label = "带走一摞金币"
+option_b_effect = 3
+option_b_value = 45

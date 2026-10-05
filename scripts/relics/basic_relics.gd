@@ -158,6 +158,70 @@ class PaperFrog extends AbstractRelic:
 			announce("给 %d 个敌人施加虚弱" % applied)
 
 
+## 战旗 —— 战斗开始时获得 2 点力量
+class WarBanner extends AbstractRelic:
+	const STRENGTH: int = 2
+
+	func _init() -> void:
+		id = &"war_banner"
+		display_name = "战旗"
+		description = "战斗开始时获得 %d 点力量。" % STRENGTH
+		trigger_text = "战斗开始时"
+
+	func at_battle_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Strength.new(STRENGTH))
+		announce("+%d 力量" % STRENGTH)
+
+
+## 铁靴 —— 战斗开始时获得 2 点敏捷
+class IronBoots extends AbstractRelic:
+	const DEXTERITY: int = 2
+
+	func _init() -> void:
+		id = &"iron_boots"
+		display_name = "铁靴"
+		description = "战斗开始时获得 %d 点敏捷。" % DEXTERITY
+		trigger_text = "战斗开始时"
+
+	func at_battle_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Dexterity.new(DEXTERITY))
+		announce("+%d 敏捷" % DEXTERITY)
+
+
+## 幸运骰 —— 战斗胜利后额外获得金币
+class LuckyDice extends AbstractRelic:
+	const BONUS_GOLD: int = 12
+
+	func _init() -> void:
+		id = &"lucky_dice"
+		display_name = "幸运骰"
+		description = "战斗胜利后额外获得 %d 金币。" % BONUS_GOLD
+		trigger_text = "战斗胜利时"
+
+	func on_battle_end(_owner: Creature, won: bool) -> void:
+		if not won or battle == null:
+			return
+		battle.bonus_gold += BONUS_GOLD
+		announce("+%d 金币" % BONUS_GOLD)
+
+
+## 药囊 —— 战斗胜利后回复生命
+class HerbPouch extends AbstractRelic:
+	const HEAL: int = 3
+
+	func _init() -> void:
+		id = &"herb_pouch"
+		display_name = "药囊"
+		description = "战斗胜利后回复 %d 点生命。" % HEAL
+		trigger_text = "战斗胜利时"
+
+	func on_battle_end(owner: Creature, won: bool) -> void:
+		if not won:
+			return
+		owner.heal(HEAL)
+		announce("回复 %d 点生命" % HEAL)
+
+
 ## id → 实例。**找不到时返回 null**（由工厂统一告警，避免这里刷屏）
 static func create(relic_id: StringName) -> AbstractRelic:
 	match relic_id:
@@ -179,6 +243,14 @@ static func create(relic_id: StringName) -> AbstractRelic:
 			return LuckyCoin.new()
 		&"paper_frog":
 			return PaperFrog.new()
+		&"war_banner":
+			return WarBanner.new()
+		&"iron_boots":
+			return IronBoots.new()
+		&"lucky_dice":
+			return LuckyDice.new()
+		&"herb_pouch":
+			return HerbPouch.new()
 		_:
 			return null
 
@@ -187,4 +259,5 @@ static func ids() -> Array[StringName]:
 	return [
 		&"burning_blood", &"vajra", &"anchor_chain", &"blood_vial",
 		&"lantern", &"thorn_ring", &"smooth_stone", &"lucky_coin", &"paper_frog",
+		&"war_banner", &"iron_boots", &"lucky_dice", &"herb_pouch",
 	]

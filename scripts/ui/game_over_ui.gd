@@ -23,6 +23,15 @@ func _ready() -> void:
 ## 不会报任何错，只能靠"每加一个信号就问谁在听"来避免。
 func _on_back_pressed() -> void:
 	back_to_boot_pressed.emit()
+
+	# 元进度：结局计数**必须在 reset_run 之前**记——
+	# reset 会把本局状态清掉，之后就算不出是哪个结局了。
+	# ⚠️ 这里没有 `run` 变量（那是 `_refresh()` 里的局部量），
+	# 必须从 GameState 现取。
+	var run: RunState = GameState.run
+	if run != null and run.victory:
+		MetaState.record_ending(GameState.resolve_ending())
+
 	# 本局已结束（存档在结算时已删除），清掉状态免得标题页读到半截数据
 	GameState.reset_run()
 	get_tree().change_scene_to_file("res://scenes/boot/main.tscn")
