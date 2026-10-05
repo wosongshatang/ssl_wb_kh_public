@@ -289,7 +289,7 @@ func refresh() -> void:
 		if node != null:
 			row_index = node.row + 1
 	_map_info_label.text = "%s · %d/%d 层" % [
-		MapManager.act_name(_run.current_act), row_index, total_rows,
+		MapManager.act_name(_run.character_class, _run.current_act), row_index, total_rows,
 	]
 
 	_refresh_potions()

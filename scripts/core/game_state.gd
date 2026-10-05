@@ -54,7 +54,7 @@ func start_new_run(character: StringName, seed_value: int) -> void:
 	map = MapManager.new()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
-	map.generate(rng, run.current_act)
+	map.generate(rng, run.current_act, run.character_class)
 
 	job_path.clear()
 	identity_power_ids.clear()
@@ -104,7 +104,7 @@ func final_job() -> JobData:
 func current_act_modifier() -> ActModifier:
 	if run == null:
 		return null
-	var modifier_id: StringName = MapManager.ACT_MODIFIERS.get(run.current_act, &"")
+	var modifier_id: StringName = MapManager.act_modifier_id(run.character_class, run.current_act)
 	if modifier_id == &"":
 		return null
 	var loaded: Variant = ContentRegistry.get_act_modifier(modifier_id)
@@ -121,7 +121,7 @@ func advance_act() -> void:
 	map = MapManager.new()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run.rng_seed + run.current_act * ACT_SEED_STRIDE
-	map.generate(rng, run.current_act)
+	map.generate(rng, run.current_act, run.character_class)
 
 	EventBus.act_advanced.emit(run.current_act)
 

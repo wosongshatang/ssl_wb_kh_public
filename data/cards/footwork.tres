@@ -20,3 +20,4 @@ apply_to_self = {
 }
 apply_to_target = {}
 exhaust = false
+card_pool_tags = Array[StringName]([&"warrior"])

@@ -12,7 +12,7 @@ const REQUIRED_ACTS: Array[int] = [1, 2, 3]
 
 
 func _pool(act: int) -> Array:
-	return MapManager.COMBAT_POOLS.get(act, [])
+	return MapManager.combat_pool(&"warrior", act)
 
 
 func _data(enemy_id: StringName) -> EnemyData:
@@ -117,13 +117,26 @@ func test_every_act_has_a_multi_hit_or_scaling_enemy() -> void:
 
 func test_every_act_has_a_name() -> void:
 	for act: int in REQUIRED_ACTS:
-		assert_ne(MapManager.act_name(act), "", "第 %d 幕没有名字" % act)
-		assert_false(MapManager.act_name(act).begins_with("第"),
+		assert_ne(MapManager.act_name(&"warrior", act), "", "第 %d 幕没有名字" % act)
+		assert_false(MapManager.act_name(&"warrior", act).begins_with("第"),
 			"第 %d 幕应配置正式名称" % act)
 
 
-func test_unknown_act_falls_back_gracefully() -> void:
-	assert_eq(MapManager.act_name(99), "第 99 幕")
+func test_every_line_has_three_acts() -> void:
+	## ⚠️ 这条取代了原来的"越界回退"测试。
+	## `line_for()` 现在对越界**会 push_error**（不能静默走进别人的图），
+	## 而 GUT 把 push_error 计为失败——所以"越界行为"不适合用运行时断言来测，
+	## 应该测**配置本身的完整性**：每条线都必须有且只有 3 幕。
+	for character: Variant in MapManager.LINES:
+		var lines: Array = MapManager.LINES[character]
+		assert_eq(lines.size(), 3, "角色「%s」应有 3 幕（三线九图）" % character)
+
+		for act: int in [1, 2, 3]:
+			var line: Dictionary = MapManager.line_for(StringName(str(character)), act)
+			assert_true(line.has("name"), "%s 第 %d 幕缺少名字" % [character, act])
+			assert_true(line.has("modifier"), "%s 第 %d 幕缺少环境机制" % [character, act])
+			assert_gt((line.get("enemies", []) as Array).size(), 0,
+				"%s 第 %d 幕没有敌人池" % [character, act])
 
 
 # ══ 幕环境与敌人池的配合 ════════════════════════════════════
@@ -131,15 +144,15 @@ func test_unknown_act_falls_back_gracefully() -> void:
 func test_every_act_has_both_a_modifier_and_a_pool() -> void:
 	## 一幕只配了环境没有敌人池（或反过来）都是配置事故
 	for act: int in REQUIRED_ACTS:
-		assert_true(MapManager.ACT_MODIFIERS.has(act), "第 %d 幕没有环境机制" % act)
+		assert_true(MapManager.act_modifier_id(&"warrior", act) != &"", "第 %d 幕没有环境机制" % act)
 		assert_gt(_pool(act).size(), 0, "第 %d 幕没有敌人池" % act)
 
 
 func test_act_names_match_act_modifier_flavor() -> void:
 	## 幕名与机制应当对得上（竞技场↔观众喝彩 / 战场↔军势 / 古战场↔执念）
-	assert_eq(MapManager.act_name(1), "竞技场")
-	assert_eq(MapManager.ACT_MODIFIERS[1], &"arena_crowd_cheer")
-	assert_eq(MapManager.act_name(2), "战场")
-	assert_eq(MapManager.ACT_MODIFIERS[2], &"battlefield_momentum")
-	assert_eq(MapManager.act_name(3), "古战场")
-	assert_eq(MapManager.ACT_MODIFIERS[3], &"ancient_grudge")
+	assert_eq(MapManager.act_name(&"warrior", 1), "竞技场")
+	assert_eq(MapManager.act_modifier_id(&"warrior", 1), &"arena_crowd_cheer")
+	assert_eq(MapManager.act_name(&"warrior", 2), "战场")
+	assert_eq(MapManager.act_modifier_id(&"warrior", 2), &"battlefield_momentum")
+	assert_eq(MapManager.act_name(&"warrior", 3), "古战场")
+	assert_eq(MapManager.act_modifier_id(&"warrior", 3), &"ancient_grudge")

@@ -19,3 +19,4 @@ apply_to_self = {}
 apply_to_target = {}
 grant_potion_id = &"strength_potion"
 exhaust = true
+card_pool_tags = Array[StringName]([&"warrior"])

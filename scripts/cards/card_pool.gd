@@ -30,10 +30,26 @@ const REWARD_EXCLUDED: Array[int] = [
 ]
 
 var _rng: RandomNumberGenerator
+## 只抽这个角色的牌。空串 = 不过滤（调试 / 测试用）。
+var character: StringName = &""
 
 
-func _init(rng: RandomNumberGenerator = null) -> void:
+func _init(rng: RandomNumberGenerator = null, p_character: StringName = &"") -> void:
 	_rng = rng if rng != null else RandomNumberGenerator.new()
+	character = p_character
+
+
+## 某张牌是否属于该角色。
+##
+## 判据是 `card_pool_tags` 里有没有这个角色的标签。
+## **标签为空 = 通用牌**（无色卡、诅咒、特殊牌），任何角色都能拿——
+## 靠"没有标签就排除"会让这些牌永远抽不到。
+func _belongs_to_character(card: CardData) -> bool:
+	if character == &"":
+		return true
+	if card.card_pool_tags.is_empty():
+		return true
+	return card.card_pool_tags.has(character)
 
 
 ## 抽 count 张**不重复**的卡
@@ -58,6 +74,9 @@ func reward_candidates() -> Array[CardData]:
 	var out: Array[CardData] = []
 	for card: CardData in ContentRegistry.all_cards():
 		if REWARD_EXCLUDED.has(card.rarity):
+			continue
+		# ⚠️ 必须按角色过滤：不过滤的话法师的三选一会给出"打击 / 防御"
+		if not _belongs_to_character(card):
 			continue
 		# 特殊牌（神化/契约/神谕/考题）**不进普通奖励池**——
 		# 它们是特定来源的产物，混进常规三选一会让"特殊"两个字失去意义

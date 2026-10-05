@@ -18,3 +18,4 @@ self_hp_loss = 0
 apply_to_self = {}
 apply_to_target = {}
 exhaust = false
+card_pool_tags = Array[StringName]([&"warrior"])

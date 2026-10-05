@@ -21,3 +21,4 @@ apply_to_target = {
 "vulnerable": 3
 }
 exhaust = false
+card_pool_tags = Array[StringName]([&"warrior"])

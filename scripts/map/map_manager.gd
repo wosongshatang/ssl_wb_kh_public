@@ -43,35 +43,79 @@ const KIND_WEIGHTS: Dictionary = {
 	MapNode.Kind.TRAITOR: 3,
 }
 
-## 每幕的环境机制（阶段 6）。**改变规则，不是改数值**（设计文档 §2.3）。
-const ACT_MODIFIERS: Dictionary = {
-	1: &"arena_crowd_cheer",
-	2: &"battlefield_momentum",
-	3: &"ancient_grudge",
+## ══ 三线九图（设计文档 §5.2）═══════════════════════════════
+##
+## 角色 → 该角色的三张地图，每张 = 名字 + 环境机制 + 敌人池。
+##
+## ## ⚠️ 为什么键是 (角色, 幕) 而不是只按幕
+## 只按幕索引的话，**猎人会走进战士的竞技场**——
+## "三线九图"在数据结构上就根本不存在。
+## 这不是"以后再说"的问题：它决定了这个结构**能不能**承载三条线。
+const LINES: Dictionary = {
+	&"warrior": [
+		{
+			"name": "竞技场",
+			"modifier": &"arena_crowd_cheer",
+			"enemies": [
+				&"act1_combat", &"act1_gladiator", &"act1_shieldman", &"act1_poisoner",
+				&"act1_beast", &"act1_champion", &"act1_javelin",
+			],
+		},
+		{
+			"name": "战场",
+			"modifier": &"battlefield_momentum",
+			"enemies": [
+				&"act2_combat", &"act2_archer", &"act2_standard", &"act2_poisoner",
+				&"act2_cavalry", &"act2_shieldwall", &"act2_war_drum",
+			],
+		},
+		{
+			"name": "古战场",
+			"modifier": &"ancient_grudge",
+			"enemies": [
+				&"act3_combat", &"act3_wraith", &"act3_berserker", &"act3_shieldbearer",
+				&"act3_poisoner", &"act3_revenant", &"act3_bone_lord", &"act3_mirror",
+			],
+		},
+	],
 }
 
-## 每幕的地图名（设计文档 §5.2 三线九图 · 战士线）
-const ACT_NAMES: Dictionary = {
-	1: "竞技场",
-	2: "战场",
-	3: "古战场",
-}
 
-## 每幕的普通战斗敌人池。
+## 取某角色第 act 幕（**1 起**）的线路配置。
 ##
-## ⚠️ **毒敌人必须在每一幕的池子里**——否则「克制壁垒的敌人」只存在于单测里，
-## 玩家永远遇不到，壁垒的弱点在真实对局中就不会出现。
-##
-## 池内敌人的**机制要互补**，不能只是数值不同：
-## 高攻低血惩罚不格挡 / 带格挡惩罚纯攻击 / 多段惩罚单次大格挡 / 自我强化逼你提速。
-const COMBAT_POOLS: Dictionary = {
-	1: [&"act1_combat", &"act1_gladiator", &"act1_shieldman", &"act1_poisoner",
-		&"act1_beast", &"act1_champion", &"act1_javelin"],
-	2: [&"act2_combat", &"act2_archer", &"act2_standard", &"act2_poisoner",
-		&"act2_cavalry", &"act2_shieldwall", &"act2_war_drum"],
-	3: [&"act3_combat", &"act3_wraith", &"act3_berserker", &"act3_shieldbearer", &"act3_poisoner",
-		&"act3_revenant", &"act3_bone_lord", &"act3_mirror"],
-}
+## 找不到时**告警并回退到战士线**——内容还没做的角色不该直接崩，
+## 但也不能**静默**走进别人的图（那样测试会全绿而玩家看到竞技场）。
+static func line_for(character: StringName, act: int) -> Dictionary:
+	var lines: Array = LINES.get(character, [])
+	var index: int = act - 1
+
+	if index < 0 or index >= lines.size():
+		push_error("MapManager: 角色「%s」没有第 %d 幕的线路配置" % [character, act])
+		var fallback: Array = LINES.get(&"warrior", [])
+		if index < 0 or index >= fallback.size():
+			return {}
+		return fallback[index] as Dictionary
+
+	return lines[index] as Dictionary
+
+
+## 幕名（UI 展示用；未配置时回退成"第 N 幕"）
+static func act_name(character: StringName, act: int) -> String:
+	var line: Dictionary = line_for(character, act)
+	return str(line.get("name", "第 %d 幕" % act))
+
+
+## 该幕的环境机制 id（阶段 6）。未配置时返回空串——机制是可选增强，不是必需依赖。
+static func act_modifier_id(character: StringName, act: int) -> StringName:
+	var line: Dictionary = line_for(character, act)
+	return StringName(str(line.get("modifier", "")))
+
+
+## 该幕的普通战斗敌人池
+static func combat_pool(character: StringName, act: int) -> Array:
+	var line: Dictionary = line_for(character, act)
+	return line.get("enemies", []) as Array
+
 
 ## 事件池。**必须放真实注册的 id**——
 ## 曾经这里写的是 `placeholder_event_N`，导致两个真事件永远不会被触发。
@@ -95,9 +139,18 @@ var _next_id: int = 0
 
 # ── 生成 ────────────────────────────────────────────────────
 
-func generate(p_rng: RandomNumberGenerator, p_act: int = 1) -> void:
+## 本局地图属于哪个角色。**决定用哪条线的名字 / 机制 / 敌人池。**
+var character: StringName = &"warrior"
+
+
+func generate(
+	p_rng: RandomNumberGenerator,
+	p_act: int = 1,
+	p_character: StringName = &"warrior"
+) -> void:
 	_rng = p_rng
 	act = p_act
+	character = p_character
 	nodes.clear()
 	rows.clear()
 	current_node_id = -1
@@ -262,7 +315,7 @@ func _payload_for(kind: MapNode.Kind, _r: int) -> Dictionary:
 
 
 func _pick_combat_enemy() -> String:
-	var pool: Array = COMBAT_POOLS.get(act, [])
+	var pool: Array = combat_pool(character, act)
 	if pool.is_empty():
 		return "act%d_combat" % act
 	return String(pool[_rng.randi_range(0, pool.size() - 1)])
@@ -272,11 +325,6 @@ func _pick_event() -> StringName:
 	if EVENT_POOL.is_empty():
 		return &""
 	return EVENT_POOL[_rng.randi_range(0, EVENT_POOL.size() - 1)]
-
-
-## 幕名（UI 展示用；未配置时回退成"第 N 幕"）
-static func act_name(act: int) -> String:
-	return str(ACT_NAMES.get(act, "第 %d 幕" % act))
 
 
 # ── 移动 ────────────────────────────────────────────────────

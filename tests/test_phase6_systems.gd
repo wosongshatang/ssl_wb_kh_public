@@ -39,7 +39,7 @@ func _modifier(modifier_id: StringName) -> ActModifier:
 
 func test_every_act_has_a_modifier() -> void:
 	for act: int in [1, 2, 3]:
-		var modifier_id: StringName = MapManager.ACT_MODIFIERS.get(act, &"")
+		var modifier_id: StringName = MapManager.act_modifier_id(&"warrior", act)
 		assert_ne(modifier_id, &"", "第 %d 幕没有配环境机制" % act)
 		assert_not_null(ContentRegistry.get_act_modifier(modifier_id),
 			"第 %d 幕的机制 %s 没有 .tres" % [act, modifier_id])

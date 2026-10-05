@@ -86,6 +86,12 @@ const UPGRADE_DRAW_BY_RARITY: Array[int] = [1, 1, 1, 2, 3, 3, 3, 0]
 
 # ══ 特殊牌（P6-12）════════════════════════════════════════════
 
+## 属于哪些角色。**空 = 通用牌**（无色 / 诅咒 / 特殊 / 金卡），任何角色都能拿。
+##
+## ⚠️ 判据是"有没有标签"而不是"标签里有没有当前角色"：
+## 靠后者的话，通用牌会被所有角色的奖励池排除掉——**永远抽不到**。
+@export var card_pool_tags: Array[StringName] = []
+
 @export var special_kind: SpecialKind = SpecialKind.NONE
 
 ## 特殊效果的强度。各 kind 的含义不同：

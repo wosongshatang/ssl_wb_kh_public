@@ -47,7 +47,7 @@ func test_attack_and_defend_have_distinct_colors() -> void:
 func test_every_pool_enemy_has_a_readable_intent() -> void:
 	## 池子里每个敌人都必须能给出**玩家看得懂**的意图
 	for act: int in [1, 2, 3]:
-		for enemy_id: Variant in MapManager.COMBAT_POOLS.get(act, []):
+		for enemy_id: Variant in MapManager.combat_pool(&"warrior", act):
 			var data: EnemyData = ContentRegistry.get_enemy(StringName(str(enemy_id)))
 			var enemy := Enemy.new()
 			enemy.setup_from_data(data)
@@ -122,11 +122,11 @@ func test_unknown_act_falls_back_to_a_valid_theme() -> void:
 func test_act_theme_matches_act_name() -> void:
 	## 背景风格要与幕名对得上（竞技场↔看台 / 战场↔旌旗 / 古战场↔残柱）
 	assert_eq(str(BattleBackground.ACT_THEMES[1]["prop"]), "stands")
-	assert_eq(MapManager.act_name(1), "竞技场")
+	assert_eq(MapManager.act_name(&"warrior", 1), "竞技场")
 	assert_eq(str(BattleBackground.ACT_THEMES[2]["prop"]), "banners")
-	assert_eq(MapManager.act_name(2), "战场")
+	assert_eq(MapManager.act_name(&"warrior", 2), "战场")
 	assert_eq(str(BattleBackground.ACT_THEMES[3]["prop"]), "ruins")
-	assert_eq(MapManager.act_name(3), "古战场")
+	assert_eq(MapManager.act_name(&"warrior", 3), "古战场")
 
 
 func test_background_has_a_drawable_area_when_sized() -> void:

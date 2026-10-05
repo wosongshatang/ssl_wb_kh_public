@@ -752,7 +752,7 @@ func _go_to_reward(gold: int) -> void:
 	bundle.gold = gold + _battle.bonus_gold
 	bundle.potion_id = _roll_potion_drop()
 	bundle.relic_id = _roll_relic_drop()
-	for card: CardData in CardPool.new(RandomNumberGenerator.new()).roll():
+	for card: CardData in CardPool.new(RandomNumberGenerator.new(), _run.character_class).roll():
 		bundle.card_offer_ids.append(card.id)
 
 	# 奖励写进 RunState（随存档持久化）——在结算界面退出游戏也不该丢奖励

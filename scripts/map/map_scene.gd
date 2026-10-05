@@ -377,7 +377,7 @@ func _use_potion_on_self(slot_index: int) -> void:
 # ── 商店 ────────────────────────────────────────────────────
 
 func _open_shop() -> void:
-	var pool := CardPool.new(_rng)
+	var pool := CardPool.new(_rng, _run.character_class)
 	_shop_offers = pool.roll(CardPool.SHOP_OFFER_COUNT)
 	_potion_offers = _roll_potion_offers(2)
 	_relic_offers = _roll_relic_offers(2)
@@ -568,7 +568,7 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 			_run.heal(value)
 			return "最大生命 +%d（现为 %d）" % [value, _run.max_hp]
 		EventData.Effect.ADD_RANDOM_CARD:
-			var offers: Array[CardData] = CardPool.new(_rng).roll(1)
+			var offers: Array[CardData] = CardPool.new(_rng, _run.character_class).roll(1)
 			if offers.is_empty():
 				return "卡池为空，什么也没得到"
 			_run.add_card(offers[0].id)

@@ -108,7 +108,7 @@ func test_first_row_is_still_combat_only() -> void:
 func test_each_act_pool_has_enough_variety() -> void:
 	## 12 层 ≈ 8 场战斗。池子里少于 6 种敌人会明显感到重复。
 	for act: int in [1, 2, 3]:
-		var pool: Array = MapManager.COMBAT_POOLS.get(act, [])
+		var pool: Array = MapManager.combat_pool(&"warrior", act)
 		assert_gte(pool.size(), 6, "第 %d 幕的敌人种类太少（%d）" % [act, pool.size()])
 
 
