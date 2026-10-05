@@ -66,11 +66,20 @@ func test_every_buff_or_debuff_intent_references_a_known_power() -> void:
 
 
 func test_every_identity_power_on_enemies_resolves() -> void:
+	## 身份能力现在**既可以挂在敌人上，也可以挂在形态上**——
+	## 两处都要检查，否则一个手滑的 id 会静默变成"这个形态什么都没加"
 	for enemy_id: StringName in ALL_ENEMY_IDS:
 		var data: EnemyData = ContentRegistry.get_enemy(enemy_id)
+
 		for power_id: StringName in data.identity_power_ids:
 			assert_not_null(IdentityPowers.create(power_id),
 				"%s 的身份能力「%s」无法创建" % [enemy_id, power_id])
+
+		for phase: EnemyPhase in data.phases:
+			for power_id: StringName in phase.identity_power_ids:
+				assert_not_null(IdentityPowers.create(power_id),
+					"%s 的形态「%s」引用了无法创建的能力「%s」" % [
+						enemy_id, phase.display_name, power_id])
 
 
 func test_poisoner_exists_in_act_one() -> void:
@@ -97,18 +106,19 @@ func test_each_act_has_a_boss() -> void:
 
 func test_act1_boss_has_a_second_phase() -> void:
 	var data: EnemyData = ContentRegistry.get_enemy(&"act1_boss")
-	assert_true(data.has_second_phase(), "卡冈应有第二姿态")
+	assert_true(data.has_phases(), "卡冈应有形态序列")
+	assert_eq(data.phase_count(), 2, "卡冈应有 2 个形态")
 
 
 func test_boss_switches_phase_below_threshold() -> void:
 	var e := _make_enemy(&"act1_boss")
 	watch_signals(e)
-	assert_eq(e.phase(), 1, "开场应是第一姿态")
+	assert_eq(e.phase(), 0, "开场应是第一个形态（下标 0 起）")
 
 	e.take_damage(e.max_hp / 2 + 1)
 
-	assert_true(e.refresh_phase(), "血量低于阈值应切姿态")
-	assert_eq(e.phase(), 2)
+	assert_true(e.refresh_phase(), "血量低于阈值应切形态")
+	assert_eq(e.phase(), 1)
 	assert_signal_emitted(e, "phase_changed")
 
 
@@ -116,8 +126,8 @@ func test_boss_does_not_switch_above_threshold() -> void:
 	var e := _make_enemy(&"act1_boss")
 	e.take_damage(1)
 
-	assert_false(e.refresh_phase(), "血量还高时不应切姿态")
-	assert_eq(e.phase(), 1)
+	assert_false(e.refresh_phase(), "血量还高时不应切形态")
+	assert_eq(e.phase(), 0)
 
 
 func test_boss_phase_two_uses_its_own_intent_pattern() -> void:
@@ -136,7 +146,7 @@ func test_boss_phase_switch_is_idempotent() -> void:
 
 	e.refresh_phase()
 
-	assert_eq(e.phase(), 2)
+	assert_eq(e.phase(), 1)
 	assert_signal_emit_count(e, "phase_changed", 0, "已经切过了不应重复触发")
 
 
@@ -144,8 +154,8 @@ func test_enemy_without_second_phase_never_switches() -> void:
 	var e := _make_enemy(&"act1_combat")
 	e.take_damage(e.max_hp - 1)
 
-	assert_false(e.refresh_phase(), "没有第二姿态的敌人不应切形态")
-	assert_eq(e.phase(), 1)
+	assert_false(e.refresh_phase(), "没有形态序列的敌人不应切形态")
+	assert_eq(e.phase(), 0)
 
 
 # ══ 神战 P4 · 战神 ══════════════════════════════════════════
@@ -189,15 +199,39 @@ func test_god_of_war_is_stronger_than_bastion() -> void:
 	assert_gt(god.block, bastion.block)
 
 
-func test_act3_boss_carries_the_god_identity_power() -> void:
+func test_act3_boss_phases_carry_the_god_powers() -> void:
+	## 战神的身份能力挂在**形态**上：P1 什么都不给，越往后越凶。
+	## 这是 P6-05「四阶段」的核心——机制**逐步**亮出来，而不是开场全给。
 	var data: EnemyData = ContentRegistry.get_enemy(&"act3_boss")
-	assert_true(data.identity_power_ids.has(&"god_of_war_stance"),
-		"神战 P4 的战神必须带战神姿态")
 
+	var war_stance_phase: int = -1
+	var endless_phase: int = -1
+	for i: int in data.phases.size():
+		if data.phases[i].identity_power_ids.has(&"god_of_war_stance"):
+			war_stance_phase = i
+		if data.phases[i].identity_power_ids.has(&"endless_will"):
+			endless_phase = i
+
+	assert_gt(war_stance_phase, 0, "战神姿态不该在第一形态就给")
+	assert_gt(endless_phase, 0, "无尽战意不该在第一形态就给")
+	assert_gt(war_stance_phase, endless_phase,
+		"越强的能力应该越靠后（战神姿态在无尽战意之后）")
+
+
+func test_first_phase_grants_no_identity_power() -> void:
+	## 开场就把所有机制摊开，等于没有阶段
+	var data: EnemyData = ContentRegistry.get_enemy(&"act3_boss")
+	assert_eq(data.phases[0].identity_power_ids.size(), 0,
+		"第一形态不该直接给身份能力")
+
+
+func test_god_war_stance_is_reachable_through_phases() -> void:
 	var e := _make_enemy(&"act3_boss")
-	assert_true(e.has_power(&"god_of_war_stance"), "装配后应带上身份能力")
-	# 战神 P4 还带「无尽战意」软狂暴——身份能力不止一个是对的
-	assert_true(e.has_power(&"endless_will"), "战神应带软狂暴")
+	e.take_damage(e.max_hp * 3 / 4 + 1)
+
+	assert_true(e.refresh_phase(), "血量掉到 25% 以下应进入最后的形态")
+	assert_true(e.has_power(&"god_of_war_stance"),
+		"进入最后形态后应带上战神姿态")
 	assert_eq(e.identity_powers.size(), data.identity_power_ids.size())
 
 
@@ -206,6 +240,8 @@ func test_poison_is_the_answer_to_the_god() -> void:
 	## 战神的格挡永不衰减，硬拼打不穿，只能用毒绕过格挡。
 	## 这条测试同时锁住了「壁垒的弱点」与「神战的解法」是同一个机制。
 	var e := _make_enemy(&"act3_boss")
+	# 战神姿态现在挂在最后形态上，这里手动装上（测的是机制，不是阶段推进）
+	e.apply_identity_power(IdentityPowers.create(&"god_of_war_stance"))
 	e.gain_block(50)
 	e.apply_power(BasePowers.Poison.new(10))
 

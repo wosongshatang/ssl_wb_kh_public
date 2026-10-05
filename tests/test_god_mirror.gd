@@ -117,20 +117,30 @@ func test_scaled_identity_power_is_still_unstrippable() -> void:
 
 # ══ Boss 侧的开关 ═══════════════════════════════════════════
 
-func test_act_three_boss_uses_the_player_mirror() -> void:
-	## 神战 P4 的开关必须真的打开——否则镜像系统永远不被触发
-	var loaded: Variant = ContentRegistry.get_enemy(&"act3_boss")
-	assert_true(loaded is EnemyData)
-	assert_true((loaded as EnemyData).uses_player_mirror,
-		"第 3 幕 Boss 应开启镜像模仿")
+func test_act_three_boss_mirrors_on_its_last_phase() -> void:
+	## 镜像挂在**最后一阶段**：神先用自己的招式，最后才说"我也会你的"。
+	var data: EnemyData = ContentRegistry.get_enemy(&"act3_boss")
+	assert_true(data.has_phases(), "战神应有形态序列")
+
+	var last: EnemyPhase = data.phases[data.phases.size() - 1]
+	assert_true(last.uses_player_mirror, "最后一阶段（规则对撞）应开启镜像")
+
+
+func test_earlier_phases_do_not_mirror() -> void:
+	## 开场就模仿玩家，会让"神变成你"这个高光时刻变得平淡
+	var data: EnemyData = ContentRegistry.get_enemy(&"act3_boss")
+	for i: int in data.phases.size() - 1:
+		assert_false(data.phases[i].uses_player_mirror,
+			"第 %d 阶段不该镜像" % (i + 1))
 
 
 func test_only_bosses_use_the_mirror() -> void:
 	## 普通敌人都来模仿玩家会让每场战斗都变成"打自己"，很烦
 	for enemy_id: StringName in ContentRegistry.all_enemy_ids():
 		var data: EnemyData = ContentRegistry.get_enemy(enemy_id)
-		if data.uses_player_mirror:
-			assert_true(data.is_boss, "%s 不是 Boss 却模仿玩家" % enemy_id)
+		for phase: EnemyPhase in data.phases:
+			if phase.uses_player_mirror:
+				assert_true(data.is_boss, "%s 不是 Boss 却模仿玩家" % enemy_id)
 
 
 # ══ 玩家的终职查询 ══════════════════════════════════════════

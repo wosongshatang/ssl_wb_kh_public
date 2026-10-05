@@ -19,21 +19,31 @@ extends Resource
 ## 开场即拥有的**身份能力** id（不可剥夺）。神战 P4 的战神用。
 @export var identity_power_ids: Array[StringName] = []
 
-## 神战 P4：开战时**模仿玩家的终职**，用它的神级镜像（P6-06）。
+# ══ 形态序列（P6-05 三神战四阶段）═══════════════════════════
+
+## 形态列表，**按 hp_ratio 从高到低**排列。
 ##
-## ⚠️ 刻意做成一个布尔开关而不是写死"战神镜像壁垒"——
-## 硬编码进 Boss 脚本的话，**每加一个终职就要改一次 Boss 代码**，
-## 而且神只能模仿设计时想到的那几个职业。
-@export var uses_player_mirror: bool = false
-
-# ══ 第二形态（Boss 双姿态）══════════════════════════════════
-
-## 血量降到该比例以下时切换到第二形态（0 表示没有第二形态）
-@export_range(0.0, 1.0, 0.05) var phase2_hp_ratio: float = 0.0
-## 第二形态的意图序列（为空则继续沿用第一形态的）
-@export var phase2_intents: Array[IntentData] = []
+## 空列表 = 单一形态（普通敌人）。
+## 一阶 Boss 用 2~3 项，神战用 4 项（化身 → 代行者 → 真身 → 规则对撞）。
+##
+## ⚠️ 用列表而不是 `phase2_*` / `phase3_*` 字段：
+## 字段式每加一阶段就要改 `Enemy` 的代码，列表式只需要补一行数据。
+@export var phases: Array[EnemyPhase] = []
 
 
-func has_second_phase() -> bool:
-	return phase2_hp_ratio > 0.0 and not phase2_intents.is_empty()
+func has_phases() -> bool:
+	return not phases.is_empty()
+
+
+## 按当前血量比例，算出应该处于第几个形态（下标）
+func phase_index_for(hp_ratio: float) -> int:
+	var index: int = 0
+	for i: int in phases.size():
+		if hp_ratio <= phases[i].hp_ratio:
+			index = i
+	return index
+
+
+func phase_count() -> int:
+	return phases.size()
 

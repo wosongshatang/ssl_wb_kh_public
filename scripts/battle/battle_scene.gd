@@ -212,7 +212,8 @@ func _start_battle() -> void:
 	_inject_identity_and_relics()
 	_player.set_hp(_run.hp)
 	enemy.apply_starting_powers()
-	_apply_god_mirror(enemy, enemy_data)
+	enemy.phase_changed.connect(_on_enemy_phase_changed)
+	_maybe_apply_god_mirror(enemy, enemy.current_phase_data())
 	_assign_opponents()
 	# 遗物上下文必须在 notify_battle_start **之前**注入——
 	# 有些遗物（提灯 / 幸运币）要在开场或结算时用到牌堆与战斗对象
@@ -553,8 +554,28 @@ func _on_potion_granted(potion_id: StringName) -> void:
 ## 如果硬编码进 Boss 脚本（"if 玩家是壁垒 then 给神加壁垒能力"），
 ## **每加一个终职就要改一次 Boss 代码**，而且神只能模仿设计时想到的那几个职业。
 ## 现在加终职只要补一个 `mirror_*.tres`，这里一行都不用动。
-func _apply_god_mirror(enemy: Enemy, enemy_data: EnemyData) -> void:
-	if not enemy_data.uses_player_mirror:
+## 敌人进入新形态（P6-05 三神战四阶段）。
+##
+## 形态切换是**规则层的递进**：每进一阶多一层机制，玩家要重新理解这场战斗。
+## 所以反馈必须醒目——只把伤害调高的话，玩家只会觉得"这 Boss 血好厚"。
+func _on_enemy_phase_changed(enemy: Enemy, _index: int, phase_data: EnemyPhase) -> void:
+	if phase_data == null:
+		return
+
+	_log_lines.append("〔形态〕%s →「%s」：%s" % [
+		enemy.display_name, phase_data.display_name, phase_data.announce])
+
+	for view: CombatActorView in _enemy_views:
+		if view.creature == enemy:
+			view.show_floating_text("〔%s〕" % phase_data.display_name, UiPalette.GOLD)
+			break
+
+	_maybe_apply_god_mirror(enemy, phase_data)
+	_refresh_intents()
+
+
+func _maybe_apply_god_mirror(enemy: Enemy, phase_data: EnemyPhase) -> void:
+	if phase_data == null or not phase_data.uses_player_mirror:
 		return
 
 	var player_job: JobData = GameState.final_job()

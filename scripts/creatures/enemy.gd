@@ -11,10 +11,11 @@ extends Creature
 var data: EnemyData = null
 var intent_resolver: IntentResolver = IntentResolver.new()
 
-## 形态切换信号（1 → 2）。UI 可据此播个特效 / 改个颜色。
-signal phase_changed(new_phase: int)
+## 形态切换信号。参数是**形态下标**（0 起）与该形态的数据。
+## UI 据此播特效 / 改颜色，战斗日志据此写一行提示。
+signal phase_changed(phase_index: int, phase: EnemyPhase)
 
-var _phase: int = 1
+var _phase: int = 0
 
 
 ## 用配置数据装配敌人（这是**唯一推荐**的创建方式）
@@ -22,8 +23,8 @@ func setup_from_data(enemy_data: EnemyData) -> void:
 	data = enemy_data
 	display_name = enemy_data.display_name
 	max_hp = enemy_data.max_hp
-	intent_resolver.setup(enemy_data)
-	_phase = 1
+	_phase = 0
+	_apply_phase_intents(_phase, true)
 	reset_for_battle()
 
 
@@ -31,21 +32,75 @@ func phase() -> int:
 	return _phase
 
 
-## 检查是否应切换到第二形态（Boss 双姿态）。
-## BattleManager 在敌人行动**前**调用——这样血量刚掉下去的当回合就能变招，
-## 玩家能立刻感受到"它变了"，而不是多等一回合。
+## 形态总数（没有配形态时算 1）
+func phase_count() -> int:
+	if data == null or not data.has_phases():
+		return 1
+	return data.phase_count()
+
+
+## 当前形态的数据（没配形态时返回 null）
+func current_phase_data() -> EnemyPhase:
+	if data == null or not data.has_phases():
+		return null
+	if _phase < 0 or _phase >= data.phases.size():
+		return null
+	return data.phases[_phase]
+
+
+## 当前形态名（没配时返回空串，UI 据此决定要不要显示）
+func phase_display_name() -> String:
+	var phase_data := current_phase_data()
+	return phase_data.display_name if phase_data != null else ""
+
+
+## 检查是否该进入下一个形态。BattleManager 在敌人行动**前**调用——
+## 这样血量刚掉下去的当回合就能变招，玩家能立刻感受到"它变了"。
+##
+## 返回是否发生了切换。
 func refresh_phase() -> bool:
-	if data == null or _phase >= 2 or not data.has_second_phase():
-		return false
-	if max_hp <= 0:
-		return false
-	if float(hp) / float(max_hp) > data.phase2_hp_ratio:
+	if data == null or not data.has_phases() or max_hp <= 0:
 		return false
 
-	_phase = 2
-	intent_resolver.setup_from_intents(data.phase2_intents)
-	phase_changed.emit(_phase)
+	var target: int = data.phase_index_for(float(hp) / float(max_hp))
+	if target <= _phase:
+		return false
+
+	_phase = target
+	_apply_phase_intents(_phase, false)
+	_apply_phase_powers(_phase)
+	phase_changed.emit(_phase, data.phases[_phase])
 	return true
+
+
+## 切换意图序列。`force` 用于开场（此时没有"上一阶段"可沿用）。
+func _apply_phase_intents(index: int, force: bool) -> void:
+	if data == null or not data.has_phases():
+		if force:
+			intent_resolver.setup(data)
+		return
+
+	var phase_data: EnemyPhase = data.phases[index]
+	if phase_data.intents.is_empty():
+		# 没配意图就沿用上一阶段的——**不要清空**，那会让敌人站着不动
+		if force:
+			intent_resolver.setup(data)
+		return
+	intent_resolver.setup_from_intents(phase_data.intents)
+
+
+## 进入形态时追加的 Power 与身份能力。
+## **只叠加、不剥夺**——已经获得的能力不会因为变形态而消失。
+func _apply_phase_powers(index: int) -> void:
+	if data == null or not data.has_phases():
+		return
+	var phase_data: EnemyPhase = data.phases[index]
+	_apply_power_dict(phase_data.starting_powers)
+
+	for power_id: StringName in phase_data.identity_power_ids:
+		var identity := IdentityPowers.create(power_id)
+		if identity != null:
+			apply_identity_power(identity)
 
 
 ## 应用开场 Power 与身份能力。
@@ -56,16 +111,24 @@ func apply_starting_powers() -> void:
 	if data == null:
 		return
 
-	for raw_id: Variant in data.starting_powers:
-		var power_id := StringName(str(raw_id))
-		var power := PowerFactory.create(power_id, int(data.starting_powers[raw_id]))
-		if power != null:
-			apply_power(power)
+	_apply_power_dict(data.starting_powers)
 
 	for power_id: StringName in data.identity_power_ids:
 		var identity := IdentityPowers.create(power_id)
 		if identity != null:
 			apply_identity_power(identity)
+
+	# 第一形态自带的开场效果（如神战 P1 的「化身」）
+	if data.has_phases():
+		_apply_phase_powers(0)
+
+
+func _apply_power_dict(source: Dictionary) -> void:
+	for raw_id: Variant in source:
+		var power_id := StringName(str(raw_id))
+		var power := PowerFactory.create(power_id, int(source[raw_id]))
+		if power != null:
+			apply_power(power)
 
 
 ## 展示给玩家的当前意图（**不推进**）。UI 每帧读它。

@@ -1,43 +1,114 @@
-[gd_resource type="Resource" script_class="EnemyData" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="EnemyData" load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/creatures/enemy_data.gd" id="1_enemydata"]
 [ext_resource type="Script" path="res://scripts/battle/intent_data.gd" id="2_intentdata"]
+[ext_resource type="Script" path="res://scripts/creatures/enemy_phase.gd" id="3_enemyphase"]
 
-[sub_resource type="Resource" id="Intent_shield"]
+[sub_resource type="Resource" id="I_0_0"]
+script = ExtResource("2_intentdata")
+type = 0
+value = 12
+times = 1
+icon_key = &"attack"
+power_id = &""
+
+[sub_resource type="Resource" id="I_0_1"]
 script = ExtResource("2_intentdata")
 type = 1
-value = 20
+value = 10
 times = 1
 icon_key = &"defend"
 power_id = &""
 
-[sub_resource type="Resource" id="Intent_heavy"]
+[sub_resource type="Resource" id="Phase_0"]
+script = ExtResource("3_enemyphase")
+hp_ratio = 1.0
+display_name = "化身"
+announce = "神座上的身影睁开眼——那只是它的一小部分。"
+intents = Array[IntentData]([SubResource("I_0_0"), SubResource("I_0_1")])
+identity_power_ids = Array[StringName]([])
+starting_powers = {}
+uses_player_mirror = false
+
+[sub_resource type="Resource" id="I_1_0"]
 script = ExtResource("2_intentdata")
 type = 0
-value = 26
+value = 8
+times = 2
+icon_key = &"attack"
+power_id = &""
+
+[sub_resource type="Resource" id="I_1_1"]
+script = ExtResource("2_intentdata")
+type = 2
+value = 3
+times = 1
+icon_key = &"buff"
+power_id = &"strength"
+
+[sub_resource type="Resource" id="Phase_1"]
+script = ExtResource("3_enemyphase")
+hp_ratio = 0.75
+display_name = "代行者"
+announce = "战意开始堆积。"
+intents = Array[IntentData]([SubResource("I_1_0"), SubResource("I_1_1")])
+identity_power_ids = Array[StringName]([&"endless_will"])
+starting_powers = {}
+uses_player_mirror = false
+
+[sub_resource type="Resource" id="I_2_0"]
+script = ExtResource("2_intentdata")
+type = 0
+value = 16
 times = 1
 icon_key = &"attack"
 power_id = &""
 
-[sub_resource type="Resource" id="Intent_rage"]
+[sub_resource type="Resource" id="I_2_1"]
+script = ExtResource("2_intentdata")
+type = 3
+value = 2
+times = 1
+icon_key = &"debuff"
+power_id = &"weak"
+
+[sub_resource type="Resource" id="Phase_2"]
+script = ExtResource("3_enemyphase")
+hp_ratio = 0.5
+display_name = "真身"
+announce = "化身褪去——你终于看见了它的一部分本体。"
+intents = Array[IntentData]([SubResource("I_2_0"), SubResource("I_2_1")])
+identity_power_ids = Array[StringName]([])
+starting_powers = {}
+uses_player_mirror = false
+
+[sub_resource type="Resource" id="I_3_0"]
 script = ExtResource("2_intentdata")
 type = 0
-value = 12
-times = 3
+value = 20
+times = 2
 icon_key = &"attack"
 power_id = &""
+
+[sub_resource type="Resource" id="Phase_3"]
+script = ExtResource("3_enemyphase")
+hp_ratio = 0.25
+display_name = "规则对撞"
+announce = "「那么，就用你的方式。」"
+intents = Array[IntentData]([SubResource("I_3_0")])
+identity_power_ids = Array[StringName]([&"god_of_war_stance"])
+starting_powers = {}
+uses_player_mirror = true
 
 [resource]
 script = ExtResource("1_enemydata")
 id = &"act3_boss"
-display_name = "战神 · 神战 P4"
-max_hp = 130
-intents = Array[IntentData]([SubResource("Intent_shield"), SubResource("Intent_heavy")])
+display_name = "战神"
+max_hp = 190
+intents = Array[IntentData]([])
 is_elite = false
 is_boss = true
 act = 3
 starting_powers = {}
-identity_power_ids = Array[StringName]([&"god_of_war_stance", &"endless_will"])
-phase2_hp_ratio = 0.4
-phase2_intents = Array[IntentData]([SubResource("Intent_rage")])
-uses_player_mirror = true
+identity_power_ids = Array[StringName]([])
+phases = Array[EnemyPhase]([SubResource("Phase_0"), SubResource("Phase_1"), SubResource("Phase_2"), SubResource("Phase_3")])

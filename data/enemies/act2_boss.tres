@@ -1,42 +1,88 @@
-[gd_resource type="Resource" script_class="EnemyData" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="EnemyData" load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/creatures/enemy_data.gd" id="1_enemydata"]
 [ext_resource type="Script" path="res://scripts/battle/intent_data.gd" id="2_intentdata"]
+[ext_resource type="Script" path="res://scripts/creatures/enemy_phase.gd" id="3_enemyphase"]
 
-[sub_resource type="Resource" id="Intent_shield"]
+[sub_resource type="Resource" id="I_0_0"]
+script = ExtResource("2_intentdata")
+type = 0
+value = 12
+times = 1
+icon_key = &"attack"
+power_id = &""
+
+[sub_resource type="Resource" id="I_0_1"]
 script = ExtResource("2_intentdata")
 type = 1
-value = 18
+value = 12
 times = 1
 icon_key = &"defend"
 power_id = &""
 
-[sub_resource type="Resource" id="Intent_heavy"]
+[sub_resource type="Resource" id="Phase_0"]
+script = ExtResource("3_enemyphase")
+hp_ratio = 1.0
+display_name = "军阵"
+announce = "铁律将军列开阵势。"
+intents = Array[IntentData]([SubResource("I_0_0"), SubResource("I_0_1")])
+identity_power_ids = Array[StringName]([])
+starting_powers = {}
+uses_player_mirror = false
+
+[sub_resource type="Resource" id="I_1_0"]
 script = ExtResource("2_intentdata")
 type = 0
-value = 22
+value = 9
+times = 2
+icon_key = &"attack"
+power_id = &""
+
+[sub_resource type="Resource" id="I_1_1"]
+script = ExtResource("2_intentdata")
+type = 2
+value = 2
+times = 1
+icon_key = &"buff"
+power_id = &"strength"
+
+[sub_resource type="Resource" id="Phase_1"]
+script = ExtResource("3_enemyphase")
+hp_ratio = 0.6
+display_name = "进军"
+announce = "军鼓响起，阵线开始推进。"
+intents = Array[IntentData]([SubResource("I_1_0"), SubResource("I_1_1")])
+identity_power_ids = Array[StringName]([])
+starting_powers = {}
+uses_player_mirror = false
+
+[sub_resource type="Resource" id="I_2_0"]
+script = ExtResource("2_intentdata")
+type = 0
+value = 20
 times = 1
 icon_key = &"attack"
 power_id = &""
 
-[sub_resource type="Resource" id="Intent_flurry"]
-script = ExtResource("2_intentdata")
-type = 0
-value = 10
-times = 3
-icon_key = &"attack"
-power_id = &""
+[sub_resource type="Resource" id="Phase_2"]
+script = ExtResource("3_enemyphase")
+hp_ratio = 0.3
+display_name = "铁律"
+announce = "「规矩就是规矩。」"
+intents = Array[IntentData]([SubResource("I_2_0")])
+identity_power_ids = Array[StringName]([])
+starting_powers = {}
+uses_player_mirror = false
 
 [resource]
 script = ExtResource("1_enemydata")
 id = &"act2_boss"
-display_name = "铁律执行官"
-max_hp = 96
-intents = Array[IntentData]([SubResource("Intent_shield"), SubResource("Intent_heavy")])
+display_name = "铁律将军"
+max_hp = 105
+intents = Array[IntentData]([])
 is_elite = false
 is_boss = true
 act = 2
 starting_powers = {}
 identity_power_ids = Array[StringName]([])
-phase2_hp_ratio = 0.5
-phase2_intents = Array[IntentData]([SubResource("Intent_flurry")])
+phases = Array[EnemyPhase]([SubResource("Phase_0"), SubResource("Phase_1"), SubResource("Phase_2")])
