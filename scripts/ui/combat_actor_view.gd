@@ -48,6 +48,21 @@ var is_player_side: bool = true
 
 var _name_label: Label
 var _status_box: HBoxContainer
+## 立绘节点（阶段 8）。
+##
+## ## 为什么用 TextureRect 而不是在 `_draw()` 里 `draw_texture_rect_region`
+## ⚠️ **血的教训（D34）**：`draw_texture_rect_region()` 在 `_draw()` 里画大图时，
+## 在本项目的 gl_compatibility + Intel 驱动下会**整块渲染成纯白**，
+## 而孤立场景里完全正常——同一个贴图、同一段算式、同一个尺寸都好使，
+## 一放进 BattleScene 就白。调试了很久才定位。
+## 换成 **TextureRect 节点**后立刻正常。
+##
+## 结论：**大立绘一律用节点，不要用 `_draw()` 画。**
+## （几何占位剪影仍走 `_draw()`——那些是图元，没问题。）
+##
+## 顺带好处：节点自带 `stretch_mode` 的比例保持，
+## 不用手写 cover 裁切那套容易算错的算式。
+var _portrait_rect: TextureRect
 ## 敌人意图（玩家据此决定怎么应对——**看不到意图就没法做决策**）
 var _intent_box: PanelContainer
 var _intent_label: Label
@@ -63,6 +78,22 @@ func _ready() -> void:
 
 
 func _build_labels() -> void:
+	# 立绘节点**第一个加**——同层级下先加的在下层，会被后加的名字 / 状态图标压住。
+	# 若立绘在上层，它会盖住名字和血条。
+	_portrait_rect = TextureRect.new()
+	_portrait_rect.position = Vector2.ZERO
+	_portrait_rect.size = Vector2(VIEW_SIZE.x, BODY_HEIGHT)
+	# 立绘是 2:3 竖图，框是 168×128 横框。
+	# ⚠️ **不要用 STRETCH_KEEP_ASPECT_COVERED**——它会等比铺满后**从正中裁**，
+	# 结果框里只剩躯干，头被切到框外（试过，一眼假）。
+	# 正确做法：先用 AtlasTexture 把图**从顶部裁出上半部分**（保住头肩），
+	# 再让 TextureRect 按 KEEP_ASPECT_CENTERED 把这块"带头的区间"塞进框里。
+	# 裁顶部而不是居中，是因为人物立绘的"身份"在脸，不在腰。
+	_portrait_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_portrait_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_portrait_rect)
+
 	_name_label = Label.new()
 	# ⚠️ 只用 position/size 定位，**不要**再设锚点。
 	# 锚点（PRESET_TOP_WIDE 的左右不等）和 size 同时用，Godot 会在 `_ready` 之后
@@ -145,8 +176,50 @@ func bind(target: Creature, look_kind: Look = Look.WARRIOR, player_side: bool = 
 	target.block_gained.connect(_on_block_gained)
 
 	_name_label.text = target.display_name
+	_refresh_portrait()
 	_refresh_powers()
 	queue_redraw()
+
+
+## 把立绘贴到节点上。**找不到图就把节点藏起来**，让 `_draw()` 的几何剪影接管。
+##
+## 这个「有图显示图、没图显示剪影」的切换必须是**原子的**——
+## 不能出现"图和剪影同时显示"（重叠成一团）或"两个都不显示"（空白）的中间态。
+func _refresh_portrait() -> void:
+	if _portrait_rect == null:
+		return
+	var texture: Texture2D = ContentRegistry.get_portrait(portrait_id)
+	if texture == null:
+		_portrait_rect.texture = null
+		_portrait_rect.visible = false
+		return
+
+	_portrait_rect.texture = _crop_portrait_head(texture)
+	_portrait_rect.visible = true
+
+
+## 从竖图里裁出「头 + 胸」那一段，再交给 TextureRect 等比缩放。
+##
+## ## 为什么用 AtlasTexture 而不是直接铺整张图
+## 立绘 1024×1536（2:3），框 168×128（约 4:3 横）。
+## 整张塞进横框 = 人物横向压扁；KEEP_ASPECT_COVERED = 从中间裁、头没了。
+## 只有**主动裁出上半段**才能既保比例又保住脸。
+##
+## 截取从顶部起算，高度取「源图宽 × 框高宽比」——这样裁出来的块
+## **高宽比恰好等于框的高宽比**，交给 KEEP_ASPECT 后正好铺满、不缩放变形。
+func _crop_portrait_head(texture: Texture2D) -> Texture2D:
+	var src: Vector2 = texture.get_size()
+	if src.x <= 0.0 or src.y <= 0.0:
+		return texture
+	# 例：框 168×128 → 高宽比 0.762；源图宽 1024 → 裁 1024×780。
+	# 780/1024 = 0.762 = 框的高宽比 → 铺满框且不变形。
+	var crop_h: float = clampf(src.x * (BODY_HEIGHT / VIEW_SIZE.x), 1.0, src.y)
+	var atlas := AtlasTexture.new()
+	atlas.atlas = texture
+	atlas.region = Rect2(0.0, 0.0, src.x, crop_h)
+	# filter_clip 让超出 region 的采样被裁掉，而不是把邻图内容拖进来（边缘发虚）
+	atlas.filter_clip = true
+	return atlas
 
 
 func _on_any_change(_a: int = 0, _b: int = 0) -> void:
@@ -239,17 +312,16 @@ func _draw() -> void:
 	_draw_hp_bar()
 
 
-## 画立绘。
+## 画**几何剪影兜底**。
 ##
-## **先试资源，再回退占位**——`assets/portraits/<id>.png` 存在就画它，
-## 不存在就画几何剪影。这样"美术没到位"和"美术到位了"用的是同一段代码，
-## 而**缺图不会崩，只会不好看**。
+## ⚠️ 立绘**不在这里画**——它由 [_portrait_rect] 节点负责（原因见该变量的文档 / D34）。
+## 这里只负责"没有立绘资源时别留空"。
+## 两者互斥：有图时 `_portrait_rect.visible = true`，
+## 剪影这次也就自然被跳过（见下面的 early return）。
 func _draw_body() -> void:
-	# **资源优先**：有立绘就画立绘，没有才回退几何剪影。
-	# 放在死亡判断**之前**——死了也该用同一张立绘（由调用方决定怎么变暗）。
-	var texture: Texture2D = ContentRegistry.get_portrait(portrait_id)
-	if texture != null:
-		draw_texture_rect(texture, Rect2(Vector2.ZERO, Vector2(VIEW_SIZE.x, BODY_HEIGHT)), false)
+	# 有立绘就什么都不用画——节点已经贴在上面了。
+	# 用 `visible` 而不是再查一次资源，避免"取图"和"判断"两次状态不一致。
+	if _portrait_rect != null and _portrait_rect.visible:
 		return
 
 	# ── 回退：几何剪影（阶段 8 前的占位）──

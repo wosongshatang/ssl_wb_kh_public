@@ -244,7 +244,11 @@ func _start_battle() -> void:
 	_apply_permanent_bonuses()
 	_apply_divinity_manifest()
 
-	_player_view.bind(_player, CombatActorView.Look.WARRIOR, true)
+	# ⚠️ 玩家也要传立绘 id。**这正是「敌人有图、玩家没图」的根因**：
+	# 只给敌人 / 盟友接了 `effective_portrait_id()`，玩家这里留空，
+	# 于是一直回退几何剪影。战士 / 法师 / 猎人的 id 恰好就是 `character_class`，
+	# 所以约定 `assets/portraits/<character_class>.png` 丢图即生效。
+	_player_view.bind(_player, CombatActorView.Look.WARRIOR, true, _run.character_class)
 	enemy_view.bind(enemy, _look_for(enemy_data), false, enemy_data.effective_portrait_id())
 	_player_view.status_pressed.connect(_on_status_pressed)
 

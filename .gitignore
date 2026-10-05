@@ -15,6 +15,10 @@ export_presets.cfg
 # GUT 测试产物
 .gut_junit.xml
 
+# 美术生成中间产物与截图（源图存 assets/，这些是过程文件）
+generated-images/
+.shots/
+
 # 编辑器 / 系统
 .DS_Store
 Thumbs.db
