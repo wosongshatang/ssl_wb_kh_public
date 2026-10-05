@@ -150,6 +150,12 @@ func _on_node_selected(node_id: int) -> void:
 		MapNode.Kind.EVENT:
 			_open_event(node)
 
+		MapNode.Kind.GOD_ALTAR:
+			_open_god_altar()
+
+		MapNode.Kind.TRAITOR:
+			_open_traitor()
+
 		_:
 			_persist_and_refresh("「%s」尚未实现。" % node.kind_label())
 
@@ -209,6 +215,82 @@ func _open_forge() -> void:
 	panel.setup(cards)
 	panel.card_chosen.connect(_on_upgrade_card_chosen)
 	panel.cancelled.connect(_close_overlay)
+
+
+## ── 神坛（P6-10）────────────────────────────────────────────
+func _open_god_altar() -> void:
+	if _overlay != null:
+		return
+	var panel := GodAltarPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup(_run.max_hp)
+	panel.sacrifice_chosen.connect(_on_altar_sacrifice)
+	panel.leave_chosen.connect(_on_altar_leave)
+	panel.closed.connect(_close_overlay)
+
+
+func _on_altar_sacrifice() -> void:
+	_close_overlay()
+	_run.hp = maxi(1, _run.hp - int(ceil(float(_run.max_hp) * GodAltarPanel.HP_COST_RATIO)))
+	_run.bonus_strength += GodAltarPanel.STRENGTH_GAIN
+	GameState.add_divinity(GodAltarPanel.DIVINITY_GAIN)
+	_persist_and_refresh("献祭了 %d 点生命，获得 %d 点永久力量（神性 +%d）。" % [
+		int(ceil(float(_run.max_hp) * GodAltarPanel.HP_COST_RATIO)),
+		GodAltarPanel.STRENGTH_GAIN, GodAltarPanel.DIVINITY_GAIN,
+	])
+
+
+func _on_altar_leave() -> void:
+	_close_overlay()
+	_run.heal(maxi(1, int(ceil(float(_run.max_hp) * GodAltarPanel.LEAVE_HEAL_RATIO))))
+	_persist_and_refresh("你没有伸手。")
+
+
+## ── 叛神者（P6-10）──────────────────────────────────────────
+func _open_traitor() -> void:
+	if _overlay != null:
+		return
+	var panel := TraitorPanel.new()
+	_overlay = panel
+	add_child(panel)
+	panel.setup()
+	panel.strip_chosen.connect(_on_traitor_strip)
+	panel.deepen_chosen.connect(_on_traitor_deepen)
+	panel.leave_chosen.connect(_close_overlay)
+	panel.closed.connect(_close_overlay)
+
+
+func _on_traitor_strip() -> void:
+	_close_overlay()
+	GameState.add_divinity(-TraitorPanel.DIVINITY_DELTA)
+
+	var pool: Array[StringName] = RelicFactory.droppable_ids(_run.relics)
+	if pool.is_empty():
+		_persist_and_refresh("神性 -%d，但没有可拿的遗物了。" % TraitorPanel.DIVINITY_DELTA)
+		return
+
+	var relic_id: StringName = pool[_rng.randi_range(0, pool.size() - 1)]
+	_run.relics.append(relic_id)
+	_persist_and_refresh("剥离了神性（-%d），获得遗物「%s」。" % [
+		TraitorPanel.DIVINITY_DELTA, _relic_name(relic_id)])
+
+
+func _on_traitor_deepen() -> void:
+	_close_overlay()
+	GameState.add_divinity(TraitorPanel.DIVINITY_DELTA)
+
+	var granted: int = 0
+	for _i: int in 2:
+		var potion_pool: Array[StringName] = ContentRegistry.all_potion_ids()
+		if potion_pool.is_empty():
+			break
+		var potion_id: StringName = potion_pool[_rng.randi_range(0, potion_pool.size() - 1)]
+		if _run.add_potion(potion_id):
+			granted += 1
+
+	_persist_and_refresh("神性 +%d，获得 %d 瓶药水。" % [
+		TraitorPanel.DIVINITY_DELTA, granted])
 
 
 func _on_upgrade_card_chosen(card_id: StringName) -> void:

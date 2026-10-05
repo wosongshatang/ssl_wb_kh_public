@@ -93,6 +93,10 @@ static func color_for_node_kind(kind: int) -> Color:
 			return NODE_EVENT
 		MapNode.Kind.BOSS:
 			return NODE_BOSS
+		MapNode.Kind.GOD_ALTAR:
+			return Color(0.72, 0.46, 0.92)
+		MapNode.Kind.TRAITOR:
+			return Color(0.45, 0.78, 0.6)
 		_:
 			return NODE_DONE
 

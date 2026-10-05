@@ -24,6 +24,9 @@ const MAX_POTIONS: int = 3
 ## 本局累计游玩秒数
 var play_seconds: float = 0.0
 var rng_seed: int = 0
+## 永久力量加成（神坛献祭的产物）。每场战斗开始时作为开场 Power 施加。
+var bonus_strength: int = 0
+
 var is_over: bool = false
 var victory: bool = false
 
@@ -62,6 +65,7 @@ func start_new_run(character: StringName, seed_value: int) -> void:
 	victory = false
 	in_battle = false
 	pending_reward = {}
+	bonus_strength = 0
 
 
 ## 阶段 4 只有战士；猎人 / 法师的初始牌组在阶段 5 接入
@@ -272,6 +276,7 @@ func to_dict() -> Dictionary:
 		"is_over": is_over,
 		"victory": victory,
 		"in_battle": in_battle,
+		"bonus_strength": bonus_strength,
 		"pending_reward": pending_reward,
 	}
 
@@ -287,6 +292,7 @@ func from_dict(data: Dictionary) -> void:
 	is_over = bool(data.get("is_over", false))
 	victory = bool(data.get("victory", false))
 	in_battle = bool(data.get("in_battle", false))
+	bonus_strength = int(data.get("bonus_strength", 0))
 	pending_reward = data.get("pending_reward", {}) as Dictionary
 
 	deck_card_ids.clear()

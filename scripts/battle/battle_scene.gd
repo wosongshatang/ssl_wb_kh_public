@@ -222,6 +222,7 @@ func _start_battle() -> void:
 	_player.notify_battle_start()
 	enemy.notify_battle_start()
 
+	_apply_permanent_bonuses()
 	_apply_divinity_manifest()
 
 	_player_view.bind(_player, CombatActorView.Look.WARRIOR, true)
@@ -611,6 +612,17 @@ func _on_environment_announced(text: String) -> void:
 	_log_lines.append("〔环境〕%s" % text)
 	if _player_view != null:
 		_player_view.show_floating_text("〔环境〕%s" % text, UiPalette.GOLD)
+
+
+## 永久属性加成（神坛献祭换来的力量）。
+## **每场战斗都要重新施加**——它是 RunState 上的数字，
+## 而 `reset_for_battle()` 会把 Creature 上的 Power 清空。
+## 忘了这一步，玩家会以为"我献祭换的力量没了"。
+func _apply_permanent_bonuses() -> void:
+	if _run.bonus_strength <= 0:
+		return
+	_player.apply_power(BasePowers.Strength.new(_run.bonus_strength))
+	_log_lines.append("〔永久〕力量 +%d（神坛献祭）" % _run.bonus_strength)
 
 
 ## 神性显化（≥70）：规则开始外显——力量暴涨，但每回合持续流失生命。

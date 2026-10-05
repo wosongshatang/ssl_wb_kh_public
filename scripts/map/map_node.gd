@@ -9,6 +9,8 @@ enum Kind {
 	SHOP,     ## 商店
 	EVENT,    ## 事件
 	BOSS,     ## 幕 Boss（必为最后一层）
+	GOD_ALTAR, ## 神坛：献祭生命换力量，代价是侵蚀（P6-10）
+	TRAITOR,   ## 叛神者：**唯一能主动降低神性**的地方（P6-10）
 }
 
 var id: int = -1
@@ -43,6 +45,10 @@ static func kind_label_of(node_kind: Kind) -> String:
 			return "事件"
 		Kind.BOSS:
 			return "BOSS"
+		Kind.GOD_ALTAR:
+			return "神坛"
+		Kind.TRAITOR:
+			return "叛神者"
 		_:
 			return "?"
 

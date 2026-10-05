@@ -25,6 +25,8 @@ const KIND_WEIGHTS: Dictionary = {
 	MapNode.Kind.REST: 10,
 	MapNode.Kind.SHOP: 7,
 	MapNode.Kind.ELITE: 5,
+	MapNode.Kind.GOD_ALTAR: 5,
+	MapNode.Kind.TRAITOR: 3,
 }
 
 ## 每幕的环境机制（阶段 6）。**改变规则，不是改数值**（设计文档 §2.3）。
