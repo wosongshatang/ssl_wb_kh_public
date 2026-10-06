@@ -163,6 +163,43 @@ func get_portrait(portrait_id: StringName) -> Texture2D:
 	return load(path) as Texture2D
 
 
+## 按卡 id 找卡图（阶段 8）。
+##
+## **约定优于配置**：`res://assets/cards/<卡id>.png` 存在就用它。
+## 找不到返回 null —— 调用方回退到几何图形，**而不是崩**。
+##
+## ⚠️ **卡图与立绘是两套素材，不要混用**：
+## 卡图区约 **104×113（接近方形）**，立绘是 **168×128（横向）**。
+## 竖版人物立绘塞进方形卡图会只剩一截躯干——**必须单独出图**。
+##
+## ⚠️ **升级过的卡沿用基础卡的图**：`id` 里带 `+` 后缀（如 `strike+`），
+## 但那是同一张牌，没有也不该有第二张图。所以这里**剥掉后缀**再查。
+## 否则玩家一升级，卡图就"消失"了——而这类失效**不报任何错**。
+func get_card_art(card_id: StringName) -> Texture2D:
+	if card_id == &"":
+		return null
+	var path: String = card_art_path(card_id)
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+
+## 卡图**路径**推导（与"能不能加载"分开）。
+##
+## ## 为什么要把路径推导单独拆出来
+## `get_card_art()` 在"没图"和"id 写错"两种情况下**都返回 null**——
+## 测试分不出"升级牌没剥后缀"和"本来就没图"。
+## 拆出路径后，测试可以直接断言 `strike+` 与 `strike` 解析到**同一个路径**，
+## **不需要仓库里真的有一张图**。
+func card_art_path(card_id: StringName) -> String:
+	if card_id == &"":
+		return ""
+	# 复用 `RunState.decode_card_id()`——`+` 后缀的规则只有一个来源，
+	# 不要在这里另写一份 trim 逻辑（两份规则迟早会不一致）。
+	var base: StringName = RunState.decode_card_id(card_id)
+	return "res://assets/cards/%s.png" % base
+
+
 func get_ally(id: StringName) -> Variant:
 	return _allies.get(String(id))
 

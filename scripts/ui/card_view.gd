@@ -26,6 +26,8 @@ var is_playable: bool = true
 var _name_label: Label
 var _desc_label: Label
 var _art: Control
+## 真卡图节点（阶段 8）。没有对应 PNG 时隐藏，露出 `_art` 的几何兜底。
+var _art_texture: TextureRect
 var _frame: PanelContainer
 var _cost_label: Label
 
@@ -76,6 +78,26 @@ func _build() -> void:
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_art.draw.connect(_on_art_draw)
 	box.add_child(_art)
+
+	# 真卡图节点（阶段 8）。
+	#
+	# ## 为什么是 `_art` 的**子节点**，而不是替掉 `_art`
+	# `_art` 的几何图形是**兜底**：没图的卡（99 张里的绝大多数）继续用几何图形，
+	# 有图的卡把它盖住。这样"美术分批到位"期间，**两种卡并存且都不会空白**。
+	# 若把 `_art` 换成 TextureRect，没图的卡就变成一块空的——比现在的几何图形更糟。
+	#
+	# ## 为什么是节点而不是 `_draw()` 画贴图
+	# ⚠️ D35：`_draw()` 里 `draw_texture_rect*` 画大图在本项目会渲染成纯白。
+	# 卡图必须用节点。
+	_art_texture = TextureRect.new()
+	_art_texture.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_art_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	# KEEP_ASPECT_COVERED：卡图是方形，图区也接近方形，等比铺满即可。
+	# 与立绘不同——那里是"竖图进横框"才需要手动裁顶，这里方向一致，不用裁。
+	_art_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_art_texture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_art_texture.visible = false
+	_art.add_child(_art_texture)
 
 	_desc_label = Label.new()
 	_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -131,9 +153,22 @@ func _refresh_all() -> void:
 	_cost_label.add_theme_stylebox_override("normal", _make_cost_style(card))
 	_frame.add_theme_stylebox_override("panel", _make_frame_style())
 
+	_refresh_art()
 	queue_redraw()
 	if _art != null:
 		_art.queue_redraw()
+
+
+## 有卡图就显示卡图、没有就露出几何兜底。**两者互斥**。
+##
+## 这个切换必须原子——否则会出现"图和几何图形叠在一起"（看不清）
+## 或"两个都没有"（空白卡面）这类中间态。
+func _refresh_art() -> void:
+	if _art_texture == null:
+		return
+	var texture: Texture2D = ContentRegistry.get_card_art(card.id)
+	_art_texture.texture = texture
+	_art_texture.visible = texture != null
 
 
 ## 置灰：不可出牌但仍要显示（玩家需要看见自己有哪些牌、为什么打不出）
