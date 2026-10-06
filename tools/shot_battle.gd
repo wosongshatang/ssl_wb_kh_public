@@ -1,13 +1,16 @@
 extends SceneTree
-## 战斗截图工具（阶段 8 立绘验证用，**非测试**）
+## 战斗截图工具（阶段 8 美术验证用，**非测试**）
 ##
 ## ## 为什么需要它
-## 立绘是「接线对了但看起来不对」最容易发生的区域——
-## 比例拉伸、裁切把脸切掉、透明通道变成黑块，这些**测试断言不出来**。
+## 美术接线是「接线对了但看起来不对」最容易发生的区域——
+## 比例拉伸、裁切把地面切掉、透明通道变成白块，这些**测试断言不出来**。
 ## 只能真的渲染一帧看一眼。
 ##
 ## 用法：
-##   <godot> -s tools/shot_battle.gd --path <proj> -- <character> <out.png>
+##   <godot> -s tools/shot_battle.gd --path <proj> -- <character> <act> <out.png>
+##
+## 例：战士第 1 幕（竞技场背景）
+##   <godot> -s tools/shot_battle.gd --path <proj> -- warrior 1 out.png
 ##
 ## ⚠️ 必须用**带窗口**的方式跑（不能 --headless），否则 `get_texture().get_image()`
 ## 拿到的是空图。
@@ -18,6 +21,7 @@ extends SceneTree
 ## 改用 `root.get_node("/root/ContentRegistry")` 运行时取。
 
 var _character: StringName = &"warrior"
+var _act: int = 1
 var _out_path: String = "user://shot.png"
 var _frames: int = 0
 ## 初始化只在第一帧做——`_initialize()` 时场景树还没进入活动状态，
@@ -31,7 +35,9 @@ func _initialize() -> void:
 	if args.size() >= 1:
 		_character = StringName(args[0])
 	if args.size() >= 2:
-		_out_path = args[1]
+		_act = int(args[1])
+	if args.size() >= 3:
+		_out_path = args[2]
 
 
 func _boot() -> void:
@@ -48,6 +54,10 @@ func _boot() -> void:
 		quit(1)
 		return
 	game_state.call("start_new_run", _character, 12345)
+	# 直接跳到目标幕——背景是按 (角色, 幕) 查表的，只测第 1 幕覆盖不到另外两张图
+	var run: Variant = game_state.get("run")
+	if run != null and _act > 1:
+		run.set("current_act", _act)
 
 	var scene: PackedScene = load("res://scenes/battle/battle.tscn") as PackedScene
 	var inst: Node = scene.instantiate()

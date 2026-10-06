@@ -74,15 +74,15 @@ fi
 echo
 echo "── ② 目录结构完整性 ────────────────────────────────────"
 STRUCT_FAIL=0
-# ⚠️ `assets/portraits` 与 `assets/cards` 是**按约定查表的目录**（阶段 8）：
+# ⚠️ `assets/portraits` / `assets/cards` / `assets/backgrounds` 是**按约定查表的目录**（阶段 8）：
 # 代码不引用具体文件，只按 `<id>.png` 去找。目录一旦被改名/删除，
-# **不报任何错，只是美术全部消失、静默回退几何图形**——
+# **不报任何错，只是美术全部消失、静默回退程序化绘制**——
 # 正是那种"绿灯下的失效"，所以必须由门禁盯着。
 for d in scripts/core scripts/battle scripts/pipeline scripts/identity \
          scripts/cards scripts/creatures scripts/relics scripts/map scripts/ui scripts/content \
          data/cards data/relics data/jobs data/enemies data/acts data/events data/potions data/act_modifiers data/allies \
          scenes/boot scenes/map scenes/battle scenes/ui tests tools docs \
-         assets/portraits assets/cards; do
+         assets/portraits assets/cards assets/backgrounds; do
   if [ ! -d "$PROJECT_DIR/$d" ]; then
     echo "  $FAIL_MARK 缺少目录：$d"
     STRUCT_FAIL=1

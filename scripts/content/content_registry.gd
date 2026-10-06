@@ -200,6 +200,40 @@ func card_art_path(card_id: StringName) -> String:
 	return "res://assets/cards/%s.png" % base
 
 
+## 按「角色线 + 幕」找战斗背景（阶段 8）。
+##
+## **约定优于配置**：`res://assets/backgrounds/<角色>_act<幕>.png` 存在就用它。
+## 找不到返回 null —— 调用方回退到程序化背景，**而不是崩**。
+##
+## ## 为什么键是 (角色, 幕) 而不是只有幕
+## 同一个「第 1 幕」，三条线去的地方完全不同：
+## 战士的竞技场 / 法师的学徒白塔 / 猎人的翠林猎场。
+## 只按幕查表会让三条线共用一张图——**玩家就分不出自己在玩哪条线了**。
+## 这正是 `MapManager.LINES` 用 `(character, act)` 做键的同一个理由。
+##
+## ## 为什么不做 `<幕>.png` 的共享回退
+## 看似能省图（三线共用一张 act1），但那会让"三条线视觉上分得开"这个
+## **本来就想守住的性质**消失。要共享就复制文件，不要在设计上开口子。
+func get_battle_background(character: StringName, act: int) -> Texture2D:
+	var path: String = battle_background_path(character, act)
+	if path == "":
+		return null
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+
+## 战斗背景**路径**推导（与"能不能加载"分开）。
+##
+## 与 `card_art_path()` 同样的理由：`get_battle_background()` 在
+## "没图"和"角色 id 写错"两种情况下**都返回 null**，测试分不出。
+## 拆出路径后可以直接断言命名规则，**不需要仓库里真的有图**。
+func battle_background_path(character: StringName, act: int) -> String:
+	if character == &"" or act <= 0:
+		return ""
+	return "res://assets/backgrounds/%s_act%d.png" % [character, act]
+
+
 func get_ally(id: StringName) -> Variant:
 	return _allies.get(String(id))
 

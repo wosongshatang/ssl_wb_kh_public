@@ -1,6 +1,13 @@
 # 卡图提示词（阶段 8）
 
-> 配套：`assets/cards/README.md`（接线约定）、`docs/project_core_info.md` §4.3-A
+> **配套**：
+> - **`docs/art_style_base.md`** —— **唯一权威基底**（通用风格 + **明度基调** + 三种资产）
+> - `assets/cards/README.md`（接线约定）
+> - `docs/project_core_info.md` §4.3-A
+>
+> ⚠️ **本文件的基底已并入 `art_style_base.md`**。
+> 生成时请以那份为准——**尤其是 §三的明度基调，不要漏**，
+> 否则卡图会偏亮，被 `tests/test_art_tone.gd` 拦下来。
 
 ---
 
@@ -22,7 +29,10 @@
 
 ---
 
-## 二、基底（每次生成必须置于提示词开端）
+## 二、基底（**完整版见 `docs/art_style_base.md`**）
+
+> 下面是卡图相关的部分，方便单文件阅读。
+> **权威版本以 `art_style_base.md` 为准**——那里还有明度基调的完整说明与目标值。
 
 ### 正向基底
 
@@ -31,15 +41,21 @@ dark fantasy card game art, painterly digital illustration, muted desaturated pa
 with one strong accent color, dramatic side lighting, subtle rim light, single dominant
 focal subject, high contrast against the background, simple bold composition, readable
 when scaled down to 104x113 pixels, centered with generous negative space, no text,
-no watermark, no border, no frame, opaque dark background
+no watermark, no border, no frame, opaque dark background,
+low-key lighting, predominantly dark values, held-down highlights, deep shadows,
+overcast dim sky, no blown-out highlights, no sun glare, no bright reflective surfaces
 ```
+
+> **最后一行是明度基调**（2026-10-06 加入）。**不要删**——
+> 删了卡图会偏亮，`tests/test_art_tone.gd` 会拦。
 
 ### 负向基底
 
 ```
 text, letters, numbers, watermark, signature, card frame, border, UI elements,
 multiple subjects, cluttered background, busy detail, tiny details, depth of field,
-bright saturated colors, anime, chibi, cute, cartoon, blurry, low contrast
+bright saturated colors, anime, chibi, cute, cartoon, blurry, low contrast,
+high-key lighting, bright daylight, sun glare, blown-out sky, overexposed, washed-out
 ```
 
 ### 相对立绘基底，改了什么、为什么

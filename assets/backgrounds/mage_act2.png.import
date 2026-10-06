@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dfaxjxo6gx7d4"
-path="res://.godot/imported/GutIconV2_no_shine.png-340880100fb7bae1a2e0530330841e58.ctex"
+uid="uid://b0ib0evh3d17b"
+path="res://.godot/imported/mage_act2.png-19d5cd7212eb1d2bcbaa261e3ec1a32c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/gut/images/GutIconV2_no_shine.png"
-dest_files=["res://.godot/imported/GutIconV2_no_shine.png-340880100fb7bae1a2e0530330841e58.ctex"]
+source_file="res://assets/backgrounds/mage_act2.png"
+dest_files=["res://.godot/imported/mage_act2.png-19d5cd7212eb1d2bcbaa261e3ec1a32c.ctex"]
 
 [params]
 

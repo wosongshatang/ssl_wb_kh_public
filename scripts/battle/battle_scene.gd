@@ -64,11 +64,15 @@ func _ready() -> void:
 # ══ 界面构建 ════════════════════════════════════════════════
 
 func _build_ui() -> void:
-	# 背景按幕绘制（阶段 6）：背景告诉玩家"我在哪张图上"，
-	# 而幕环境机制正是绑定在"图"上的
+	# 背景按「角色线 + 幕」绘制（阶段 6 程序化 → 阶段 8 真图）：
+	# 背景告诉玩家"我在哪张图上"，而幕环境机制正是绑定在"图"上的。
+	#
+	# ⚠️ **必须先 add_child 再 set_scene**：`_ready()` 里才建出真图节点。
+	# （`BattleBackground` 自己也补了一次刷新，所以反过来也不会错——
+	#  但按这个顺序能少走一次重贴。）
 	_background = BattleBackground.new()
 	add_child(_background)
-	_background.set_act(_run.current_act)
+	_background.set_scene(_run.character_class, _run.current_act)
 
 	# 战场层用绝对定位——立绘要能被 Tween 挪动，放进容器会被布局系统覆盖
 	_field = Control.new()
