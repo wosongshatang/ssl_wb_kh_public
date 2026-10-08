@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"hunter_beast_shaper"
+display_name = "兽化者"
+description = "人皮下面还留着一副牙。"
+tier = 2
+parent_job = &"hunter_tamer"
+identity_power_ids = Array[StringName]([&"beast_shaper"])
+job_card_ids = Array[StringName]([])
+card_pool_tags = Array[StringName]([&"hunter"])
+signature_card_ids = Array[StringName]([&"gold_shape_shift", &"gold_shape_claw"])
+mirror_job_id = &"mirror_hunter_beast_shaper"
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

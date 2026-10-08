@@ -28,4 +28,5 @@ deity_id = &""
 special_kind = 0
 special_value = 0
 trial_block_bonus = 0
+element = &"frost"
 card_pool_tags = Array[StringName]([])

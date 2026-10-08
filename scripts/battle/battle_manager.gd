@@ -101,15 +101,36 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 	if not deck.hand.has(card):
 		_log("该牌不在手牌中")
 		return false
-	if card.is_unplayable():
-		# 诅咒牌恒不可打出——它的作用是在手里持续折磨你，不是让你花能量丢掉
+	if card.is_unplayable() and not _can_play_unplayable(card):
+		# 诅咒牌默认恒不可打出——它的作用是在手里持续折磨你，不是让你花能量丢掉。
+		# **契约师是唯一的例外**：它能把诅咒当核弹打出去（阶段 9）。
 		_log("「%s」无法打出。" % card.display_name)
 		return false
-	if not player.can_afford(card.cost):
-		_log("能量不足：「%s」需要 %d，剩余 %d" % [card.display_name, card.cost, player.energy])
+
+	# 契约师可以改写牌的花费（把 0 费的诅咒变成 2 费核弹）
+	var cost: int = card.cost
+	for power: AbstractPower in player.all_powers():
+		cost = power.modify_energy_cost(cost, card)
+
+	# 魂能代付（阶段 9）：**只在付不起的时候才动用**——
+	# 否则"付得起也拿魂能顶"会变成无脑消耗，魂能就失去"应急"的定位了。
+	var subsidy: int = 0
+	var subsidizer: AbstractPower = null
+	if not player.can_afford(cost):
+		for power: AbstractPower in player.all_powers():
+			var offered: int = power.energy_subsidy_max(cost, card)
+			if offered > subsidy:
+				subsidy = offered
+				subsidizer = power
+	var payable: int = maxi(0, cost - subsidy)
+	if not player.can_afford(payable):
+		_log("能量不足：「%s」需要 %d，剩余 %d" % [card.display_name, cost, player.energy])
 		return false
 
-	player.spend_energy(card.cost)
+	if subsidizer != null and subsidy > 0:
+		subsidizer.consume_energy_subsidy(subsidy)
+		_log("魂能代付 %d 点能量" % subsidy)
+	player.spend_energy(payable)
 	deck.take_from_hand(card)
 	_log("打出「%s」（剩余能量 %d）" % [card.display_name, player.energy])
 
@@ -122,11 +143,42 @@ func play_card(card: CardData, target: Creature = null) -> bool:
 	_resolve_card_effects(card, target)
 
 	if card.exhaust:
-		deck.add_to_exhaust(card)
+		_exhaust_card(card)
 	else:
 		deck.add_to_discard(card)
 
 	_check_battle_end()
+	return true
+
+
+## 契约师：允许打出"本来不可打出"的牌（目前只用于诅咒）。
+func _can_play_unplayable(card: CardData) -> bool:
+	for power: AbstractPower in player.all_powers():
+		if power.allows_playing(card):
+			return true
+	return false
+
+
+## 把牌放进消耗区，**并通知所有能力**（阶段 9）。
+##
+## ⚠️ 这是"进消耗区"的**唯一入口**。任何地方直接调
+## `deck.add_to_exhaust()` 都会绕过 `on_card_exhausted`，
+## 表现成"死灵师的魂能不涨"——而且**不报错**。
+func _exhaust_card(card: CardData) -> void:
+	deck.add_to_exhaust(card)
+	player.notify_card_exhausted(card)
+
+
+## **主动消耗手牌**（咒术师「禁忌知识」）。
+##
+## ⚠️ 必须也走 `_exhaust_card` 的通知——
+## 否则会出现"打出后消耗会涨魂能，主动消耗不涨"这种**半个机制生效**的状态，
+## 玩家只会觉得这机制是坏的，而日志里什么都没有。
+func exhaust_from_hand(card: CardData) -> bool:
+	if not deck.take_from_hand(card):
+		return false
+	_exhaust_card(card)
+	_log("消耗「%s」" % card.display_name)
 	return true
 
 
@@ -151,6 +203,13 @@ func _on_player_turn_started(turn: int) -> void:
 ## BattleManager 管，所以走信号交给场景去记账（与 potion_granted 同一套做法）。
 ## 直接持有 RunState 引用会让 BattleManager 变成上帝对象，也没法单独测试。
 ## 召唤一个友方单位（猎人线）
+##
+## 公开入口（阶段 9）——死灵师的骸骨兵走这里。
+## 内部逻辑仍集中在 `_summon_ally`，不另开一套召唤路径。
+func summon_ally(ally_id: StringName) -> Ally:
+	return _summon_ally(ally_id)
+
+
 func _summon_ally(ally_id: StringName) -> Ally:
 	var loaded: Variant = ContentRegistry.get_ally(ally_id)
 	if not (loaded is AllyData):
@@ -194,6 +253,16 @@ func _apply_special_effect(card: CardData) -> void:
 
 		CardData.SpecialKind.TRIAL:
 			_apply_trial(card)
+
+		CardData.SpecialKind.FORM_SHIFT:
+			# 兽化者的人形 / 兽形切换（阶段 9）。
+			# ⚠️ 只有**响应了**的能力才写日志——没有兽化者的角色打出这张牌时，
+			# 日志必须干净，否则玩家会以为自己切换了形态。
+			for power: AbstractPower in player.all_powers():
+				var message: String = power.on_form_shift(player)
+				if message != "":
+					_log("〔兽化〕%s" % message)
+					break
 
 		_:
 			pass
@@ -268,11 +337,18 @@ func _on_enemy_turn_started(_turn: int) -> void:
 			continue
 		enemy.on_turn_start()
 		if player.is_alive():
-			# 变招检查放在行动**前**：血量刚掉下去的当回合就能切形态，
-			# 玩家能立刻感受到「它变了」，而不是多等一回合。
-			if enemy.refresh_phase():
-				_log("  ⚠ %s 改变了姿态！" % enemy.display_name)
-			_execute_intent(enemy)
+			# 冻结（阶段 9）：跳过本次行动。由 [ElementSystem] 在霜满层时施加。
+			# ⚠️ 放在 `refresh_phase()` **之前**——被冻住的敌人连姿态都不该变，
+			# 否则玩家会看到"它冻着但还是变强了"，冻结的价值就被削弱了。
+			if enemy.has_power(&"frozen"):
+				enemy.remove_power(&"frozen")
+				_log("  ❄ %s 被冻结，跳过行动" % enemy.display_name)
+			else:
+				# 变招检查放在行动**前**：血量刚掉下去的当回合就能切形态，
+				# 玩家能立刻感受到「它变了」，而不是多等一回合。
+				if enemy.refresh_phase():
+					_log("  ⚠ %s 改变了姿态！" % enemy.display_name)
+				_execute_intent(enemy)
 		enemy.on_turn_end()
 		if not player.is_alive():
 			break
@@ -292,6 +368,20 @@ func _on_flow_phase_changed(next_phase: TurnFlow.Phase) -> void:
 
 
 # ── 意图执行 ────────────────────────────────────────────────
+
+## 重新结算一张牌的效果（**不付能量、不消耗牌**）。
+##
+## 风行者用它复制每回合的第一张攻击牌。
+##
+## ⚠️ **必须复用 `_resolve_card_effects`**，不要另写一份"复制的结算"——
+## 两份结算迟早会不一致（少算了某个字段），而且那种偏差**不报错**，
+## 玩家只会觉得"这张牌复制出来好像弱一点"。
+func replay_card_effects(card: CardData) -> void:
+	if not player.is_alive():
+		return
+	_log("〔风行者〕复制「%s」" % card.display_name)
+	_resolve_card_effects(card, null)
+
 
 ## 结算一张牌的全部效果。
 ##
@@ -340,6 +430,20 @@ func _apply_powers(receiver: Creature, table: Dictionary, label: String) -> void
 	for raw_id: Variant in table:
 		var power_id := StringName(str(raw_id))
 		var amount: int = int(table[raw_id])
+
+		# ★ 元素必须走 ElementSystem（阶段 9）。
+		#
+		# 这里是最容易漏的一处：卡牌的 `apply_to_target = {"burn": 2}` 会直接
+		# 走到 `apply_power`，**绕过反应判定**——于是"用卡牌上燃"永远不触发蒸汽，
+		# 而"用元素亲和上燃"会触发。同一个元素两种行为，且**不报错**。
+		# 所以元素统一在这里改道。
+		if ElementSystem.is_element(power_id):
+			var note: String = ElementSystem.apply_element(receiver, power_id, amount)
+			_log("  %s 附着 %s ×%d%s" % [
+				label, power_id, amount, "（%s）" % note if note != "" else "",
+			])
+			continue
+
 		var power := PowerFactory.create(power_id, amount)
 		if power == null:
 			continue

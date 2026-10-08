@@ -233,12 +233,15 @@ func test_shield_bash_ignores_dead_opponents() -> void:
 
 # ══ 终职 · 嗜血者 / 鏖战者 ═══════════════════════════════════
 
-func test_bloodthirster_gains_strength_on_hp_loss() -> void:
+func test_bloodthirster_gains_rage_on_hp_loss() -> void:
+	## 阶段 9：失血给的是**怒气**（独立资源）而不是力量。
+	## 效果数值相同，但面板上显示的名字不同——这是"机制特色"的一部分：
+	## 狂战玩家经营的是"怒气"，不是通用的"力量"。
 	var c := _with_identity(_make_creature(60), &"bloodthirster")
 
 	c.take_damage(4, null, DamageType.HP_LOSS)
 
-	assert_eq(c.get_power_amount(&"strength"), 4, "每失 1 血应得 1 层力量")
+	assert_eq(c.get_power_amount(&"rage"), 4, "每失 1 血应得 1 层怒气")
 
 
 func test_bloodthirster_heals_on_kill() -> void:

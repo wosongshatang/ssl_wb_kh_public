@@ -352,6 +352,18 @@ func bind_relics_to_battle(battle: BattleManager) -> void:
 		relic.battle = battle
 
 
+## 给所有 Power（含身份层）注入战斗上下文（阶段 9）。
+##
+## 与遗物同一套模式。**只有需要操作牌堆 / 能量的 Power 才该用它**——
+## 大多数 Power 只碰 `owner_creature` 的数值，那样才能脱离 BattleManager
+## 单独测试（`power.on_turn_start(creature)` 一行就能构造场景）。
+##
+## 目前的使用者：咒术师（消耗时抽牌）。
+func bind_powers_to_battle(battle: BattleManager) -> void:
+	for power: AbstractPower in all_powers():
+		power.battle = battle
+
+
 # ══ 能量 ════════════════════════════════════════════════════
 
 func can_afford(cost: int) -> bool:
@@ -398,6 +410,16 @@ func notify_card_played(card: CardData) -> void:
 		power.on_card_played(self, card)
 	for relic: AbstractRelic in relics:
 		relic.on_use_card(self, card)
+
+
+## 通知「一张牌被消耗」（阶段 9）。
+##
+## ⚠️ **所有进消耗区的路径都必须调它**——直接 `deck.add_to_exhaust()` 会绕过，
+## 表现成"死灵师的魂能不涨"，而且**不报错**。
+## `BattleManager._exhaust_card()` 是唯一入口。
+func notify_card_exhausted(card: CardData) -> void:
+	for power: AbstractPower in all_powers():
+		power.on_card_exhausted(self, card)
 
 
 ## 通知「战斗开始」（遗物在这里做开场布置）

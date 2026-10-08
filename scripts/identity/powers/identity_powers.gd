@@ -119,22 +119,27 @@ class ShieldBash extends AbstractPower:
 
 ## 终职 · 嗜血者 ——「血债必须血偿」
 ##
-## ⚠️ 阶段 4 简化实现：设计文档原文要求「怒气跨回合保留」，
-## 那需要一套独立于力量的怒气资源。这里先用**永久力量**近似
-## （每失 1 血 +1 力量，击杀回 6 血），手感方向一致。
-## 完整的怒气资源在阶段 5 的战士线扩展里补。
+## ## 阶段 9 兑现了挂很久的 TODO
+## 旧版注释写着「怒气跨回合保留……完整的怒气资源在阶段 5 的战士线扩展里补」，
+## 而阶段 5 过去了**没有兑现**——它一直用「永久力量」顶着。
+##
+## 现在用真正的 [BasePowers.Rage]：
+##   · 效果与力量一致（+1 伤害 / 层，跨回合保留）
+##   · **但玩家面板上看到的是"怒气"而不是"力量"**——
+##     对狂战玩家来说，"我攒了 8 层怒气"和"我有 8 点力量"是完全不同的心理暗示
+##   · 来源唯一（只有失血），所以它天然与"压血线"绑定
 class Bloodthirster extends AbstractPower:
 	const HEAL_PER_KILL: int = 6
 
 	func _init() -> void:
 		id = &"bloodthirster"
 		display_name = "血偿"
-		description = "每失去 1 点生命获得 1 层力量；每击杀一个敌人回复 %d 点生命。" % HEAL_PER_KILL
+		description = "每失去 1 点生命获得 1 层怒气；每击杀一个敌人回复 %d 点生命。" % HEAL_PER_KILL
 		is_identity = true
 
 	func on_health_lost(owner: Creature, amount: int) -> void:
 		if amount > 0:
-			owner.apply_power(BasePowers.Strength.new(amount))
+			owner.apply_power(BasePowers.Rage.new(amount))
 
 	func on_kill(owner: Creature, _target: Creature) -> void:
 		owner.heal(HEAL_PER_KILL)
@@ -282,122 +287,263 @@ class Causality extends AbstractPower:
 ## 法师的机制核心是**资源管线本身**（设计文档：元素反应 / 奥术蓄力是纯资源管线，
 ## 不依赖任何新实体系统）——所以这条线风险最低，排在猎人前面。
 
-## 元素亲和（一阶 · 元素使）—— 每回合第一次打出攻击牌时施加易伤
+## 元素亲和（一阶 · 元素师）—— 打出带元素属性的牌时附着对应元素
 ##
-## "第一次"而不是"每次"：每次的话它会退化成"多打攻击牌就完事"，
-## 而第一次逼玩家**把最重的那张牌放在第一位**——这才是元素的节奏感。
+## ## ⚠️ 元素种类由**卡牌**决定，不由能力决定
+## `CardData.element` 写明这张牌是燃还是霜。
+## 如果让能力写死元素种类，所有牌都会上同一种元素，
+## **反应就永远不会发生**——而那正是这条线的核心玩法。
+##
+## ## 为什么走 ElementSystem 而不是直接 apply_power
+## 燃 + 霜 要触发蒸汽反应。反应判定必须唯一，
+## 否则每张元素牌各判一次，迟早漏一处（见 [ElementSystem] 的类文档）。
 class ElementalAttunement extends AbstractPower:
-	const VULNERABLE: int = 2
-
-	var _used_this_turn: bool = false
-
 	func _init() -> void:
 		id = &"elemental_attunement"
 		display_name = "元素亲和"
-		description = "每回合第一次打出攻击牌时，给予目标 %d 层易伤。" % VULNERABLE
+		description = "打出带元素属性的牌时，给目标附着对应元素。燃霜共存触发蒸汽。"
 		is_identity = true
 
-	func on_turn_start(_owner: Creature) -> void:
-		_used_this_turn = false
-
 	func on_card_played(owner: Creature, card: CardData) -> void:
-		if _used_this_turn or card.type != CardData.CardType.ATTACK:
+		if card.element == &"":
 			return
-		_used_this_turn = true
 		for opponent: Creature in owner.opponents:
 			if opponent.is_alive():
-				opponent.apply_power(BasePowers.Vulnerable.new(VULNERABLE))
+				ElementSystem.apply_element(opponent, card.element, 1)
 				break
 
 
-## 奥术蓄力（一阶 · 奥术师）—— 回合结束时把没用掉的能量转成格挡
+## 风暴使者（终职 · 元素师线）—— 元素反应强化
 ##
-## 惩罚"留一手"的同时给一条出路：**能量不浪费，但只能变成防御**。
-class ArcaneCharge extends AbstractPower:
-	const BLOCK_PER_ENERGY: int = 3
+## 与一阶「元素亲和」的分工：一阶负责**附着**，它负责**放大反应的收益**。
+## 没有它也能触发蒸汽（那是元素系统的通用规则），但有了它才值得围绕反应构筑。
+##
+## 另外它让元素**每回合自动增殖 1 层**——这是"越拖越强"的来源，
+## 也逼玩家在"现在反应"和"再攒一层"之间做选择。
+class Stormcaller extends AbstractPower:
+	## 蒸汽伤害的额外倍率（在 ElementSystem 的基准倍率之上再加）
+	const STEAM_BONUS: int = 1
+	## 每回合自动给已带元素的目标 +1 层（不新增元素种类）
+	const GROW_PER_TURN: int = 1
 
 	func _init() -> void:
-		id = &"arcane_charge"
-		display_name = "奥术蓄力"
-		description = "回合结束时，每点未使用的能量转化为 %d 点格挡。" % BLOCK_PER_ENERGY
+		id = &"stormcaller"
+		display_name = "风暴使者"
+		description = "每回合开始时，已附着元素的目标各 +%d 层；蒸汽伤害额外 +%d。" % [
+			GROW_PER_TURN, STEAM_BONUS,
+		]
 		is_identity = true
+
+	func on_turn_start(owner: Creature) -> void:
+		for opponent: Creature in owner.opponents:
+			if not opponent.is_alive():
+				continue
+			for element: StringName in ElementSystem.elements_on(opponent):
+				# ⚠️ 走 ElementSystem 而不是 apply_power——
+				# 增殖也可能把霜推过 5 层阈值触发冻结，那是元素的规则。
+				ElementSystem.apply_element(opponent, element, GROW_PER_TURN)
+
+
+## 奥术圣贤（终职 · 元素师线）—— 未用能量转奥术，蓄力换爆发
+##
+## 与「风暴使者」的对照：**风暴使者是高频连锁，奥术圣贤是低频巨炮**。
+## 同一张一阶分出的两个终职必须给出**相反的建议**，否则选哪个都一样。
+##
+## ## 为什么每回合限一次兑换
+## "5 层换 2 能量"不限制的话会变成**无限循环**：
+## 攒够 → 换能量 → 能量没用完 → 又转奥术 → 又攒够……
+## 限制每回合一次，它才是"关键时刻兑现"而不是"自动机器"。
+class Archsage extends AbstractPower:
+	## 每点未用能量转多少层奥术
+	const ARCANE_PER_ENERGY: int = 1
+	## 兑换比率：多少层奥术换多少能量
+	const EXCHANGE_COST: int = 5
+	const EXCHANGE_GAIN: int = 2
+
+	var _exchanged_this_turn: bool = false
+
+	func _init() -> void:
+		id = &"archsage"
+		display_name = "奥术圣贤"
+		description = "回合结束时每点未用能量转 %d 层奥术；可消耗 %d 层换 %d 点能量（每回合限一次）。" % [
+			ARCANE_PER_ENERGY, EXCHANGE_COST, EXCHANGE_GAIN,
+		]
+		is_identity = true
+
+	func on_turn_start(_owner: Creature) -> void:
+		_exchanged_this_turn = false
 
 	func on_turn_end(owner: Creature) -> void:
-		if owner.energy <= 0:
+		if owner.energy > 0:
+			owner.apply_power(BasePowers.Arcane.new(owner.energy * ARCANE_PER_ENERGY))
+
+	## 把奥术层数当能量花掉（每回合限一次）。
+	##
+	## 走 `energy_subsidy_max` / `consume_energy_subsidy` 这对钩子，
+	## 而不是直接加能量——这样它和死灵师的魂能**共用同一条代付通道**，
+	## 不会出现两套"另类付费"逻辑。
+	func energy_subsidy_max(cost: int, _card: CardData) -> int:
+		if _exchanged_this_turn or cost <= 0:
+			return 0
+		if owner_creature == null:
+			return 0
+		var arcane: int = owner_creature.get_power_amount(&"arcane")
+		if arcane < EXCHANGE_COST:
+			return 0
+		return mini(EXCHANGE_GAIN, cost)
+
+	func consume_energy_subsidy(amount: int) -> void:
+		if amount <= 0 or owner_creature == null:
 			return
-		owner.gain_block(owner.energy * BLOCK_PER_ENERGY)
+		_exchanged_this_turn = true
+		owner_creature.reduce_power(&"arcane", EXCHANGE_COST)
 
 
-## 烈焰之心（终职 · 烈焰）—— 攻击牌附带燃烧
-class FlameHeart extends AbstractPower:
-	const POISON: int = 2
+## 禁忌知识（一阶 · 咒术师）—— 把"消耗"从代价变成动作
+##
+## 别的职业那里，消耗是**打出强牌要付的代价**；
+## 咒术师把它变成**主动动作**：把废牌烧掉换过牌，润滑手牌。
+## 这是"废弃物流转"这条线的入口——一阶只负责打开阀门，
+## 真正的收益在二阶（死灵师 / 契约师）。
+class Hexmaster extends AbstractPower:
+	var _drew_once: bool = false
 
 	func _init() -> void:
-		id = &"flame_heart"
-		display_name = "烈焰之心"
-		description = "每次打出攻击牌，额外给予目标 %d 层中毒。" % POISON
+		id = &"hexmaster"
+		display_name = "禁忌知识"
+		description = "每场战斗第一次消耗牌时，抽 1 张牌。"
 		is_identity = true
 
+	func at_battle_start(_owner: Creature) -> void:
+		_drew_once = false
+
+	func on_card_exhausted(_owner: Creature, _card: CardData) -> void:
+		if _drew_once or battle == null or battle.deck == null:
+			return
+		_drew_once = true
+		battle.deck.draw(1)
+
+
+## 死灵师（终职 · 咒术师线）—— 把"消耗"和"死亡"都变成魂能
+##
+## ## 与契约师的对照
+## **同为负面资源化，燃料不同**：死灵师烧的是"牌"，契约师烧的是"诅咒"。
+##
+## ## 魂能是**战斗内**资源，不进 RunState
+## 它的用途是"代付能量"——那是**回合内决策**。
+## 跨战斗保存会让"攒魂能再打 Boss"变成无脑最优解。
+class Necromancer extends AbstractPower:
+	## 牌被消耗 → +多少魂能
+	const SOUL_PER_EXHAUST: int = 1
+	## 敌人死亡 → +多少魂能
+	const SOUL_PER_KILL: int = 2
+	## 每回合最多用魂能代付多少能量。
+	## **上限必须有**——无上限会让高费牌变免费，直接摧毁能量曲线。
+	const SUBSIDY_PER_TURN: int = 2
+	## 骸骨兵上限
+	const MAX_SKELETONS: int = 3
+
+	var soul: int = 0
+	var _subsidized_this_turn: int = 0
+
+	func _init() -> void:
+		id = &"necromancer"
+		display_name = "死灵师"
+		description = "牌被消耗 +%d 魂能，击杀 +%d；魂能可代付能量（每回合上限 %d）；击杀召唤骸骨兵（上限 %d）。" % [
+			SOUL_PER_EXHAUST, SOUL_PER_KILL, SUBSIDY_PER_TURN, MAX_SKELETONS,
+		]
+		is_identity = true
+
+	func at_battle_start(_owner: Creature) -> void:
+		soul = 0
+		_subsidized_this_turn = 0
+
+	func on_turn_start(_owner: Creature) -> void:
+		_subsidized_this_turn = 0
+
+	func on_card_exhausted(_owner: Creature, _card: CardData) -> void:
+		soul += SOUL_PER_EXHAUST
+
+	func on_kill(owner: Creature, _target: Creature) -> void:
+		soul += SOUL_PER_KILL
+		_summon_skeleton(owner)
+
+	# ── 魂能代付能量 ────────────────────────────────────────
+	# 走 AbstractPower 的通用代付钩子，与奥术圣贤的"奥术换能量"共用通道。
+
+	func energy_subsidy_max(cost: int, _card: CardData) -> int:
+		if cost <= 0 or soul <= 0:
+			return 0
+		var remaining: int = SUBSIDY_PER_TURN - _subsidized_this_turn
+		if remaining <= 0:
+			return 0
+		return mini(mini(soul, remaining), cost)
+
+	func consume_energy_subsidy(amount: int) -> void:
+		if amount <= 0:
+			return
+		soul = maxi(0, soul - amount)
+		_subsidized_this_turn += amount
+
+	# ── 骸骨兵 ─────────────────────────────────────────────
+
+	## 复用**现有的盟友系统**（`card.summon_ally_id` → `_summon_ally()`）。
+	## 没有新造一套召唤物逻辑——骸骨兵就是一只 `data/allies/skeleton.tres`。
+	func _summon_skeleton(_owner: Creature) -> void:
+		if battle == null:
+			return
+		if battle.allies.size() >= MAX_SKELETONS:
+			return
+		battle.summon_ally(&"skeleton")
+
+
+## 契约师（终职 · 咒术师线）—— 把诅咒牌变成可打的核弹
+##
+## ## 只做"诅咒可打"，**不做**"+1 最大生命"
+## 参考文档的契约师还有"每加一张诅咒永久 +1 最大生命"。
+## 我们**刻意不做**这一半：项目里已经有**两套负面资源**
+## （诅咒 / 神性侵蚀），再加"诅咒反而加血上限"会让玩家分不清
+## "该躲诅咒还是该攒诅咒"——两套系统的边界会糊掉。
+##
+## ## 数值为什么不照抄参考文档
+## 参考是「6 能量 / 40 伤害 + 8 生命流失」。我们只有 **3 点能量**，
+## 6 能量是两回合的量；而 40 伤害对 20–46 血的敌人是**直接秒杀**。
+## 降到 2 能量 / 18 伤害，保留"用命换爆发"的手感。
+class Contractor extends AbstractPower:
+	## 打出诅咒牌的能量花费（覆盖卡牌自身的 0 费）
+	const CURSE_COST: int = 2
+	const CURSE_DAMAGE: int = 18
+	const CURSE_HP_LOSS: int = 8
+
+	func _init() -> void:
+		id = &"contractor"
+		display_name = "契约师"
+		description = "诅咒牌可以打出：消耗 %d 能量，造成 %d 伤害，自身失去 %d 生命。" % [
+			CURSE_COST, CURSE_DAMAGE, CURSE_HP_LOSS,
+		]
+		is_identity = true
+
+	## 允许打出"本来不可打出"的牌——**只放行诅咒**，
+	## 否则会把"不可打出"这个机制整个废掉。
+	func allows_playing(card: CardData) -> bool:
+		return card.rarity == CardData.Rarity.CURSE
+
+	## 诅咒牌的费用由契约师接管
+	func modify_energy_cost(_cost: int, card: CardData) -> int:
+		if card.rarity == CardData.Rarity.CURSE:
+			return CURSE_COST
+		return _cost
+
+	## 打出诅咒时：造成伤害 + 自身生命流失
 	func on_card_played(owner: Creature, card: CardData) -> void:
-		if card.type != CardData.CardType.ATTACK:
+		if card.rarity != CardData.Rarity.CURSE:
 			return
 		for opponent: Creature in owner.opponents:
 			if opponent.is_alive():
-				opponent.apply_power(BasePowers.Poison.new(POISON))
+				opponent.take_damage(CURSE_DAMAGE, owner, DamageType.NORMAL)
 				break
-
-
-## 霜之护盾（终职 · 冰霜）—— 每回合第一次受到的伤害减半
-class FrostShield extends AbstractPower:
-	var _used_this_turn: bool = false
-
-	func _init() -> void:
-		id = &"frost_shield"
-		display_name = "霜之护盾"
-		description = "每回合第一次受到的伤害减半。"
-		is_identity = true
-
-	func on_turn_start(_owner: Creature) -> void:
-		_used_this_turn = false
-
-	func at_damage_take(value: float, _info: DamageInfo) -> float:
-		if _used_this_turn:
-			return value
-		_used_this_turn = true
-		return value * 0.5
-
-
-## 秘法专注（终职 · 秘法）—— 每回合稳定增长的力量
-class ArcaneFocus extends AbstractPower:
-	const STRENGTH_PER_TURN: int = 2
-
-	func _init() -> void:
-		id = &"arcane_focus"
-		display_name = "秘法专注"
-		description = "每回合开始时获得 %d 点力量。" % STRENGTH_PER_TURN
-		is_identity = true
-
-	func on_turn_start(owner: Creature) -> void:
-		owner.apply_power(BasePowers.Strength.new(STRENGTH_PER_TURN))
-
-
-## 时序流转（终职 · 时序）—— 每回合开始获得格挡与敏捷
-##
-## 与"力量"路线的对照：秘法涨伤害，时序涨生存。
-## **同一个一阶分出的两个终职应该给出相反的建议**，否则选哪个都一样。
-class TimeFlow extends AbstractPower:
-	const BLOCK: int = 3
-	const DEXTERITY: int = 1
-
-	func _init() -> void:
-		id = &"time_flow"
-		display_name = "时序流转"
-		description = "每回合开始时获得 %d 点格挡与 %d 点敏捷。" % [BLOCK, DEXTERITY]
-		is_identity = true
-
-	func on_turn_start(owner: Creature) -> void:
-		owner.gain_block(BLOCK)
-		owner.apply_power(BasePowers.Dexterity.new(DEXTERITY))
+		# 生命流失**无视格挡**——这是契约的代价，不能被防御手段规避
+		owner.take_damage(CURSE_HP_LOSS, null, DamageType.HP_LOSS)
 
 
 ## ══ 猎人线（阶段 5 横向扩展 · 第三条线）══════════════════════
@@ -418,29 +564,190 @@ class BeastBond extends AbstractPower:
 		owner.gain_block(BLOCK)
 
 
-## 猎手印记（一阶 · 游侠）—— 每回合第一次攻击牌施加易伤
+## 猎手印记（一阶 · 游侠）—— 造成攻击时给目标叠印记
+##
+## ## 与旧版的区别（这是"机制特色"的关键一步）
+## 旧版是「每回合第一次攻击 → 给 2 层**易伤**」——而法师的「元素亲和」
+## 是**一模一样的代码**。两条线的一阶机制完全相同，玩家当然感觉不到区别。
+##
+## 新版改成**真正的印记层数**：
+##   · 可累积（上限 10），**不随回合衰减**
+##   · 每层 +10% 受到你的伤害（乘法）
+## 于是它奖励"持续盯住同一个目标"，与"易伤"（奖励这一回合打一发大的）语义不同。
 class HunterMark extends AbstractPower:
-	const VULNERABLE: int = 2
-
-	var _used_this_turn: bool = false
+	const LAYERS_PER_HIT: int = 1
 
 	func _init() -> void:
 		id = &"hunter_mark"
 		display_name = "猎手印记"
-		description = "每回合第一次打出攻击牌时，给予目标 %d 层易伤。" % VULNERABLE
+		description = "每次打出攻击牌，给目标叠 %d 层印记（每层 +10%% 受到你的伤害，上限 %d 层）。" % [
+			LAYERS_PER_HIT, BasePowers.Mark.MAX_STACKS,
+		]
 		is_identity = true
 
-	func on_turn_start(_owner: Creature) -> void:
+	func on_card_played(owner: Creature, card: CardData) -> void:
+		if card.type != CardData.CardType.ATTACK:
+			return
+		for opponent: Creature in owner.opponents:
+			if opponent.is_alive():
+				opponent.apply_power(BasePowers.Mark.new(LAYERS_PER_HIT))
+				break
+
+
+## 神射手（终职 · 游侠线）—— 印记满层引爆，延迟处决
+##
+## 与「风行者」的对照：**神射手是单点延迟爆破，风行者是回合内高频连射**。
+##
+## ## 为什么它自己也要上印记
+## 一阶「猎手印记」已经在上印记了，这里再上一次是为了：
+##   1. 让"神射手 = 印记专精"这件事在数值上成立（叠得更快）
+##   2. **避免依赖能力之间的执行顺序**——
+##      如果只靠一阶上印记、这里只做判定，那么"判定先于上印记执行"时
+##      引爆会永远慢一拍。自己上自己判，顺序就无关了。
+class Marksman extends AbstractPower:
+	## 满层阈值
+	const THRESHOLD: int = 10
+	## 引爆伤害 = 目标**已损生命**的百分比
+	const LOST_HP_RATIO: float = 0.40
+	## 精英 / Boss 的封顶：引爆伤害不超过其**最大生命**的百分比
+	##
+	## ⚠️ **这个封顶是硬需求**：没有它，"打残血 Boss 一发引爆"会直接秒杀，
+	## 整场 Boss 战的设计就被一个机制废掉了。
+	const BOSS_CAP_RATIO: float = 0.15
+	## 额外叠印记层数（在猎手印记之上）
+	const EXTRA_MARK: int = 1
+
+	func _init() -> void:
+		id = &"marksman"
+		display_name = "神射手"
+		description = "攻击牌额外叠 %d 层印记；满 %d 层引爆，造成已损生命 %d%% 的伤害（精英/Boss 封顶其最大生命 %d%%）。" % [
+			EXTRA_MARK, THRESHOLD, int(LOST_HP_RATIO * 100.0), int(BOSS_CAP_RATIO * 100.0),
+		]
+		is_identity = true
+
+	func on_card_played(owner: Creature, card: CardData) -> void:
+		if card.type != CardData.CardType.ATTACK:
+			return
+		for opponent: Creature in owner.opponents:
+			if not opponent.is_alive():
+				continue
+			opponent.apply_power(BasePowers.Mark.new(EXTRA_MARK))
+			var mark: AbstractPower = opponent.get_power(&"mark")
+			if mark != null and mark.amount >= THRESHOLD:
+				_detonate(owner, opponent)
+			break
+
+	func _detonate(owner: Creature, target: Creature) -> void:
+		var lost: int = maxi(0, target.max_hp - target.hp)
+		var damage: int = int(floor(float(lost) * LOST_HP_RATIO))
+		if _is_elite_or_boss(target):
+			damage = mini(damage, int(floor(float(target.max_hp) * BOSS_CAP_RATIO)))
+		# 至少 1 点：满层引爆如果打出 0，"攒满"这件事就毫无反馈
+		damage = maxi(damage, 1)
+
+		target.remove_power(&"mark")
+		target.take_damage(damage, owner, DamageType.NORMAL)
+
+	func _is_elite_or_boss(target: Creature) -> bool:
+		var enemy := target as Enemy
+		if enemy == null or enemy.data == null:
+			return false
+		return enemy.data.is_elite or enemy.data.is_boss
+
+
+## 风行者（终职 · 游侠线）—— 首张攻击牌结算两次
+##
+## ## 为什么只复制"第一张"
+## 每张都复制等于伤害翻倍——那不是一个"机制"，是一个乘数。
+## 只复制第一张，玩家就必须**把最重的那张牌排在第一位**：
+## 这是排序决策，不是无脑增益。
+##
+## ## 复用 `replay_card_effects` 而不是另写一份结算
+## 另写一份"复制的结算"迟早与正常结算不一致（少算了某个字段），
+## 而且那种偏差**不报错**——玩家只会觉得"这张牌好像弱一点"。
+class Windwalker extends AbstractPower:
+	const EXTRA_DRAW: int = 1
+
+	var _used_this_turn: bool = false
+
+	func _init() -> void:
+		id = &"windwalker"
+		display_name = "风行者"
+		description = "每回合第一张攻击牌结算两次；每回合额外抽 %d 张牌。" % EXTRA_DRAW
+		is_identity = true
+
+	func on_turn_start(owner: Creature) -> void:
 		_used_this_turn = false
+		if battle != null and battle.deck != null:
+			battle.deck.draw(EXTRA_DRAW)
 
 	func on_card_played(owner: Creature, card: CardData) -> void:
 		if _used_this_turn or card.type != CardData.CardType.ATTACK:
 			return
 		_used_this_turn = true
-		for opponent: Creature in owner.opponents:
-			if opponent.is_alive():
-				opponent.apply_power(BasePowers.Vulnerable.new(VULNERABLE))
-				break
+		if battle == null:
+			return
+		battle.replay_card_effects(card)
+
+
+## 兽化者（终职 · 驯兽师线）—— 人形 / 兽形双形态
+##
+## 与「兽王」的对照：**兽王靠"数量"管理一支军队，兽化者靠"形态"管理自己的节奏**。
+##
+## ## 形态切换由**一张 0 费牌**驱动，不是自动的
+## "每回合首次免费切换"看起来更顺，但它**没有决策**——
+## 玩家只会永远停在收益更高的那一形态。
+## 做成卡牌后：
+##   · 切换要花一张牌位 → 玩家得自己决定带几张
+##   · 切换卡可能卡手 → "什么时候切"变成真实的取舍
+class BeastShaper extends AbstractPower:
+	enum Form { HUMAN, BEAST }
+
+	## 人形：每回合多抽牌
+	const HUMAN_EXTRA_DRAW: int = 1
+	## 兽形：攻击伤害倍率
+	const BEAST_DAMAGE_MULT: float = 1.5
+	## 兽形：回合开始获得的格挡
+	const BEAST_BLOCK: int = 5
+	## 兽形：回合开始获得的荆棘
+	const BEAST_THORNS: int = 3
+
+	var form: Form = Form.HUMAN
+
+	func _init() -> void:
+		id = &"beast_shaper"
+		display_name = "兽化者"
+		description = "人形：每回合多抽 %d。兽形：攻击 ×%.1f、回合开始 %d 格挡 + %d 荆棘。" % [
+			HUMAN_EXTRA_DRAW, BEAST_DAMAGE_MULT, BEAST_BLOCK, BEAST_THORNS,
+		]
+		# ⚠️ **priority 100**：乘法必须晚于力量（加法，priority 0）。
+		# 落在加法之前的话，"先乘后加"会把力量的贡献也乘进去。
+		priority = 100
+		is_identity = true
+
+	func at_battle_start(_owner: Creature) -> void:
+		form = Form.HUMAN
+
+	func on_turn_start(owner: Creature) -> void:
+		if form == Form.HUMAN:
+			if battle != null and battle.deck != null:
+				battle.deck.draw(HUMAN_EXTRA_DRAW)
+		else:
+			owner.gain_block(BEAST_BLOCK)
+			owner.apply_power(BasePowers.Thorns.new(BEAST_THORNS))
+
+	func at_damage_give(value: float, _info: DamageInfo) -> float:
+		if form == Form.BEAST:
+			return value * BEAST_DAMAGE_MULT
+		return value
+
+	## 形态切换（由 `SpecialKind.FORM_SHIFT` 的牌触发）
+	func on_form_shift(_owner: Creature) -> String:
+		form = Form.BEAST if form == Form.HUMAN else Form.HUMAN
+		return "切换为「%s」" % ("兽形" if form == Form.BEAST else "人形")
+
+	func form_name() -> String:
+		return "兽形" if form == Form.BEAST else "人形"
 
 
 ## 头狼嗥叫（终职 · 兽王）—— 每回合 +2 力量
@@ -455,53 +762,6 @@ class AlphaHowl extends AbstractPower:
 
 	func on_turn_start(owner: Creature) -> void:
 		owner.apply_power(BasePowers.Strength.new(STRENGTH))
-
-
-## 群猎战术（终职 · 驯鹰者）—— 每回合 +2 格挡 +1 敏捷
-class PackTactics extends AbstractPower:
-	const BLOCK: int = 2
-	const DEXTERITY: int = 1
-
-	func _init() -> void:
-		id = &"pack_tactics"
-		display_name = "群猎战术"
-		description = "每回合开始时获得 %d 点格挡与 %d 点敏捷。" % [BLOCK, DEXTERITY]
-		is_identity = true
-
-	func on_turn_start(owner: Creature) -> void:
-		owner.gain_block(BLOCK)
-		owner.apply_power(BasePowers.Dexterity.new(DEXTERITY))
-
-
-## 追猎（终职 · 追猎者）—— 每次造成伤害额外 +4
-##
-## 用 `at_damage_give`（修正链第 ② 步，**最先介入**），所以会被力量/虚弱/易伤放大。
-## 与"施加 Power"的模式相反：这是**一次性、可被放大**的加值。
-class Pursuer extends AbstractPower:
-	const BONUS: int = 4
-
-	func _init() -> void:
-		id = &"pursuer"
-		display_name = "追猎"
-		description = "每次造成伤害额外 +%d（会被力量 / 易伤放大）。" % BONUS
-		is_identity = true
-
-	func at_damage_give(value: float, _info: DamageInfo) -> float:
-		return value + float(BONUS)
-
-
-## 荆棘之皮（终职 · 荆棘游侠）—— 开场带荆棘
-class ThornHide extends AbstractPower:
-	const THORNS: int = 4
-
-	func _init() -> void:
-		id = &"thorn_hide"
-		display_name = "荆棘之皮"
-		description = "战斗开始时获得 %d 点荆棘。" % THORNS
-		is_identity = true
-
-	func at_battle_start(owner: Creature) -> void:
-		owner.apply_power(BasePowers.Thorns.new(THORNS))
 
 
 ## id → 构造器。新增身份能力时只需在这里加一行。
@@ -533,28 +793,28 @@ static func create(power_id: StringName) -> AbstractPower:
 			return Causality.new()
 		&"elemental_attunement":
 			return ElementalAttunement.new()
-		&"arcane_charge":
-			return ArcaneCharge.new()
-		&"flame_heart":
-			return FlameHeart.new()
-		&"frost_shield":
-			return FrostShield.new()
-		&"arcane_focus":
-			return ArcaneFocus.new()
-		&"time_flow":
-			return TimeFlow.new()
+		&"stormcaller":
+			return Stormcaller.new()
+		&"archsage":
+			return Archsage.new()
+		&"hexmaster":
+			return Hexmaster.new()
+		&"necromancer":
+			return Necromancer.new()
+		&"contractor":
+			return Contractor.new()
 		&"beast_bond":
 			return BeastBond.new()
 		&"hunter_mark":
 			return HunterMark.new()
+		&"marksman":
+			return Marksman.new()
+		&"windwalker":
+			return Windwalker.new()
 		&"alpha_howl":
 			return AlphaHowl.new()
-		&"pack_tactics":
-			return PackTactics.new()
-		&"pursuer":
-			return Pursuer.new()
-		&"thorn_hide":
-			return ThornHide.new()
+		&"beast_shaper":
+			return BeastShaper.new()
 		_:
 			push_warning("IdentityPowers: 未知身份能力 id「%s」" % power_id)
 			return null

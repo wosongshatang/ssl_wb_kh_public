@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"mage_necromancer"
+display_name = "死灵师"
+description = "死了的东西还能再用一次。"
+tier = 2
+parent_job = &"mage_hexmaster"
+identity_power_ids = Array[StringName]([&"necromancer"])
+job_card_ids = Array[StringName]([])
+card_pool_tags = Array[StringName]([&"mage"])
+signature_card_ids = Array[StringName]([&"gold_necro_rite", &"gold_necro_swarm"])
+mirror_job_id = &"mirror_mage_necromancer"
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

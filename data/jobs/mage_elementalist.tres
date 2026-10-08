@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_jobdata")
 id = &"mage_elementalist"
-display_name = "元素使"
-description = "火与冰是两个方向，但都从同一双手里出去。"
+display_name = "元素师"
+description = "万物都能拆成元素，而元素之间会打架。"
 tier = 1
 parent_job = &""
 identity_power_ids = Array[StringName]([&"elemental_attunement"])

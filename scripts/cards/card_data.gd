@@ -25,6 +25,10 @@ enum SpecialKind {
 	PACT,        ## 契约：强力效果，代价是**永久神性**
 	ORACLE,      ## 神谕：打出后抽牌，并**看穿抽牌堆**
 	TRIAL,       ## 考题：满足条件（手牌数 ≥ 门槛）时额外获得格挡
+	FORM_SHIFT,  ## 形态切换（阶段 9）：兽化者的人形 / 兽形切换
+	## ⚠️ **新增枚举值一律追加在末尾**。
+	## 插在中间会让所有已存盘的 .tres 整数值集体错位——
+	## 而 .tres 里存的是数字，不是符号，错了不会报错，只会静默变成别的东西。
 }
 
 
@@ -71,6 +75,15 @@ const UPGRADE_DRAW_BY_RARITY: Array[int] = [1, 1, 1, 2, 3, 3, 3, 0]
 ## 施加给目标敌人的 Power：{power_id: 层数}，例 {"vulnerable": 2}
 @export var apply_to_target: Dictionary = {}
 @export var exhaust: bool = false
+
+## 元素属性（阶段 9）—— `&"burn"` / `&"frost"` / `&""`（无属性）
+##
+## ⚠️ **元素种类由卡牌决定，不由职业能力决定**。
+## 如果让「元素亲和」写死元素种类，所有牌都会上同一种元素，
+## **反应就永远不会发生**——而那正是这条线的核心玩法。
+## 所以"哪张牌上燃、哪张牌上霜"是**卡牌设计**的事。
+@export var element: StringName = &""
+
 @export var grant_potion_id: StringName = &""
 
 # ══ 特殊卡标签（无色 / 诅咒 / 转职专属）══════════════════════

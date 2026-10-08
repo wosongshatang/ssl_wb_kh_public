@@ -41,6 +41,15 @@ var is_debuff: bool = false
 ## 持有者，由 Creature.apply_power 注入
 var owner_creature: Creature = null
 
+## 战斗上下文（由 [method Creature.bind_powers_to_battle] 在开战时注入）。
+##
+## ⚠️ **只有需要操作牌堆 / 能量的 Power 才该用它。**
+## 大多数 Power 只该碰 `owner_creature` 的数值——那样才能脱离 BattleManager
+## 单独测试（`power.on_turn_start(creature)` 一行就能构造场景）。
+##
+## 与 [AbstractRelic.battle] 是同一套模式。
+var battle: BattleManager = null
+
 
 # ══ 数值修正钩子（进修正链）══════════════════════════════════
 
@@ -121,6 +130,59 @@ func preview_block(block: int, card: CardData) -> int:
 
 func on_kill(_owner: Creature, _target: Creature) -> void:
 	pass
+
+
+# ══ 阶段 9 · 机制原语钩子 ═══════════════════════════════════
+
+## 一张牌被**消耗**（进消耗区，本局不回牌堆）时。
+##
+## 为什么单独开一个钩子而不是复用 `on_card_played`：
+## 消耗可能来自"打出后消失"，也可能来自**主动消耗手牌**（咒术师），
+## 后者根本没有"打出"这个动作。挂在 `on_card_played` 会漏掉主动消耗。
+func on_card_exhausted(_owner: Creature, _card: CardData) -> void:
+	pass
+
+
+## 魂能代付：**最多**能替这张牌付掉多少能量。
+##
+## ⚠️ **必须是纯查询**——不能在这里扣资源。
+## 因为 `play_card` 会先问一遍"够不够付"，
+## 够才会真正扣（走 [method consume_energy_subsidy]）。
+## 在这里扣的话，一次"能量不足"的失败出牌会白白吃掉魂能。
+func energy_subsidy_max(_cost: int, _card: CardData) -> int:
+	return 0
+
+
+## 真正消耗代付资源。**只在确认可支付后调用一次**。
+func consume_energy_subsidy(_amount: int) -> void:
+	pass
+
+
+## 是否允许打出这张"本来不可打出"的牌。
+##
+## 契约师用它把诅咒牌变成可打的核弹——
+## 不直接改 `CardData.unplayable` 是因为那是**全局**的，
+## 改了会让所有角色的诅咒都变可打。
+func allows_playing(_card: CardData) -> bool:
+	return false
+
+
+## 改写一张牌的能量花费（返回实际要付的能量）。
+##
+## 契约师用它把 0 费的诅咒牌改成"2 费核弹"——
+## 诅咒牌本身是 0 费且不可打出的，代价必须由**能力**来定义。
+func modify_energy_cost(cost: int, _card: CardData) -> int:
+	return cost
+
+
+## 一张「形态切换」牌被打出时。
+##
+## 返回**非空字符串** = 本能力响应了它（该字符串会进战斗日志）。
+## 做成"返回字符串"而不是无返回值，是为了让"谁响应了"这件事**可观测**：
+## 没有兽化者的角色打出这张牌时，日志里必须什么都没有——
+## 否则玩家会以为自己切换了形态。
+func on_form_shift(_owner: Creature) -> String:
+	return ""
 
 
 # ══ 工具 ════════════════════════════════════════════════════

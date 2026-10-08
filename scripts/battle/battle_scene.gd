@@ -311,6 +311,11 @@ func _inject_identity_and_relics() -> void:
 		if relic != null:
 			_player.add_relic(relic)
 
+	# 身份能力的战斗上下文（阶段 9）——咒术师 / 风行者 / 兽化者需要牌堆。
+	# ⚠️ 必须在 `bind_relics_to_battle` 之后、`notify_battle_start()` 之前，
+	# 否则开场就抽牌的能力（风行者）会拿到 null。
+	_player.bind_powers_to_battle(_battle)
+
 
 func _assign_opponents() -> void:
 	var player_side: Array[Creature] = [_player]

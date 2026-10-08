@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"hunter_marksman"
+display_name = "神射手"
+description = "印记是它自己写的判决书。"
+tier = 2
+parent_job = &"hunter_ranger"
+identity_power_ids = Array[StringName]([&"marksman"])
+job_card_ids = Array[StringName]([])
+card_pool_tags = Array[StringName]([&"hunter"])
+signature_card_ids = Array[StringName]([&"gold_marks_aim", &"gold_marks_volley"])
+mirror_job_id = &"mirror_hunter_marksman"
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

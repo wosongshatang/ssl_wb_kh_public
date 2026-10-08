@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"mage_stormcaller"
+display_name = "风暴使者"
+description = "两种元素撞在一起，就是一次天灾。"
+tier = 2
+parent_job = &"mage_elementalist"
+identity_power_ids = Array[StringName]([&"stormcaller"])
+job_card_ids = Array[StringName]([])
+card_pool_tags = Array[StringName]([&"mage"])
+signature_card_ids = Array[StringName]([&"gold_storm_surge", &"gold_storm_eye"])
+mirror_job_id = &"mirror_mage_stormcaller"
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

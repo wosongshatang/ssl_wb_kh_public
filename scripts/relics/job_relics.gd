@@ -143,13 +143,13 @@ class ElementalistRing extends AbstractRelic:
 		announce("+%d 力量" % STRENGTH)
 
 
-## 奥术师的笔记（一阶）—— 战斗开始 +2 敏捷
-class ArcanistNotes extends AbstractRelic:
+## 咒术师的残页（一阶）—— 战斗开始 +2 敏捷
+class HexmasterPage extends AbstractRelic:
 	const DEXTERITY: int = 2
 
 	func _init() -> void:
-		id = &"job_arcanist"
-		display_name = "奥术师的笔记"
+		id = &"job_hexmaster"
+		display_name = "咒术师的残页"
 		description = "战斗开始时获得 %d 点敏捷。" % DEXTERITY
 		trigger_text = "战斗开始时"
 
@@ -196,23 +196,12 @@ class BeastKingFang extends AbstractRelic:
 		announce("+%d 力量" % STRENGTH)
 
 
-class FalconerBracer extends AbstractRelic:
-	const BLOCK: int = 2
-	func _init() -> void:
-		id = &"job_falconer"
-		display_name = "驯鹰者的护腕"
-		description = "每回合开始时获得 %d 点格挡。" % BLOCK
-		trigger_text = "每回合开始时"
-	func on_turn_start(owner: Creature) -> void:
-		owner.gain_block(BLOCK)
-		announce("+%d 格挡" % BLOCK)
-
-
-class TrackerKnife extends AbstractRelic:
+## 神射手的鹰眼 —— 战斗开始 +3 力量
+class MarksmanEye extends AbstractRelic:
 	const STRENGTH: int = 3
 	func _init() -> void:
-		id = &"job_tracker"
-		display_name = "追猎者的猎刀"
+		id = &"job_marksman"
+		display_name = "神射手的鹰眼"
 		description = "战斗开始时获得 %d 点力量。" % STRENGTH
 		trigger_text = "战斗开始时"
 	func at_battle_start(owner: Creature) -> void:
@@ -220,11 +209,25 @@ class TrackerKnife extends AbstractRelic:
 		announce("+%d 力量" % STRENGTH)
 
 
-class ThornCharm extends AbstractRelic:
+## 风行者的轻靴 —— 每回合 +2 格挡
+class WindwalkerBoots extends AbstractRelic:
+	const BLOCK: int = 2
+	func _init() -> void:
+		id = &"job_windwalker"
+		display_name = "风行者的轻靴"
+		description = "每回合开始时获得 %d 点格挡。" % BLOCK
+		trigger_text = "每回合开始时"
+	func on_turn_start(owner: Creature) -> void:
+		owner.gain_block(BLOCK)
+		announce("+%d 格挡" % BLOCK)
+
+
+## 兽化者的毛皮 —— 战斗开始 +3 荆棘
+class BeastShaperPelt extends AbstractRelic:
 	const THORNS: int = 3
 	func _init() -> void:
-		id = &"job_thorn"
-		display_name = "荆棘护符"
+		id = &"job_beast_shaper"
+		display_name = "兽化者的毛皮"
 		description = "战斗开始时获得 %d 点荆棘。" % THORNS
 		trigger_text = "战斗开始时"
 	func at_battle_start(owner: Creature) -> void:
@@ -232,67 +235,57 @@ class ThornCharm extends AbstractRelic:
 		announce("+%d 荆棘" % THORNS)
 
 
-## ══ 法师线职业遗物（阶段 5 横向扩展）════════════════════════
-
-## 烈焰的余烬 —— 战斗开始 +3 力量
-class PyromancerEmber extends AbstractRelic:
+## 风暴使者的引雷针 —— 战斗开始 +3 力量
+class StormcallerRod extends AbstractRelic:
 	const STRENGTH: int = 3
-
 	func _init() -> void:
-		id = &"job_pyromancer"
-		display_name = "烈焰的余烬"
+		id = &"job_stormcaller"
+		display_name = "风暴使者的引雷针"
 		description = "战斗开始时获得 %d 点力量。" % STRENGTH
 		trigger_text = "战斗开始时"
-
 	func at_battle_start(owner: Creature) -> void:
 		owner.apply_power(BasePowers.Strength.new(STRENGTH))
 		announce("+%d 力量" % STRENGTH)
 
 
-## 冰霜的壁障 —— 战斗开始 +4 格挡
-class CryomancerBarrier extends AbstractRelic:
-	const BLOCK: int = 4
-
-	func _init() -> void:
-		id = &"job_cryomancer"
-		display_name = "冰霜的壁障"
-		description = "战斗开始时获得 %d 点格挡。" % BLOCK
-		trigger_text = "战斗开始时"
-
-	func at_battle_start(owner: Creature) -> void:
-		owner.gain_block(BLOCK)
-		announce("+%d 格挡" % BLOCK)
-
-
-## 秘法的水晶 —— 战斗开始同时给力量与敏捷
-class ArchmageCrystal extends AbstractRelic:
+## 奥术圣贤的星盘 —— 战斗开始同时给力量与敏捷
+class ArchsageAstrolabe extends AbstractRelic:
 	const AMOUNT: int = 2
-
 	func _init() -> void:
-		id = &"job_archmage"
-		display_name = "秘法的水晶"
+		id = &"job_archsage"
+		display_name = "奥术圣贤的星盘"
 		description = "战斗开始时获得 %d 点力量与 %d 点敏捷。" % [AMOUNT, AMOUNT]
 		trigger_text = "战斗开始时"
-
 	func at_battle_start(owner: Creature) -> void:
 		owner.apply_power(BasePowers.Strength.new(AMOUNT))
 		owner.apply_power(BasePowers.Dexterity.new(AMOUNT))
 		announce("+%d 力量 / +%d 敏捷" % [AMOUNT, AMOUNT])
 
 
-## 时序的沙漏 —— 每回合 +2 格挡
-class ChronomancerHourglass extends AbstractRelic:
+## 死灵师的骨铃 —— 每回合 +2 格挡
+class NecromancerBell extends AbstractRelic:
 	const BLOCK: int = 2
-
 	func _init() -> void:
-		id = &"job_chronomancer"
-		display_name = "时序的沙漏"
+		id = &"job_necromancer"
+		display_name = "死灵师的骨铃"
 		description = "每回合开始时获得 %d 点格挡。" % BLOCK
 		trigger_text = "每回合开始时"
-
 	func on_turn_start(owner: Creature) -> void:
 		owner.gain_block(BLOCK)
 		announce("+%d 格挡" % BLOCK)
+
+
+## 契约师的印章 —— 战斗开始 +3 力量
+class ContractorSeal extends AbstractRelic:
+	const STRENGTH: int = 3
+	func _init() -> void:
+		id = &"job_contractor"
+		display_name = "契约师的印章"
+		description = "战斗开始时获得 %d 点力量。" % STRENGTH
+		trigger_text = "战斗开始时"
+	func at_battle_start(owner: Creature) -> void:
+		owner.apply_power(BasePowers.Strength.new(STRENGTH))
+		announce("+%d 力量" % STRENGTH)
 
 
 static func create(relic_id: StringName) -> AbstractRelic:
@@ -315,24 +308,24 @@ static func create(relic_id: StringName) -> AbstractRelic:
 			return RangerQuiver.new()
 		&"job_beast_king":
 			return BeastKingFang.new()
-		&"job_falconer":
-			return FalconerBracer.new()
-		&"job_tracker":
-			return TrackerKnife.new()
-		&"job_thorn":
-			return ThornCharm.new()
+		&"job_marksman":
+			return MarksmanEye.new()
+		&"job_windwalker":
+			return WindwalkerBoots.new()
+		&"job_beast_shaper":
+			return BeastShaperPelt.new()
 		&"job_elementalist":
 			return ElementalistRing.new()
-		&"job_arcanist":
-			return ArcanistNotes.new()
-		&"job_pyromancer":
-			return PyromancerEmber.new()
-		&"job_cryomancer":
-			return CryomancerBarrier.new()
-		&"job_archmage":
-			return ArchmageCrystal.new()
-		&"job_chronomancer":
-			return ChronomancerHourglass.new()
+		&"job_hexmaster":
+			return HexmasterPage.new()
+		&"job_stormcaller":
+			return StormcallerRod.new()
+		&"job_archsage":
+			return ArchsageAstrolabe.new()
+		&"job_necromancer":
+			return NecromancerBell.new()
+		&"job_contractor":
+			return ContractorSeal.new()
 		_:
 			return null
 
@@ -342,9 +335,9 @@ static func ids() -> Array[StringName]:
 		&"job_shield_guard_bracer", &"job_berserker_chain", &"job_bastion_keystone",
 		&"job_shield_bash_spur", &"job_bloodthirster_fang", &"job_momentum_banner",
 		&"job_tamer", &"job_ranger", &"job_beast_king",
-		&"job_falconer", &"job_tracker", &"job_thorn",
-		&"job_elementalist", &"job_arcanist",
-		&"job_pyromancer", &"job_cryomancer", &"job_archmage", &"job_chronomancer",
+		&"job_marksman", &"job_windwalker", &"job_beast_shaper",
+		&"job_elementalist", &"job_hexmaster",
+		&"job_stormcaller", &"job_archsage", &"job_necromancer", &"job_contractor",
 	]
 
 
@@ -369,23 +362,23 @@ static func for_job(job_id: StringName) -> StringName:
 			return &"job_ranger"
 		&"hunter_beast_king":
 			return &"job_beast_king"
-		&"hunter_falconer":
-			return &"job_falconer"
-		&"hunter_tracker":
-			return &"job_tracker"
-		&"hunter_thorn":
-			return &"job_thorn"
+		&"hunter_marksman":
+			return &"job_marksman"
+		&"hunter_windwalker":
+			return &"job_windwalker"
+		&"hunter_beast_shaper":
+			return &"job_beast_shaper"
 		&"mage_elementalist":
 			return &"job_elementalist"
-		&"mage_arcanist":
-			return &"job_arcanist"
-		&"mage_pyromancer":
-			return &"job_pyromancer"
-		&"mage_cryomancer":
-			return &"job_cryomancer"
-		&"mage_archmage":
-			return &"job_archmage"
-		&"mage_chronomancer":
-			return &"job_chronomancer"
+		&"mage_hexmaster":
+			return &"job_hexmaster"
+		&"mage_stormcaller":
+			return &"job_stormcaller"
+		&"mage_archsage":
+			return &"job_archsage"
+		&"mage_necromancer":
+			return &"job_necromancer"
+		&"mage_contractor":
+			return &"job_contractor"
 		_:
 			return &""

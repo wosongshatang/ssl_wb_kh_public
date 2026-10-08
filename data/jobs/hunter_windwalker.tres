@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"hunter_windwalker"
+display_name = "风行者"
+description = "风比你快，你比风早。"
+tier = 2
+parent_job = &"hunter_ranger"
+identity_power_ids = Array[StringName]([&"windwalker"])
+job_card_ids = Array[StringName]([])
+card_pool_tags = Array[StringName]([&"hunter"])
+signature_card_ids = Array[StringName]([&"gold_wind_step", &"gold_wind_barrage"])
+mirror_job_id = &"mirror_hunter_windwalker"
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

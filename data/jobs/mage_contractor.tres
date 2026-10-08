@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"mage_contractor"
+display_name = "契约师"
+description = "签下去，代价我来付。"
+tier = 2
+parent_job = &"mage_hexmaster"
+identity_power_ids = Array[StringName]([&"contractor"])
+job_card_ids = Array[StringName]([])
+card_pool_tags = Array[StringName]([&"mage"])
+signature_card_ids = Array[StringName]([&"gold_pact_seal", &"gold_pact_offering"])
+mirror_job_id = &"mirror_mage_contractor"
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}

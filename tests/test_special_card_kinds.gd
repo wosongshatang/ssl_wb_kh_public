@@ -65,9 +65,16 @@ func test_every_special_kind_has_at_least_one_card() -> void:
 func test_special_cards_have_meaningful_values() -> void:
 	## 各类别用**各自有意义**的那个字段：
 	## 契约的代价是神性（与无色卡同一个概念、同一个字段），其余用 special_value。
+	##
+	## ⚠️ 两个例外**本来就没有数值**，它们的"意义"在 `special_kind` 本身：
+	##   · PACT —— 代价写在 divinity_gain
+	##   · FORM_SHIFT —— 就是一个开关，没有量
+	## 硬要求它们有 special_value 只会逼出"为了过测试而填个 1"的假数据。
 	for card: CardData in ContentRegistry.special_cards():
 		if card.special_kind == CardData.SpecialKind.PACT:
 			assert_gt(card.divinity_gain, 0, "%s 是契约但没有神性代价" % card.id)
+		elif card.special_kind == CardData.SpecialKind.FORM_SHIFT:
+			continue
 		else:
 			assert_gt(card.special_value, 0, "%s 的 special_value 没有意义" % card.id)
 

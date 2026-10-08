@@ -29,6 +29,19 @@ static func create(id: StringName, amount: int) -> AbstractPower:
 			return BasePowers.Thorns.new(amount)
 		&"buffer":
 			return BasePowers.Buffer.new(amount)
+		# ── 阶段 9 · 机制原语 ────────────────────────────────
+		&"mark":
+			return BasePowers.Mark.new(amount)
+		&"burn":
+			return BasePowers.Burn.new(amount)
+		&"frost":
+			return BasePowers.Frost.new(amount)
+		&"frozen":
+			return BasePowers.Frozen.new()
+		&"arcane":
+			return BasePowers.Arcane.new(amount)
+		&"rage":
+			return BasePowers.Rage.new(amount)
 		_:
 			push_warning("PowerFactory: 未知 Power id「%s」" % id)
 			return null
@@ -37,5 +50,6 @@ static func create(id: StringName, amount: int) -> AbstractPower:
 static func is_known(id: StringName) -> bool:
 	return id in [
 		&"strength", &"dexterity", &"weak", &"vulnerable",
-		&"poison", &"thorns", &"buffer",
+		&"poison", &"thorns", &"buffer", &"beast_form",
+		&"mark", &"burn", &"frost", &"frozen", &"arcane", &"rage",
 	]

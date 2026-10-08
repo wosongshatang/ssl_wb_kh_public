@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="JobData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/identity/job_data.gd" id="1_jobdata"]
+
+[resource]
+script = ExtResource("1_jobdata")
+id = &"mage_hexmaster"
+display_name = "咒术师"
+description = "禁区里埋着最强的力量。"
+tier = 1
+parent_job = &""
+identity_power_ids = Array[StringName]([&"hexmaster"])
+job_card_ids = Array[StringName]([])
+card_pool_tags = Array[StringName]([&"mage"])
+signature_card_ids = Array[StringName]([&"gold_hex_ritual", &"gold_hex_bargain"])
+mirror_job_id = &""
+mirror_of = &""
+power_scale = 1.0
+mirror_starting_powers = {}
