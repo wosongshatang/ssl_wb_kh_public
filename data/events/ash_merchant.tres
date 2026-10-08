@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"ash_merchant"
+title = "灰烬商人"
+description = "灰烬里支着一张小桌，商人的脸藏在斗篷下。「用不着金币，」他说，「拿你不需要的东西来换。」"
+option_a_label = "换一件遗物"
+option_a_effect = 10
+option_a_value = 0
+option_b_label = "换一瓶药水"
+option_b_effect = 7
+option_b_value = 0

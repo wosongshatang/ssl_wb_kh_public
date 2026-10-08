@@ -27,6 +27,14 @@ class Runtime extends RefCounted:
 	func on_turn_start(_player: Creature, _turn_number: int) -> void:
 		pass
 
+	## ⚠️ 这个钩子**必须由 BattleManager 在玩家回合结束时调用**。
+	##
+	## 曾经它只被声明、没被接线，于是「因果律」（本回合没挨打就 +2 力量）
+	## **完全不生效**——而且不报任何错。幕机制静默失效是最糟的一类 bug：
+	## 玩家会以为"这个环境就是这样"，而设计者以为它在工作。
+	func on_turn_end(_player: Creature) -> void:
+		pass
+
 	## 通知玩家"环境生效了"——幕环境如果完全静默，玩家会以为是 bug
 	func announce(text: String) -> void:
 		if battle != null:
@@ -185,6 +193,55 @@ class Instinct extends Runtime:
 		player.gain_block(BLOCK)
 
 
+# ══ 阶段 7 新增机制（9 → 12）══════════════════════════════════
+##
+## 这一批同时解决「跨局变化度为零」：原本每幕只有一个固定机制，
+## 玩战士第二幕永远是「军势」。现在这几张图有**机制池**，
+## 不同局可以抽到不同机制（`MapManager.roll_act_modifier_id`）。
+
+## 重力井（战场）—— 每张攻击牌 +1 格挡
+##
+## 它把"进攻"直接折算成"防守"，于是纯攻击牌组不再是纸糊的。
+## 与「观众喝彩」（连打同类型积累力量）互补：喝彩奖励**纯度**，
+## 重力井奖励**攻击本身**。
+class GravityWell extends Runtime:
+	const BLOCK: int = 1
+
+	func on_card_played(player: Creature, card: CardData) -> void:
+		if card.type != CardData.CardType.ATTACK:
+			return
+		player.gain_block(BLOCK)
+
+
+## 血月（古战场）—— 以血换力
+##
+## 战斗开始时玩家失去 5 点生命（**无视格挡**），换取 3 点力量。
+## 与「执念」（击杀反噬）同为高风险机制但方向相反：
+## 执念惩罚清场，血月奖励**开局就把血换成输出**。
+##
+## ⚠️ 这是"会把玩家打死"的机制——所以数值必须小于玩家当前血量。
+## 5 点相对 30 点起始血是安全的；但若未来 max_hp 起始值下调，这里要同步。
+class BloodMoon extends Runtime:
+	const HP_COST: int = 5
+	const STRENGTH: int = 3
+
+	func apply_battle_start(player: Creature, _enemies: Array) -> void:
+		player.take_damage(HP_COST, null, DamageType.HP_LOSS)
+		player.apply_power(BasePowers.Strength.new(STRENGTH))
+		announce("以 %d 点生命换取 +%d 力量" % [HP_COST, STRENGTH])
+
+
+## 天穹破碎（翠林猎场）—— 持续的敏捷
+##
+## 每回合开始时获得 1 点敏捷。与「埋伏」（开场一次性 +3 敏捷）的区别：
+## **它是持续的**。短战斗里不如埋伏，长战斗里远远超过。
+class ShatteredSky extends Runtime:
+	const DEXTERITY: int = 1
+
+	func on_turn_start(player: Creature, _turn_number: int) -> void:
+		player.apply_power(BasePowers.Dexterity.new(DEXTERITY))
+
+
 static func create(modifier: ActModifier, battle: BattleManager) -> Runtime:
 	var runtime: Runtime = null
 	match modifier.id:
@@ -206,6 +263,12 @@ static func create(modifier: ActModifier, battle: BattleManager) -> Runtime:
 			runtime = Migration.new()
 		&"instinct":
 			runtime = Instinct.new()
+		&"gravity_well":
+			runtime = GravityWell.new()
+		&"blood_moon":
+			runtime = BloodMoon.new()
+		&"shattered_sky":
+			runtime = ShatteredSky.new()
 		_:
 			push_warning("ActModifiers: 未知幕环境机制「%s」" % modifier.id)
 			return null
@@ -219,4 +282,5 @@ static func is_known(modifier_id: StringName) -> bool:
 		&"arena_crowd_cheer", &"battlefield_momentum", &"ancient_grudge",
 		&"tower_lesson", &"mana_tide", &"causality_field",
 		&"ambush", &"migration", &"instinct",
+		&"gravity_well", &"blood_moon", &"shattered_sky",
 	]

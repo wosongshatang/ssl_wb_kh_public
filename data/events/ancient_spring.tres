@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"ancient_spring"
+title = "古老泉眼"
+description = "岩缝里渗出一线泉水，映着不属于这个时代的星光。捧起来喝下，还是用它淬炼肉身？"
+option_a_label = "饮下泉水"
+option_a_effect = 1
+option_a_value = 14
+option_b_label = "以泉淬体"
+option_b_effect = 6
+option_b_value = 6

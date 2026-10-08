@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"old_smith"
+title = "老铁匠"
+description = "炉火早就熄了，但铁匠还在敲。他敲的不是铁——是你牌组里的某一张。"
+option_a_label = "让他熔掉一张牌"
+option_a_effect = 5
+option_a_value = 0
+option_b_label = "买下他的库存"
+option_b_effect = 3
+option_b_value = 45

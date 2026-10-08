@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/relics/relic_data.gd" id="1_relicdata"]
+
+[resource]
+script = ExtResource("1_relicdata")
+id = &"iron_lung"
+display_name = "铁肺"
+description = "获得时最大生命 +4（永久）。"
+trigger_text = "获得时"
+category = 0
+divinity_cost = 0
+rarity = 0
+deity_id = &""

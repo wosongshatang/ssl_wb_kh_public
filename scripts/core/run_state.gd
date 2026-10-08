@@ -221,6 +221,46 @@ func build_deck() -> Array[CardData]:
 	return deck
 
 
+# ── 遗物 ────────────────────────────────────────────────────
+
+## 遗物带来的**永久**最大生命加成。
+##
+## ## ⚠️ 为什么必须在这里结算，而不是写成遗物的 `at_battle_start`
+## 遗物实例是**每场战斗重建**的（`Creature.add_relic`），而战斗结束时
+## `sync_from_creature()` 会把 `creature.max_hp` 写回 `RunState.max_hp`。
+## 于是「战斗开始 +6 最大生命」会变成：
+##   第 1 场 30→36（持久化）→ 第 2 场 36→42（持久化）→ …… **无限增长**。
+## 这类 bug 不报错、只让数值缓慢失控，而且因为"每场都感觉变强了一点"，
+## 极难被察觉。
+##
+## **所以：一次性授予类效果（永久最大生命）走「获得遗物的那一刻」结算。**
+## 战斗内的钩子只做**可恢复**的事（力量 / 格挡 / 回血 / 金币）。
+const RELIC_MAX_HP_BONUS: Dictionary = {
+	&"stone_heart": 6,
+	&"iron_lung": 4,
+}
+
+
+## 授予一件遗物。**所有遗物授予都必须走这里**——
+## 直接 `relics.append()` 会绕过永久加成，且重复授予无法拦截。
+##
+## 返回是否真的拿到了（已拥有 / 空 id 返回 false）。
+func grant_relic(relic_id: StringName) -> bool:
+	if relic_id == &"" or relics.has(relic_id):
+		return false
+
+	relics.append(relic_id)
+
+	var bonus: int = int(RELIC_MAX_HP_BONUS.get(relic_id, 0))
+	if bonus > 0:
+		max_hp += bonus
+		# 同时补满这部分生命——否则"最大生命 +6"会变成"缺口 +6"，
+		# 玩家看到的是血量上限涨了但当前血没动，像是 bug
+		hp = mini(max_hp, hp + bonus)
+
+	return true
+
+
 # ── 资源 ────────────────────────────────────────────────────
 
 func add_gold(amount: int) -> void:

@@ -219,6 +219,11 @@ func _apply_trial(card: CardData) -> void:
 
 func _on_player_turn_ended(_turn: int) -> void:
 	player.on_turn_end()
+	# 幕环境也在这里收尾（如「因果律」：本回合没挨打就 +2 力量）。
+	# ⚠️ 必须放在 `player.on_turn_end()` **之后**——因果律读的是"本回合是否受过伤"，
+	# 那个状态由本回合累积，不能被提前打断。
+	if act_modifier != null:
+		act_modifier.on_turn_end(player)
 	# ⚠️ 诅咒必须在**回合清理之后**发作。
 	# 放在 `player.on_turn_end()` 之前的话，它刚上的减益会被同一次清理立刻减掉一层——
 	# 「回合结束获得 1 层易伤」实际等于什么都没发生，玩家会以为这张诅咒是废牌。

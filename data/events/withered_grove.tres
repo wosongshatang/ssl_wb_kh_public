@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"withered_grove"
+title = "枯林"
+description = "树全死了，但根还活着。它们在土里互相绞着，像在争夺最后一点养分。"
+option_a_label = "在树根间扎营"
+option_a_effect = 6
+option_a_value = 4
+option_b_label = "砍开树根"
+option_b_effect = 3
+option_b_value = 55

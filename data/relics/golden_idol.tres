@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/relics/relic_data.gd" id="1_relicdata"]
+
+[resource]
+script = ExtResource("1_relicdata")
+id = &"golden_idol"
+display_name = "金像"
+description = "战斗胜利后额外获得 15 金币。"
+trigger_text = "战斗胜利时"
+category = 0
+divinity_cost = 0
+rarity = 0
+deity_id = &""

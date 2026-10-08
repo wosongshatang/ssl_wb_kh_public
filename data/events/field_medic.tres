@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"field_medic"
+title = "战地医师"
+description = "一个还活着的医师蹲在尸体之间，缝合工具摊在布上。「坐吧，」她头也不抬，「你还剩多少？」"
+option_a_label = "接受治疗"
+option_a_effect = 1
+option_a_value = 15
+option_b_label = "让她处理掉一件累赘"
+option_b_effect = 5
+option_b_value = 0

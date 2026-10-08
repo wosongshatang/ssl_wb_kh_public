@@ -20,6 +20,10 @@ signal map_completed()
 ## 12 层大约对应 9~10 场战斗，是"能凑出一套东西"的最小长度。
 const ROWS_PER_ACT: int = 12
 
+## 幕机制抽取的种子步长（阶段 7）。用一个**质数**，避免和「种子 + 幕」的
+## 线性派生撞在一起——撞了会让相邻两幕抽到同一个机制。
+const MODIFIER_SEED_STRIDE: int = 7919
+
 ## 每幕的**保底**节点数。
 ##
 ## 纯随机会出现"12 层里一个休息都没有"的情况——
@@ -64,6 +68,11 @@ const LINES: Dictionary = {
 		{
 			"name": "战场",
 			"modifier": &"battlefield_momentum",
+			# 幕机制**池**：同一条线的同一幕，不同局可以抽到不同机制。
+			# 只配单个 `modifier` 的话，每次玩战士第二幕都是「军势」——
+			# 跨局变化度为零。池子里**第一个是主机制**（也是 `act_modifier_id()`
+			# 的返回值，保证既有测试与工具链的确定性）。
+			"modifier_pool": [&"battlefield_momentum", &"gravity_well"],
 			"enemies": [
 				&"act2_combat", &"act2_archer", &"act2_standard", &"act2_poisoner",
 				&"act2_cavalry", &"act2_shieldwall", &"act2_war_drum",
@@ -72,6 +81,7 @@ const LINES: Dictionary = {
 		{
 			"name": "古战场",
 			"modifier": &"ancient_grudge",
+			"modifier_pool": [&"ancient_grudge", &"blood_moon"],
 			"enemies": [
 				&"act3_combat", &"act3_wraith", &"act3_berserker", &"act3_shieldbearer",
 				&"act3_poisoner", &"act3_revenant", &"act3_bone_lord", &"act3_mirror",
@@ -80,19 +90,26 @@ const LINES: Dictionary = {
 	],
 	&"mage": [
 		{"name": "学徒白塔", "modifier": &"tower_lesson",
-			"enemies": [&"mage_act1_acolyte", &"mage_act1_construct", &"mage_act1_shard"]},
+			"enemies": [&"mage_act1_acolyte", &"mage_act1_construct", &"mage_act1_shard",
+				&"mage_act1_sentry"]},
 		{"name": "元素裂隙", "modifier": &"mana_tide",
-			"enemies": [&"mage_act2_wraith", &"mage_act2_devourer", &"mage_act2_tide"]},
+			"enemies": [&"mage_act2_wraith", &"mage_act2_devourer", &"mage_act2_tide",
+				&"mage_act2_mirage"]},
 		{"name": "万法归墟", "modifier": &"causality_field",
-			"enemies": [&"mage_act3_arbiter", &"mage_act3_echo", &"mage_act3_voice"]},
+			"enemies": [&"mage_act3_arbiter", &"mage_act3_echo", &"mage_act3_voice",
+				&"mage_act3_warden"]},
 	],
 	&"hunter": [
 		{"name": "翠林猎场", "modifier": &"ambush",
-			"enemies": [&"hunter_act1_boar", &"hunter_act1_spider", &"hunter_act1_wolf"]},
+			"modifier_pool": [&"ambush", &"shattered_sky"],
+			"enemies": [&"hunter_act1_boar", &"hunter_act1_spider", &"hunter_act1_wolf",
+				&"hunter_act1_fox"]},
 		{"name": "大荒野", "modifier": &"migration",
-			"enemies": [&"hunter_act2_stalker", &"hunter_act2_viper", &"hunter_act2_bull"]},
+			"enemies": [&"hunter_act2_stalker", &"hunter_act2_viper", &"hunter_act2_bull",
+				&"hunter_act2_vulture"]},
 		{"name": "万兽冢", "modifier": &"instinct",
-			"enemies": [&"hunter_act3_ancestor", &"hunter_act3_reborn", &"hunter_act3_instinct"]},
+			"enemies": [&"hunter_act3_ancestor", &"hunter_act3_reborn", &"hunter_act3_instinct",
+				&"hunter_act3_ghost"]},
 	],
 }
 
@@ -122,9 +139,50 @@ static func act_name(character: StringName, act: int) -> String:
 
 
 ## 该幕的环境机制 id（阶段 6）。未配置时返回空串——机制是可选增强，不是必需依赖。
+##
+## **返回的是「主机制」**（池里的第一个）。需要一个确定性的答案时用这个——
+## 工具链、编辑器预览、既有测试都依赖它不随种子变化。
 static func act_modifier_id(character: StringName, act: int) -> StringName:
 	var line: Dictionary = line_for(character, act)
 	return StringName(str(line.get("modifier", "")))
+
+
+## 该幕可选的**机制池**（阶段 7）。
+##
+## 没配 `modifier_pool` 时退化成「只有一个元素的池」（= 主机制），
+## 所以老数据不用改也能正常工作。
+static func modifier_pool_for(character: StringName, act: int) -> Array[StringName]:
+	var out: Array[StringName] = []
+	var line: Dictionary = line_for(character, act)
+
+	var raw: Variant = line.get("modifier_pool", null)
+	if raw is Array and not (raw as Array).is_empty():
+		for item: Variant in (raw as Array):
+			out.append(StringName(str(item)))
+		return out
+
+	var primary: StringName = act_modifier_id(character, act)
+	if primary != &"":
+		out.append(primary)
+	return out
+
+
+## 本局该幕**实际生效**的机制 id —— 从池里按种子确定性抽取。
+##
+## ## 为什么用「种子派生」而不是存进 RunState
+## 同一局同一种子必须抽到同一个机制，否则读档后幕机制会变——
+## 而玩家会看到「我明明记得这关是血月」。用 `run_seed + act × 步长` 派生，
+## 既满足可复现，又**不需要往存档里加字段**（少一个要同步的状态）。
+static func roll_act_modifier_id(character: StringName, act: int, run_seed: int) -> StringName:
+	var pool: Array[StringName] = modifier_pool_for(character, act)
+	if pool.is_empty():
+		return &""
+	if pool.size() == 1:
+		return pool[0]
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = run_seed + act * MODIFIER_SEED_STRIDE
+	return pool[rng.randi_range(0, pool.size() - 1)]
 
 
 ## 该幕的普通战斗敌人池
@@ -140,6 +198,12 @@ const EVENT_POOL: Array[StringName] = [
 	&"god_offer_war", &"god_offer_arcane", &"cursed_altar", &"usurp_power",
 	&"god_gift_special", &"wandering_merchant", &"blood_oath",
 	&"forgotten_library", &"broken_statue",
+	# ── 阶段 7 扩充（12 → 20）────────────────────────────────
+	# 单局约 3 个事件节点，池子只有 12 个时"每局看到的事件高度重复"。
+	# 新增的 8 个里有 4 个提供**永久最大生命**——这是 A1（玩家无成长）
+	# 的主要修复来源之一：敌人血量三幕 +533%，而玩家 max_hp 原本全程恒 30。
+	&"ancient_spring", &"trial_stone", &"bone_altar", &"field_medic",
+	&"ash_merchant", &"old_smith", &"withered_grove", &"silent_bell",
 ]
 
 ## id -> MapNode

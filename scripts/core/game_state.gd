@@ -101,10 +101,15 @@ func final_job() -> JobData:
 
 
 ## 当前幕的环境机制（阶段 6）。没有配置时返回 null——机制是可选增强，不是必需依赖。
+##
+## 阶段 7 起从**机制池**按种子抽取（同一局同一种子结果固定）。
+## 用 `roll_act_modifier_id` 而不是 `act_modifier_id`：后者恒定返回主机制，
+## 会让每一局的同一幕都是同一个机制。
 func current_act_modifier() -> ActModifier:
 	if run == null:
 		return null
-	var modifier_id: StringName = MapManager.act_modifier_id(run.character_class, run.current_act)
+	var modifier_id: StringName = MapManager.roll_act_modifier_id(
+		run.character_class, run.current_act, run.rng_seed)
 	if modifier_id == &"":
 		return null
 	var loaded: Variant = ContentRegistry.get_act_modifier(modifier_id)

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/relics/relic_data.gd" id="1_relicdata"]
+
+[resource]
+script = ExtResource("1_relicdata")
+id = &"bloodthirst_ring"
+display_name = "嗜血指环"
+description = "击杀敌人时回复 3 点生命。"
+trigger_text = "击杀敌人时"
+category = 0
+divinity_cost = 0
+rarity = 0
+deity_id = &""

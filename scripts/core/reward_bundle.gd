@@ -84,11 +84,12 @@ func commit(run: RunState) -> String:
 		parts.append("卡牌「%s」" % card_name(chosen_card_id))
 
 	if taken_relic and relic_id != &"":
-		if run.relics.has(relic_id):
-			parts.append("遗物「%s」已拥有" % relic_name(relic_id))
-		else:
-			run.relics.append(relic_id)
+		# 走 grant_relic 而不是 relics.append：一次性效果（如永久最大生命）
+		# 必须在这里结算，且要能拦住重复授予
+		if run.grant_relic(relic_id):
 			parts.append("遗物「%s」" % relic_name(relic_id))
+		else:
+			parts.append("遗物「%s」已拥有" % relic_name(relic_id))
 
 	if parts.is_empty():
 		return "什么也没拿"

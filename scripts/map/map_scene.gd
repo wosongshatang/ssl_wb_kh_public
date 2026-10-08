@@ -283,7 +283,7 @@ func _on_traitor_strip() -> void:
 		return
 
 	var relic_id: StringName = pool[_rng.randi_range(0, pool.size() - 1)]
-	_run.relics.append(relic_id)
+	_run.grant_relic(relic_id)
 	_persist_and_refresh("剥离了神性（-%d），获得遗物「%s」。" % [
 		TraitorPanel.DIVINITY_DELTA, _relic_name(relic_id)], false)
 
@@ -517,7 +517,7 @@ func _on_relic_purchase_requested(relic_id: StringName, price: int) -> void:
 	if not _run.spend_gold(price):
 		return
 
-	_run.relics.append(relic_id)
+	_run.grant_relic(relic_id)
 	for i: int in range(_relic_offers.size() - 1, -1, -1):
 		if _relic_offers[i] == relic_id:
 			_relic_offers.remove_at(i)
@@ -659,7 +659,7 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 			if relic_pool.is_empty():
 				return "没有可获得的遗物了"
 			var relic_id: StringName = relic_pool[_rng.randi_range(0, relic_pool.size() - 1)]
-			_run.relics.append(relic_id)
+			_run.grant_relic(relic_id)
 			return "获得遗物「%s」" % _relic_name(relic_id)
 
 		EventData.Effect.ADD_DIVINE_RELIC:
@@ -668,7 +668,7 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 			if divine_pool.is_empty():
 				return "已经没有可窃取的权柄了"
 			var divine_id: StringName = divine_pool[_rng.randi_range(0, divine_pool.size() - 1)]
-			_run.relics.append(divine_id)
+			_run.grant_relic(divine_id)
 			var relic_data: Variant = ContentRegistry.get_relic(divine_id)
 			var cost: int = (relic_data as RelicData).divinity_cost if relic_data is RelicData else 0
 			GameState.add_divinity(cost)

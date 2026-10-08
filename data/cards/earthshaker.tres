@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="CardData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card_data.gd" id="1_carddata"]
+
+[resource]
+script = ExtResource("1_carddata")
+id = &"earthshaker"
+display_name = "撼地"
+description = "造成 {damage} 点伤害，并施加 {vulnerable} 层易伤。"
+cost = 3
+type = 0
+rarity = 3
+damage = 24
+block = 0
+draw = 0
+gain_energy = 0
+self_hp_loss = 0
+apply_to_self = {}
+apply_to_target = {
+"vulnerable": 3
+}
+exhaust = false
+grant_potion_id = &""
+divinity_gain = 0
+unplayable = false
+triggers_on_turn_end = false
+deity_id = &""
+special_kind = 0
+special_value = 0
+trial_block_bonus = 0
+card_pool_tags = Array[StringName]([&"warrior"])

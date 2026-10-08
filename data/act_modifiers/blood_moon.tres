@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ActModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/act_modifier.gd" id="1_actmodifier"]
+
+[resource]
+script = ExtResource("1_actmodifier")
+id = &"blood_moon"
+display_name = "古战场 · 血月"
+description = "战斗开始时失去 5 点生命（无视格挡），获得 3 点力量。把血换成输出。"
+params = {}

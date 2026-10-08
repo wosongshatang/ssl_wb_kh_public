@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ActModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/act_modifier.gd" id="1_actmodifier"]
+
+[resource]
+script = ExtResource("1_actmodifier")
+id = &"gravity_well"
+display_name = "战场 · 重力井"
+description = "你每打出一张攻击牌，就获得 1 点格挡。进攻本身就是防御。"
+params = {}

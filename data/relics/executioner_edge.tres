@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/relics/relic_data.gd" id="1_relicdata"]
+
+[resource]
+script = ExtResource("1_relicdata")
+id = &"executioner_edge"
+display_name = "处刑之刃"
+description = "击杀敌人时获得 2 点力量。"
+trigger_text = "击杀敌人时"
+category = 0
+divinity_cost = 0
+rarity = 1
+deity_id = &""

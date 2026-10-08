@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"bone_altar"
+title = "白骨祭坛"
+description = "骨头堆成的祭坛，中央留着一个刚好够放下手掌的凹槽。凹槽边缘被磨得发亮。"
+option_a_label = "把手放进去"
+option_a_effect = 6
+option_a_value = 8
+option_b_label = "搜刮祭品"
+option_b_effect = 10
+option_b_value = 0

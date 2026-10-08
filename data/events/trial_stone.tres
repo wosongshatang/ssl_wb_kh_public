@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/map/event_data.gd" id="1_eventdata"]
+
+[resource]
+script = ExtResource("1_eventdata")
+id = &"trial_stone"
+title = "试炼石"
+description = "一块被无数双手磨圆的黑色石头。传说把手按上去，它会称量你还能承受多少。"
+option_a_label = "按住石头"
+option_a_effect = 6
+option_a_value = 5
+option_b_label = "搬开石头"
+option_b_effect = 4
+option_b_value = 0
