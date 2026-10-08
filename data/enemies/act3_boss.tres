@@ -85,7 +85,7 @@ uses_player_mirror = false
 [sub_resource type="Resource" id="I_3_0"]
 script = ExtResource("2_intentdata")
 type = 0
-value = 20
+value = 9
 times = 2
 icon_key = &"attack"
 power_id = &""
@@ -104,7 +104,7 @@ uses_player_mirror = true
 script = ExtResource("1_enemydata")
 id = &"act3_boss"
 display_name = "战神"
-max_hp = 190
+max_hp = 145
 intents = Array[IntentData]([])
 is_elite = false
 is_boss = true

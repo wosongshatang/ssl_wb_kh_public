@@ -19,7 +19,10 @@ signal relic_purchase_requested(relic_id: StringName, price: int)
 
 enum Mode { OFFERS, REMOVAL }
 
-const REMOVAL_PRICE: int = 75
+## 删牌价格。**阶段 7 重标定**：原价 75 只比一张蓝卡（85）便宜 10，
+## 把"薄牌组"流派的价格门槛抬到了不可及——删牌是构筑的核心操作，
+## 不该是奢侈品。降到 55 后，一局收入（~900）够删 4–5 次。
+const REMOVAL_PRICE: int = 55
 const CARD_COLUMNS: int = 5
 
 var _mode: Mode = Mode.OFFERS

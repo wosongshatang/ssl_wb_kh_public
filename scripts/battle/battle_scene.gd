@@ -7,8 +7,12 @@ extends Node
 ## 布局参考用户提供的视频：角色在左、敌人在右，底部是手牌区与能量球，
 ## 左下弃牌堆、右下抽牌堆，顶部是本局 HUD。
 
-const GOLD_REWARD_COMBAT: int = 12
-const GOLD_REWARD_ELITE: int = 30
+## 金币奖励。**阶段 7 重标定**：地图层数从 6 翻到 12（ROWS_PER_ACT），
+## 战斗场次翻倍而单价没跟——一局总收入只有 ~590，商店却有 6 个，
+## 平均每店买不到 1 件东西。上调后总收入 ~900，恢复"每店 2–3 件"的购买力。
+const GOLD_REWARD_COMBAT: int = 20
+## 精英与普通的收入比对齐血量比（约 1.8×），让"打精英"在收益上说得通
+const GOLD_REWARD_ELITE: int = 55
 const MAX_ACTS: int = 3
 const POTION_DROP_CHANCE: float = 0.35
 const HAND_CARD_SPACING: int = 6
@@ -919,8 +923,7 @@ func _on_job_chosen(job_id: StringName) -> void:
 
 	# 职业专属遗物：与职业绑定，不进普通掉落池
 	var job_relic: StringName = JobRelics.for_job(job.id)
-	if job_relic != &"" and not _run.relics.has(job_relic):
-		_run.relics.append(job_relic)
+	if _run.grant_relic(job_relic):
 		_log_lines.append("获得职业遗物「%s」" % RewardBundle.relic_name(job_relic))
 
 	if _job_panel != null:
