@@ -18,6 +18,10 @@ export_presets.cfg
 # 美术生成中间产物与截图（源图存 assets/，这些是过程文件）
 generated-images/
 .shots/
+# 卡图缩小可读性验收的产物（verify_art.py preview）。
+# ⚠️ 默认落在**仓库根目录**，不忽略的话 `git add -A` 会把几十张 QA 图带进来。
+# 它同时会被 Godot 自动导入 → 记得目录里放空的 .gdignore。
+preview_104/
 
 # Godot 导入过程中的临时文件
 # （`--import` 被中断/并发时会留下 `<文件>.import<pid>.tmp`，

@@ -44,8 +44,12 @@ const ALPHA_GATE: int = 200
 const SAMPLE_STEP: int = 4
 
 const CHARACTERS: Array[StringName] = [&"warrior", &"mage", &"hunter"]
+## 九张背景全部纳入（阶段 8 批次 1 补齐 6 张后）。
+## ⚠️ 这份清单必须与实际存在的图**一一对应**——漏掉一张就等于那张不受基调约束。
 const BACKGROUNDS: Array[Array] = [
-	[&"warrior", 1], [&"mage", 2], [&"hunter", 3],
+	[&"warrior", 1], [&"warrior", 2], [&"warrior", 3],
+	[&"mage", 1], [&"mage", 2], [&"mage", 3],
+	[&"hunter", 1], [&"hunter", 2], [&"hunter", 3],
 ]
 
 

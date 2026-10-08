@@ -184,22 +184,23 @@ func test_every_line_act_has_a_queryable_path() -> void:
 
 
 func test_shipped_backgrounds_load_and_are_landscape() -> void:
-	## 已入库的三张必须能加载，且是**横构图**（背景不是立绘）
-	var shipped: Array = [
-		[&"warrior", 1], [&"mage", 2], [&"hunter", 3],
-	]
-	for entry: Array in shipped:
-		var tex: Texture2D = ContentRegistry.get_battle_background(entry[0], entry[1])
-		assert_not_null(tex, "%s 第 %d 幕的背景图应存在" % [entry[0], entry[1]])
-		if tex != null:
-			assert_gt(tex.get_width(), tex.get_height(),
-				"背景应是横构图（宽 > 高）")
+	## **九张三线三幕全部入库**（阶段 8 批次 1 补齐）。
+	## 背景必须是**横构图**（不是立绘的 2:3 竖构图）。
+	for character: StringName in [&"warrior", &"mage", &"hunter"]:
+		for act: int in [1, 2, 3]:
+			var tex: Texture2D = ContentRegistry.get_battle_background(character, act)
+			assert_not_null(tex, "%s 第 %d 幕的背景图应存在" % [character, act])
+			if tex != null:
+				assert_gt(tex.get_width(), tex.get_height(),
+					"%s 第 %d 幕背景应是横构图（宽 > 高）" % [character, act])
 
 
 func test_missing_background_returns_null_not_crash() -> void:
-	## 还没做的六张必须安全返回 null（回退程序化背景），而不是崩
-	assert_null(ContentRegistry.get_battle_background(&"warrior", 2),
-		"第 2 幕还没有真图，应返回 null")
+	## 超出范围的幕（第 4 幕还没做）必须安全返回 null（回退程序化背景），而不是崩。
+	## ⚠️ 原来用「第 2 幕」当缺图样例——批次 1 补齐后它**有图了**，
+	## 于是这条测试反而变成了"有图却断言 null"。改用真正不存在的幕。
+	assert_null(ContentRegistry.get_battle_background(&"warrior", 4),
+		"第 4 幕还没做，应返回 null")
 	assert_null(ContentRegistry.get_battle_background(&"no_such_line", 1))
 
 
@@ -207,7 +208,7 @@ func test_background_hides_image_node_when_no_texture() -> void:
 	## 没图时必须隐藏节点，否则空 TextureRect 会盖住程序化背景 → 一片空白
 	var view := BattleBackground.new()
 	add_child_autofree(view)
-	view.set_scene(&"warrior", 2)  # 第 2 幕无图
+	view.set_scene(&"warrior", 4)  # 第 4 幕无图（尚未开发）
 
 	assert_not_null(view._image)
 	assert_false(view._image.visible, "缺图时真图节点必须隐藏，露出程序化背景")

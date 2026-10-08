@@ -59,7 +59,13 @@ const GROUND_RATIO: float = 0.62
 ## 换图之后要重新量——所以新增背景时别忘了补一行。
 const BACKGROUND_GROUND_RATIO: Dictionary = {
 	"warrior_act1": 0.337,  # 竞技场：沙地起步早，地面线偏高（无需调整）
+	"warrior_act2": 0.44,   # 战场：沙地平原，地平线略高于中线
+	"warrior_act3": 0.40,   # 古战场：灰烬平原，地面起步早
+	"mage_act1": 0.52,      # 学徒白塔：低机位，石板地面占下半部
 	"mage_act2": 0.741,     # 元素裂隙：石台只占底部 26%，**必须放大裁切**
+	"mage_act3": 0.46,      # 万法归墟：碎裂地面，地平线略高于中线
+	"hunter_act1": 0.50,    # 翠林猎场：沼泽地面，过渡平缓（目测）
+	"hunter_act2": 0.40,    # 大荒野：荒原，地平线偏高
 	"hunter_act3": 0.500,   # 万兽冢：沼泽过渡平缓，取目测值
 }
 ## 表里没有的图用这个（与程序化背景的 [constant GROUND_RATIO] 保持一致）
