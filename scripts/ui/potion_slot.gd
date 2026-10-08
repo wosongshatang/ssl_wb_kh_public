@@ -22,18 +22,50 @@ const SLOT_SIZE: float = 30.0
 var slot_index: int = -1
 var potion: PotionData = null
 
+## 药水图标节点（阶段 8）。
+##
+## ⚠️ **必须用节点，不能在 `_draw()` 里 `draw_texture_rect`**——
+## D35：本项目里 `_draw()` 画贴图会渲染成**纯白方块**
+## （资源、算式、尺寸全对，换 TextureRect 节点立刻正常）。
+## 立绘（D35）与卡图都踩过同一个坑。
+var _icon: TextureRect = null
+
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(SLOT_SIZE, SLOT_SIZE)
 	size = Vector2(SLOT_SIZE, SLOT_SIZE)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
+	_icon = TextureRect.new()
+	_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon.visible = false
+	add_child(_icon)
+
 
 func set_potion(data: PotionData, index: int) -> void:
 	potion = data
 	slot_index = index
 	tooltip_text = data.description if data != null else "空药水栏"
+	_refresh_icon()
 	queue_redraw()
+
+
+## 图标可见性：**有图显示图标，缺图回退到 `_draw()` 的首字**。
+## 两者并存不冲突，所以 10 张药水图标可以分批投。
+func _refresh_icon() -> void:
+	if _icon == null:
+		return
+	var tex: Texture2D = null
+	if potion != null:
+		tex = ContentRegistry.get_potion_icon(potion.id)
+	_icon.texture = tex
+	_icon.visible = tex != null
+	if tex != null:
+		var s: float = SLOT_SIZE - 8.0
+		_icon.size = Vector2(s, s)
+		_icon.position = (Vector2(SLOT_SIZE, SLOT_SIZE) - Vector2(s, s)) * 0.5
 
 
 func _draw() -> void:
@@ -46,6 +78,10 @@ func _draw() -> void:
 		UiPalette.POTION if filled else UiPalette.BORDER_DIM, 1.5)
 
 	if not filled:
+		return
+
+	# 有图标时由子节点画，这里不再叠首字（否则字会压在图标上）
+	if _icon != null and _icon.visible:
 		return
 
 	var font := ThemeDB.fallback_font

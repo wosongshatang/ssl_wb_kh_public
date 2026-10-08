@@ -24,6 +24,9 @@ var _available: Dictionary = {}
 var _hover_id: int = -1
 var _legend_panel: PanelContainer
 var _legend_box: VBoxContainer
+## 节点图标子节点（node_id → TextureRect）。
+## 只有**真的有图**的节点才会在这里；缺图的节点交给 `_draw()` 画几何图形。
+var _icon_nodes: Dictionary = {}
 
 
 func _ready() -> void:
@@ -76,6 +79,8 @@ func node_position(node_id: int) -> Vector2:
 func _recompute_positions() -> void:
 	_positions.clear()
 	if _map == null or _map.rows.is_empty():
+		# 地图没了也要清图标节点——否则旧图标会留在地图上"飘着"
+		_clear_icon_nodes()
 		return
 
 	var rows: int = _map.rows.size()
@@ -89,6 +94,73 @@ func _recompute_positions() -> void:
 		for c: int in count:
 			var offset: float = (float(c) - float(count - 1) * 0.5) * COLUMN_SPACING
 			_positions[row_ids[c]] = Vector2(center_x + offset, TOP_MARGIN + float(r) * row_step)
+
+	_sync_icon_nodes()
+
+
+## 按当前 `_positions` 同步图标子节点。
+##
+## ## 为什么用节点而不是 `_draw()`
+## ⚠️ **D35**：本项目里 `_draw()` 画贴图会渲染成纯白方块。
+##
+## ## 为什么"缺图就删节点"而不是"建好再隐藏"
+## 没图时必须让 `_draw()` 的几何图形**露出来**。
+## 留一个空 TextureRect 盖在上面，会把兜底图形挡住 → 那个节点变成空白，
+## 比"没有图标"更糟。
+##
+## ## 为什么要做增量更新而不是全删重建
+## 本函数在 `NOTIFICATION_RESIZED` 里被调用，拖动窗口时会高频触发。
+## 全删重建会让图标每帧闪一下。
+func _sync_icon_nodes() -> void:
+	if _map == null:
+		_clear_icon_nodes()
+		return
+
+	# 1) 收集"这一帧应该有图"的节点
+	var wanted: Dictionary = {}
+	for node_id: int in _positions:
+		var node: MapNode = _map.nodes.get(node_id)
+		if node == null:
+			continue
+		var tex: Texture2D = ContentRegistry.get_map_icon(MapNode.kind_key(node.kind))
+		if tex != null:
+			wanted[node_id] = tex
+
+	# 2) 删掉不再需要的（地图换了 / 图被撤了）
+	for node_id: int in _icon_nodes.keys():
+		if not wanted.has(node_id):
+			var stale: Variant = _icon_nodes[node_id]
+			if is_instance_valid(stale):
+				(stale as Node).queue_free()
+			_icon_nodes.erase(node_id)
+
+	# 3) 建新的 / 更新已有的位置
+	for node_id: int in wanted:
+		var rect: TextureRect = _icon_nodes.get(node_id)
+		if rect == null or not is_instance_valid(rect):
+			rect = TextureRect.new()
+			rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			# 图标不能吃鼠标事件——否则点节点会被图标拦下，地图点不动
+			rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			rect.size = Vector2(ICON_SIZE, ICON_SIZE)
+			add_child(rect)
+			_icon_nodes[node_id] = rect
+		rect.texture = wanted[node_id]
+		rect.position = _positions[node_id] - Vector2(ICON_SIZE, ICON_SIZE) * 0.5
+
+
+func _clear_icon_nodes() -> void:
+	for node_id: int in _icon_nodes:
+		var stale: Variant = _icon_nodes[node_id]
+		if is_instance_valid(stale):
+			(stale as Node).queue_free()
+	_icon_nodes.clear()
+
+
+## 当前显示的图标节点数。供测试断言"有图时确实建了节点"。
+func icon_node_count() -> int:
+	return _icon_nodes.size()
 
 
 func _notification(what: int) -> void:
@@ -185,7 +257,20 @@ func _draw_nodes() -> void:
 			draw_arc(pos, NODE_RADIUS + 5.0, 0.0, TAU, 40, Color(1, 1, 1, 0.6), 1.5)
 
 
-## 节点样式：用简单几何图形区分类型（阶段 5 无美术资源）
+## 节点图标（阶段 8）—— 由**子节点**绘制，不在这里画。
+##
+## ⚠️ **D35：本项目里 `_draw()` 画贴图会渲染成纯白方块**——
+## 资源、算式、尺寸全对，换成 TextureRect 节点立刻正常。立绘与卡图都踩过。
+## 所以图标走 `_icon_nodes`（见 `_sync_icon_nodes()`），
+## 这里只负责**缺图时的几何回退**。
+##
+## ## 为什么图标要比节点圆小一圈
+## 节点圆直径 40（`NODE_RADIUS * 2`）。图标铺满整圆会让相邻节点视觉上粘连；
+## 留出内边距后，"圆环是节点、图标是内容"这层结构才读得出来。
+const ICON_SIZE: float = 28.0
+
+
+## 节点样式：**缺图时的回退**（有图时被 `_icon_nodes` 的子节点盖住）
 func _draw_node_glyph(kind: MapNode.Kind, pos: Vector2, font: Font) -> void:
 	var ink := Color(0.12, 0.1, 0.12)
 	match kind:

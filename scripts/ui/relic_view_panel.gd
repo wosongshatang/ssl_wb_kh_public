@@ -76,11 +76,28 @@ func _build_content() -> void:
 	add_button("关闭（ESC）", _close)
 
 
-## 遗物图标占位：分类着色的方块（阶段 8 换成真图）
+## 遗物图标框边长。44 个图标显示尺寸一致，读起来才像一套。
+const ICON_BOX: float = 36.0
+
+
+## 遗物图标（阶段 8）。
+##
+## **有真图就用真图，缺图回退到「分类着色的方块」**——
+## 44 个图标不可能一次做完，两者并存才不会让"投了一半"变成"一半消失"。
 func _make_icon(relic: RelicData) -> Control:
+	var tex: Texture2D = ContentRegistry.get_relic_icon(relic.id)
+	if tex != null:
+		var image := TextureRect.new()
+		image.texture = tex
+		image.custom_minimum_size = Vector2(ICON_BOX, ICON_BOX)
+		image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return image
+
 	var icon := ColorRect.new()
-	icon.custom_minimum_size = Vector2(36, 36)
-	icon.size = Vector2(36, 36)
+	icon.custom_minimum_size = Vector2(ICON_BOX, ICON_BOX)
+	icon.size = Vector2(ICON_BOX, ICON_BOX)
 	icon.color = _accent_for(relic)
 	return icon
 

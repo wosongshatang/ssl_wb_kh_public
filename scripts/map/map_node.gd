@@ -53,6 +53,44 @@ static func kind_label_of(node_kind: Kind) -> String:
 			return "?"
 
 
+## 图标文件名用的**短名**（阶段 8）——对应 `assets/icons/map/<key>.png`。
+##
+## 为什么不直接用 `Kind` 的枚举名（`COMBAT`）：文件名要小写、可读，
+## 而且**改动枚举名不该让一批美术文件集体失效**。
+## 这层映射把"代码里的枚举"和"磁盘上的文件名"解耦开。
+##
+## 返回空串表示"这个 kind 没有对应图标"——调用方回退几何图形。
+static func kind_key(node_kind: Kind) -> StringName:
+	match node_kind:
+		Kind.COMBAT:
+			return &"combat"
+		Kind.ELITE:
+			return &"elite"
+		Kind.REST:
+			return &"rest"
+		Kind.SHOP:
+			return &"shop"
+		Kind.EVENT:
+			return &"event"
+		Kind.BOSS:
+			return &"boss"
+		Kind.GOD_ALTAR:
+			return &"god_altar"
+		Kind.TRAITOR:
+			return &"traitor"
+		_:
+			return &""
+
+
+## 全部 kind（供门禁遍历用）。**新增 Kind 时必须同步这里**——
+## 否则新节点类型会静默地没有图标，而且测试也不会发现。
+static func all_kinds() -> Array[Kind]:
+	return [
+		Kind.COMBAT, Kind.ELITE, Kind.REST, Kind.SHOP,
+		Kind.EVENT, Kind.BOSS, Kind.GOD_ALTAR, Kind.TRAITOR,
+	]
+
+
 func to_dict() -> Dictionary:
 	return {
 		"id": id,

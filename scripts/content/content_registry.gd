@@ -234,6 +234,68 @@ func battle_background_path(character: StringName, act: int) -> String:
 	return "res://assets/backgrounds/%s_act%d.png" % [character, act]
 
 
+# ══ 图标（阶段 8 · 第四类资产）══════════════════════════════
+#
+# ## 为什么图标要单独一套约定
+# 前三类（立绘 / 卡图 / 背景）都是**大图**，图标是 **256×256 的小符号**，
+# 显示尺寸只有 **24–40px**（地图节点直径 40 / 药水槽 30）。
+# 它们的构图规则完全不同（一个符号 + 强剪影），所以目录也分开。
+#
+# ## 为什么用「一个通用函数 + 四个薄封装」
+# 四类的加载逻辑一模一样，只有子目录名不同。写成四份复制粘贴的话，
+# 迟早有一份忘了改——而**目录名写错不会报错，只会永远返回 null**，
+# 表现成"这批图没生效"，极难定位。所以目录名收在常量里。
+
+## 图标根目录。四类各占一个子目录。
+const ICON_ROOT: String = "res://assets/icons"
+
+## 图标类别（= 子目录名）。**不要在各处写字符串字面量**，用这几个常量。
+const ICON_MAP: StringName = &"map"        ## 地图节点：<kind>.png
+const ICON_RELIC: StringName = &"relics"   ## 遗物：<遗物id>.png
+const ICON_POTION: StringName = &"potions" ## 药水：<药水id>.png
+const ICON_JOB: StringName = &"jobs"       ## 职业：<职业id>.png
+
+
+## 图标**路径**推导（与"能不能加载"分开）。
+##
+## 与 `card_art_path()` / `battle_background_path()` 同样的理由：
+## 加载函数在"没图"和"id 写错"两种情况下都返回 null，测试分不出。
+## 拆出路径后可以直接断言命名规则，**不需要仓库里真的有图**。
+func icon_path(category: StringName, icon_id: StringName) -> String:
+	if category == &"" or icon_id == &"":
+		return ""
+	return "%s/%s/%s.png" % [ICON_ROOT, category, icon_id]
+
+
+## 按类别 + id 找图标。找不到返回 null —— 调用方回退到程序化绘制，**而不是崩**。
+##
+## ⚠️ **有图无图必须能并存**：80 个图标不可能一次做完，
+## 所以每个调用点都要有回退路径，否则"投了一半"会让另一半直接消失。
+func get_icon(category: StringName, icon_id: StringName) -> Texture2D:
+	var path: String = icon_path(category, icon_id)
+	if path == "":
+		return null
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+
+func get_map_icon(kind_key: StringName) -> Texture2D:
+	return get_icon(ICON_MAP, kind_key)
+
+
+func get_relic_icon(relic_id: StringName) -> Texture2D:
+	return get_icon(ICON_RELIC, relic_id)
+
+
+func get_potion_icon(potion_id: StringName) -> Texture2D:
+	return get_icon(ICON_POTION, potion_id)
+
+
+func get_job_icon(job_id: StringName) -> Texture2D:
+	return get_icon(ICON_JOB, job_id)
+
+
 func get_ally(id: StringName) -> Variant:
 	return _allies.get(String(id))
 
