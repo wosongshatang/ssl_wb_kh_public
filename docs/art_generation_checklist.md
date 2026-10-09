@@ -243,18 +243,18 @@ SK="C:/Users/Johnk/.workbuddy-ai/skills/card-game-art-asset-pipeline/scripts/ver
 ### 4.2 接入流程
 
 ```bash
-GODOT="***REMOVED***/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64_console.exe"
+GODOT="<Godot 安装目录>/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64_console.exe"
 
 # 1) 导入（新增文件后必做）
-"$GODOT" --headless --import --path "***REMOVED***"
+"$GODOT" --headless --import --path "<项目根目录>"
 
 # 2) 门禁六步（含明度测试 test_art_tone.gd）
 bash tools/ci_check.sh
 
 # 3) 实机截图 —— 战斗场景
-"$GODOT" -s tools/shot_battle.gd --path "***REMOVED***" -- <角色> <幕> out.png
+"$GODOT" -s tools/shot_battle.gd --path "<项目根目录>" -- <角色> <幕> out.png
 # 4) 实机截图 —— 地图（看图标）
-"$GODOT" -s tools/shot_map.gd    --path "***REMOVED***" -- <角色> out.png
+"$GODOT" -s tools/shot_map.gd    --path "<项目根目录>" -- <角色> out.png
 ```
 
 > ⚠️ `shot_battle.gd` / `shot_map.gd` **不能加 `--headless`**，否则截出来是空图。

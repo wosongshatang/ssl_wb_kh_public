@@ -995,10 +995,10 @@ a broken chain link splitting apart, bold flat silhouette, dark teal as the sing
 ### 每批完成后
 
 ```bash
-GODOT="***REMOVED***/Godot_v4.6.2-stable_mono_win64/.../Godot_v4.6.2-stable_mono_win64_console.exe"
-"$GODOT" --headless --import --path "***REMOVED***"        # 导入
+GODOT="<Godot 安装目录>/Godot_v4.6.2-stable_mono_win64/.../Godot_v4.6.2-stable_mono_win64_console.exe"
+"$GODOT" --headless --import --path "<项目根目录>"        # 导入
 bash tools/ci_check.sh                                     # 门禁（含明度测试 test_art_tone.gd）
-"$GODOT" -s tools/shot_battle.gd --path "***REMOVED***" -- <角色> <幕> out.png   # 实机截图
+"$GODOT" -s tools/shot_battle.gd --path "<项目根目录>" -- <角色> <幕> out.png   # 实机截图
 ```
 
 > ⚠️ `shot_battle.gd` **不能加 `--headless`**，否则截出来是空图。

@@ -2,8 +2,8 @@ extends SceneTree
 ## 脚本与场景冒烟测试
 ##
 ## 用法（Windows 必须用 _console.exe，否则抓不到 stdout）：
-##   GODOT="***REMOVED***/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64_console.exe"
-##   "$GODOT" --headless --path "***REMOVED***" --script tools/smoke.gd
+##   GODOT="<Godot 安装目录>/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64_console.exe"
+##   "$GODOT" --headless --path "<项目根目录>" --script tools/smoke.gd
 ##
 ## 退出码 0 = 全部通过；非 0 = 有失败。
 ## 每新增一个「必须能打开」的场景，就往 SCENES 里加一行。

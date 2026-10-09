@@ -314,8 +314,8 @@ background = opaque         ← 不是 transparent
 2. 丢进 `assets/cards/`（**不用改任何 `.tres`**）
 3. 跑一次导入：
    ```bash
-   GODOT="***REMOVED***/Godot_v4.6.2-stable_mono_win64/.../Godot_v4.6.2-stable_mono_win64_console.exe"
-   "$GODOT" --headless --import --path "***REMOVED***"
+   GODOT="<Godot 安装目录>/Godot_v4.6.2-stable_mono_win64/.../Godot_v4.6.2-stable_mono_win64_console.exe"
+   "$GODOT" --headless --import --path "<项目根目录>"
    ```
 4. 启动游戏看一眼手牌
 

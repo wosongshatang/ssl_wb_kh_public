@@ -14,14 +14,29 @@
 # ═══════════════════════════════════════════════════════════════════
 set -uo pipefail
 
-GODOT="${GODOT:-***REMOVED***/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64_console.exe}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# ── Godot 可执行文件定位 ─────────────────────────────────────
+# ⚠️ 这里**不硬编码绝对路径**：本仓库要公开发布，个人机器路径不该进版本库。
+# 解析顺序：① 环境变量 GODOT  ② 同目录下的 .local_paths.sh（**已 gitignore**）
+#          ③ PATH 中的 godot4 / godot
+# Windows 上必须用 **_console.exe**，否则 headless 抓不到 stdout。
+if [ -z "${GODOT:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/.local_paths.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$(dirname "${BASH_SOURCE[0]}")/.local_paths.sh"
+fi
+GODOT="${GODOT:-$(command -v godot4 2>/dev/null || command -v godot 2>/dev/null || true)}"
+
 QUICK=0
 [ "${1:-}" = "--quick" ] && QUICK=1
 
-if [ ! -f "$GODOT" ]; then
-  echo "✗ 找不到 Godot 可执行文件：$GODOT"
-  echo "  请设置环境变量 GODOT 指向 Godot（Windows 用 _console.exe 版本）"
+if [ -z "${GODOT:-}" ] || [ ! -f "$GODOT" ]; then
+  echo "✗ 找不到 Godot 可执行文件（GODOT=${GODOT:-未设置}）"
+  echo "  三种设置方式任选其一："
+  echo "    1) export GODOT=/path/to/Godot_..._console.exe"
+  echo "    2) 在 tools/.local_paths.sh 里写 GODOT=...（该文件不进版本库）"
+  echo "    3) 把 godot 加进 PATH"
+  echo "  ⚠️ Windows 请用 _console.exe 版本，否则抓不到 stdout"
   exit 2
 fi
 

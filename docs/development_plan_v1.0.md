@@ -144,21 +144,21 @@ var value: int = data["a"]        # 不能写 var value := data["a"]
 ## 2.6 验证命令（headless，每次提交前跑）
 
 ```bash
-GODOT="***REMOVED***/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64_console.exe"
+GODOT="<Godot 安装目录>/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64_console.exe"
 
 # ① 脚本解析检查（改了 .gd 就跑）
-"$GODOT" --headless --quit --path "***REMOVED***" 2>&1 \
+"$GODOT" --headless --quit --path "<项目根目录>" 2>&1 \
   | grep -iE 'SCRIPT ERROR|Parse Error' || echo "scripts parse OK"
 
 # ② 场景冒烟测试（改了 .tscn 就跑）
-"$GODOT" --headless --path "***REMOVED***" --script tools/smoke.gd 2>&1 | grep -E 'ERROR|OK '
+"$GODOT" --headless --path "<项目根目录>" --script tools/smoke.gd 2>&1 | grep -E 'ERROR|OK '
 
 # ③ 单元测试（跑 tests/）
-"$GODOT" --headless --path "***REMOVED***" --script tools/run_tests.gd 2>&1 | tail -20
+"$GODOT" --headless --path "<项目根目录>" --script tools/run_tests.gd 2>&1 | tail -20
 
 # ④ 缓存修复（编辑器报"引用了不存在的资源"但文件明明在）
 rm -rf .godot/imported .godot/uid_cache.bin .godot/global_script_class_cache.cfg
-"$GODOT" --headless --import --path "***REMOVED***"
+"$GODOT" --headless --import --path "<项目根目录>"
 ```
 
 > ⚠️ Windows 上必须用 **`_console.exe`** 版本，否则 stdout 抓不到日志。
@@ -738,13 +738,13 @@ Relic    : at_damage_modify / on_use_card / at_battle_start / on_turn_start / on
 
 ```bash
 # 引擎
-GODOT="***REMOVED***/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64_console.exe"
+GODOT="<Godot 安装目录>/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64/Godot_v4.6.2-stable_mono_win64_console.exe"
 
 # 打开编辑器
-"$GODOT" --path "***REMOVED***" -e
+"$GODOT" --path "<项目根目录>" -e
 
 # 直接运行
-"$GODOT" --path "***REMOVED***"
+"$GODOT" --path "<项目根目录>"
 
 # 脚本解析检查 / 冒烟 / 单测 / 缓存修复  → 见 §2.6
 ```

@@ -38,3 +38,6 @@ desktop.ini
 # ⚠️ 这些**只留在本地**：公开仓库里绝不能出现。
 # ⚠️ 注意：光加 .gitignore 只能挡住"以后"，**已提交的历史要用 filter-repo 清**。
 .workbuddy-ai/
+
+# 本机路径配置（含个人机器路径，不进版本库）
+tools/.local_paths.sh
