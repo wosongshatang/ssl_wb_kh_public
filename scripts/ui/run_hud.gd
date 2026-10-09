@@ -288,9 +288,15 @@ func refresh() -> void:
 		var node: MapNode = GameState.map.current_node()
 		if node != null:
 			row_index = node.row + 1
-	_map_info_label.text = "%s · %d/%d 层" % [
+	var map_text: String = "%s · %d/%d 层" % [
 		MapManager.act_name(_run.character_class, _run.current_act), row_index, total_rows,
 	]
+	# 进阶等级只在 > 0 时显示。
+	# 每局都挂一个"进阶 0"会让 HUD 多一格纯噪音，而且会让进阶看起来像常态——
+	# 它应该是"我主动选的高难度"，得在视觉上**偶发**才读得出这层意思。
+	if _run.ascension > 0:
+		map_text += " · 进阶 %d" % _run.ascension
+	_map_info_label.text = map_text
 
 	_refresh_potions()
 	_update_time_chip()

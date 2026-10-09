@@ -47,9 +47,11 @@ var humanity: int = 0
 
 
 ## 开新局：生成单局状态与地图
-func start_new_run(character: StringName, seed_value: int) -> void:
+##
+## `ascension_level` 由角色选择界面传入（0 = 无进阶）。
+func start_new_run(character: StringName, seed_value: int, ascension_level: int = 0) -> void:
 	run = RunState.new()
-	run.start_new_run(character, seed_value)
+	run.start_new_run(character, seed_value, ascension_level)
 
 	map = MapManager.new()
 	var rng := RandomNumberGenerator.new()

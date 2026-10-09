@@ -133,3 +133,38 @@ func test_rebuild_refits_the_scroll_area() -> void:
 
 	assert_eq(panel._scroll.custom_minimum_size.y, 0.0,
 		"rebuild 清空内容后高度应归零——说明它重新量过了")
+
+
+func test_no_ui_string_contains_literal_markdown() -> void:
+	## ★ `add_text` / `add_title` 是**普通 Label**（没有 BBCode），
+	## 所以字符串里的 `**粗体**` 会**原样显示给玩家**。
+	##
+	## 这类错误测试断言不出来、运行也不报错——只有"渲染一帧看一眼"才发现。
+	## 既然只有肉眼能发现，就把它降级成一条源码级守卫：
+	## 扫 `scripts/ui/` 里所有**面向玩家的字符串字面量**，出现 `**` 即失败。
+	##
+	## 排除：注释（`#` 开头的内容）——那些是写给开发者看的，
+	## 本项目到处用 `**` 做强调，不排除会永远红。
+	var offenders: Array[String] = []
+	for path: String in _ui_scripts():
+		var src: String = FileAccess.get_file_as_string(path)
+		for line: String in src.split("\n"):
+			var code: String = line
+			var hash_at: int = code.find("#")
+			if hash_at >= 0:
+				code = code.substr(0, hash_at)
+			if code.contains("**") and (code.contains("\"") or code.contains("'")):
+				offenders.append("%s → %s" % [path.get_file(), code.strip_edges()])
+	assert_eq(offenders.size(), 0,
+		"以下 UI 字符串含 `**`（会原样显示给玩家，改用「」）：\n%s" % "\n".join(offenders))
+
+
+func _ui_scripts() -> Array[String]:
+	var out: Array[String] = []
+	var dir := DirAccess.open("res://scripts/ui")
+	if dir == null:
+		return out
+	for file: String in dir.get_files():
+		if file.ends_with(".gd"):
+			out.append("res://scripts/ui/%s" % file)
+	return out

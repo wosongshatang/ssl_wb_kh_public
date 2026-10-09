@@ -19,6 +19,23 @@ var ending_counts: Dictionary = {}
 var unlocked_cards: Array[StringName] = []
 var unlocked_relics: Array[StringName] = []
 
+## 进阶解锁进度：角色 id → **已解锁的最高进阶等级**（0 = 只有进阶 0）
+##
+## ⚠️ 存的是"最高已解锁"而不是"已通关过的等级集合"：
+## 进阶是**线性累积**的，通关进阶 N 必然意味着 1..N-1 都通关过。
+## 存集合会多出一堆冗余状态，且迟早和真实进度对不上。
+var ascension_unlocked: Dictionary = {}
+
+## ★ 调试开关：打开后**所有角色的全部进阶**立刻可选。
+##
+## 为什么要有它：验证进阶 10 的"无法探知敌人意图"必须**先通关 9 级**，
+## 正常流程下这是几十小时的事。没有开关的话，高进阶效果在开发期
+## 等于**永远不会被跑到**——所有 bug 都会留到玩家手里才出现。
+##
+## ⚠️ 它**不进存档**（[method to_dict] 里没写它）：调试开关一旦被存下来，
+## 下次启动就是"我以为我在玩普通模式，其实全解锁了"，而且**不会报错**。
+var unlock_all_ascension: bool = false
+
 
 func _ready() -> void:
 	load_meta()
@@ -116,6 +133,39 @@ func unlock_relic(relic_id: StringName) -> void:
 	save_meta()
 
 
+# ══ 进阶解锁（阶段 10）══════════════════════════════════════
+
+## 该角色**当前可选**的最高进阶等级。
+##
+## 调试开关打开时直接返回上限——所以 UI 与开局逻辑**只需要读这一个函数**，
+## 不用在每处再判一次开关（那种"每处都记得判"的写法迟早漏一处）。
+func unlocked_ascension_level(character: StringName) -> int:
+	if unlock_all_ascension:
+		return Ascension.MAX_LEVEL
+	return clampi(int(ascension_unlocked.get(String(character), 0)), 0, Ascension.MAX_LEVEL)
+
+
+## 通关某一进阶后调用：解锁下一级。
+##
+## 只做"往高解锁"，**不降级**——重打低进阶不该把进度打回去。
+func record_ascension_clear(character: StringName, cleared_level: int) -> void:
+	if character == &"":
+		return
+	var next: int = clampi(cleared_level + 1, 0, Ascension.MAX_LEVEL)
+	if next <= unlocked_ascension_level(character):
+		return
+	ascension_unlocked[String(character)] = next
+	unlocked.emit("ascension", character)
+	save_meta()
+
+
+## 调试用：一次性开启 / 关闭全部进阶。
+##
+## 关闭时**回到真实进度**（不是清零）——否则调完忘了关会把玩家的解锁记录抹掉。
+func set_unlock_all_ascension(enabled: bool) -> void:
+	unlock_all_ascension = enabled
+
+
 # ══ 存档 ════════════════════════════════════════════════════
 
 func to_dict() -> Dictionary:
@@ -131,9 +181,13 @@ func to_dict() -> Dictionary:
 		# ⚠️ **必须 duplicate()**：直接返回引用的话，
 	# 调用方拿到快照之后一旦 reset()，快照会跟着一起被清空。
 	# 这类别名 bug 不会报错，只会让"我刚存的数据呢"变成玄学。
-	"ending_counts": ending_counts.duplicate(),
+		"ending_counts": ending_counts.duplicate(),
 		"unlocked_cards": cards,
 		"unlocked_relics": relics,
+		# 同样要 duplicate()（理由见上）
+		"ascension_unlocked": ascension_unlocked.duplicate(),
+		# ⚠️ 故意**不存** `unlock_all_ascension`：调试开关被持久化的话，
+		# 下次启动就是"我以为在玩普通模式，其实全解锁了"，且不报错。
 	}
 
 
@@ -146,6 +200,10 @@ func from_dict(data: Dictionary) -> void:
 		unlocked_cards.append(StringName(str(raw)))
 	for raw: Variant in (data.get("unlocked_relics", []) as Array):
 		unlocked_relics.append(StringName(str(raw)))
+
+	# 老存档没有这个键 → 空字典 → 所有角色只有进阶 0。**这是对的**：
+	# 不能"猜"玩家解锁过什么，猜错等于白送难度。
+	ascension_unlocked = (data.get("ascension_unlocked", {}) as Dictionary).duplicate()
 
 
 func save_meta() -> void:
@@ -182,4 +240,7 @@ func reset() -> void:
 	ending_counts.clear()
 	unlocked_cards.clear()
 	unlocked_relics.clear()
+	ascension_unlocked.clear()
+	# 调试开关也一起关掉——"重置"却留着全解锁是最容易让人懵的状态
+	unlock_all_ascension = false
 	save_meta()

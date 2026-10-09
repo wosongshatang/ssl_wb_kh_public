@@ -26,7 +26,7 @@ const ICON_PX: int = 40
 
 func _build_content() -> void:
 	add_title(_title)
-	add_text("规则一旦刻入灵魂，便**不可撤销、不可重选**。请慎重。")
+	add_text("规则一旦刻入灵魂，便「不可撤销、不可重选」。请慎重。")
 	add_separator()
 
 	if _jobs.is_empty():

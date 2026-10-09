@@ -31,6 +31,9 @@ func _on_back_pressed() -> void:
 	var run: RunState = GameState.run
 	if run != null and run.victory:
 		MetaState.record_ending(GameState.resolve_ending())
+		# 进阶解锁（阶段 10）：通关当前进阶 → 解锁下一级。
+		# 顺序在 record_ending 之后、reset_run 之前——同样因为 reset 会清掉等级。
+		MetaState.record_ascension_clear(run.character_class, run.ascension)
 
 	# 本局已结束（存档在结算时已删除），清掉状态免得标题页读到半截数据
 	GameState.reset_run()

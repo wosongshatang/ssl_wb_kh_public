@@ -76,3 +76,49 @@ static func effect_text(effect: Effect, value: int) -> String:
 			return "窃取一件神格遗物（强力，但会大幅增加神性）"
 		_:
 			return "什么也不会发生"
+
+
+## 进阶 3：把事件的**负面**数值按倍率放大。
+##
+## ## 为什么放在这里（而不是 Ascension 或 MapScene）
+##   · 放 `Ascension` → `core/` 要依赖 `map/` 的 `EventData.Effect`，方向反了
+##   · 放 `MapScene`  → 那是场景根脚本（无 `class_name`），测试只能靠
+##     `Variant` 动态派发去调，而本项目**把"类型从 Variant 推断"的警告当错误**
+##   · 放这里 → 与 [method effect_text] 相邻，"哪些效果算负面"和
+##     "这些效果怎么描述"在同一处，改一个不容易忘了另一个
+##
+## ## 只放大"确定是坏事"的方向
+## | 效果 | 什么时候算负面 |
+## |---|---|
+## | `DAMAGE` | `value > 0`（正数 = 扣血） |
+## | `GOLD` | `value < 0`（负数 = 扣钱） |
+## | `MAX_HP` | `value < 0`（负数 = 削上限） |
+## | `ADD_CURSE_CARD` | 恒负面（`value` = 张数，0 视作 1） |
+##
+## 其余一律原样返回。特别是：
+##   · `HEAL` / `GOLD > 0` / `ADD_*` 是**奖励**——放大它们等于让进阶变成福利
+##   · `REMOVE_CARD` **不缩放**：删牌在多数构筑里是**好事**（精简牌组），
+##     把它当负面放大反而会帮玩家；而且它随机删，"一次删 2 张"会变成
+##     纯赌博而不是决策
+static func ascend_value(effect: Effect, value: int, multiplier: float) -> int:
+	if multiplier <= 1.0:
+		return value
+	match effect:
+		Effect.DAMAGE:
+			if value <= 0:
+				return value
+			return int(ceil(float(value) * multiplier))
+		Effect.GOLD:
+			if value >= 0:
+				return value
+			return -int(ceil(float(-value) * multiplier))
+		Effect.MAX_HP:
+			if value >= 0:
+				return value
+			return -int(ceil(float(-value) * multiplier))
+		Effect.ADD_CURSE_CARD:
+			# 老数据里 value 是 0（视作 1 张）→ 先抬到 1 再放大，
+			# 否则 0 乘任何数都是 0，这条进阶对老事件完全失效。
+			return int(ceil(float(maxi(1, value)) * multiplier))
+		_:
+			return value

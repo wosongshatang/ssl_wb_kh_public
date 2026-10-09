@@ -27,6 +27,11 @@ var rng_seed: int = 0
 ## 永久力量加成（神坛献祭的产物）。每场战斗开始时作为开场 Power 施加。
 var bonus_strength: int = 0
 
+## 本局的**进阶等级**（0 = 无进阶）。见 [Ascension]。
+##
+## ⚠️ 效果判定一律走 [method has_ascension]，**不要**在别处写 `ascension >= 4`：
+## 等级数字改了调用点会静默失配，而读代码时也看不出那一行在管什么。
+var ascension: int = 0
 var is_over: bool = false
 var victory: bool = false
 
@@ -49,12 +54,23 @@ var pending_reward: Dictionary = {}
 const UPGRADE_SUFFIX: String = "+"
 
 
-func start_new_run(character: StringName, seed_value: int) -> void:
+## 开一局新游戏。
+##
+## `ascension_level` 默认 0（无进阶）——**保持默认值是有意的**：
+## 测试与调试路径不该被迫关心进阶，否则每加一条进阶效果都要改几十处调用。
+## 真实入口（角色选择）显式传玩家选的等级。
+func start_new_run(character: StringName, seed_value: int, ascension_level: int = 0) -> void:
 	character_class = character
 	rng_seed = seed_value
+	ascension = clampi(ascension_level, 0, Ascension.MAX_LEVEL)
 	current_act = 1
 	current_node_id = -1
 	max_hp = DEFAULT_MAX_HP
+	# 进阶 6：初始最大生命扣减。
+	# ⚠️ 在 `hp = max_hp` **之前**扣——反过来写会让开局血量高于上限，
+	# 表现成"选了进阶反而更肉"，而且不报错。
+	if has_ascension(&"lower_start_hp"):
+		max_hp = maxi(1, max_hp - Ascension.START_HP_PENALTY)
 	hp = max_hp
 	gold = STARTING_GOLD
 	deck_card_ids = _starting_deck_for(character)
@@ -66,6 +82,13 @@ func start_new_run(character: StringName, seed_value: int) -> void:
 	in_battle = false
 	pending_reward = {}
 	bonus_strength = 0
+
+
+## 本局是否包含某条进阶效果（累积判定）。
+##
+## 所有进阶调用点都走这里，**不要在别处写 `ascension >= N`**。
+func has_ascension(effect: StringName) -> bool:
+	return Ascension.has(ascension, effect)
 
 
 ## 阶段 4 只有战士；猎人 / 法师的初始牌组在阶段 5 接入
@@ -343,6 +366,7 @@ func to_dict() -> Dictionary:
 		"victory": victory,
 		"in_battle": in_battle,
 		"bonus_strength": bonus_strength,
+		"ascension": ascension,
 		"pending_reward": pending_reward,
 	}
 
@@ -359,6 +383,9 @@ func from_dict(data: Dictionary) -> void:
 	victory = bool(data.get("victory", false))
 	in_battle = bool(data.get("in_battle", false))
 	bonus_strength = int(data.get("bonus_strength", 0))
+	# 读档时钳一下：手改存档塞个 999 进来，`Ascension.has` 仍然只认表里的等级，
+	# 但 `level_name` 会显示"进阶 999"这种离谱东西。
+	ascension = clampi(int(data.get("ascension", 0)), 0, Ascension.MAX_LEVEL)
 	pending_reward = data.get("pending_reward", {}) as Dictionary
 
 	deck_card_ids.clear()

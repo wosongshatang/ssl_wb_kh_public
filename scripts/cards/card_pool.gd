@@ -33,10 +33,36 @@ var _rng: RandomNumberGenerator
 ## 只抽这个角色的牌。空串 = 不过滤（调试 / 测试用）。
 var character: StringName = &""
 
+## 进阶 2：稀有度下移。打开后稀有 / 史诗的抽取权重被削减。
+##
+## ⚠️ 这里**不读 GameState**：`cards/` 与 `core/` 保持单向依赖，
+## 由调用方（战斗场景）按当前进阶等级决定要不要打开。
+## 好处是 CardPool 仍能在没有 RunState 的测试里单独构造。
+var rarity_shift: bool = false
 
-func _init(rng: RandomNumberGenerator = null, p_character: StringName = &"") -> void:
+## 削减系数（1.0 = 不削）。由 [method for_run] 按进阶等级填。
+var rarity_weight_multiplier: float = 1.0
+
+
+func _init(rng: RandomNumberGenerator = null, p_character: StringName = &"",
+		p_rarity_shift: bool = false, p_rarity_multiplier: float = 1.0) -> void:
 	_rng = rng if rng != null else RandomNumberGenerator.new()
 	character = p_character
+	rarity_shift = p_rarity_shift
+	rarity_weight_multiplier = p_rarity_multiplier
+
+
+## 按当前局的进阶状态构造卡池 —— **奖励类抽取的唯一入口**。
+##
+## 存在的理由：进阶 2 的"稀有度下移"如果靠每个调用点自己判，
+## 迟早有一处忘了判（表现成"某个来源的奖励不受进阶影响"），
+## 而且**不报错**。收在一个函数里就没有"忘了"这个可能。
+static func for_run(rng: RandomNumberGenerator, run: RunState) -> CardPool:
+	if run == null:
+		return CardPool.new(rng)
+	return CardPool.new(rng, run.character_class,
+		run.has_ascension(&"worse_card_rarity"),
+		Ascension.rarity_weight_multiplier(run.ascension))
 
 
 ## 某张牌是否属于该角色。
@@ -107,8 +133,22 @@ func _pick_weighted(candidates: Array[CardData]) -> CardData:
 
 
 ## 某张牌的抽取权重（公开：UI 展示掉率、平衡调参都要用）
+##
+## 进阶 2 打开时，**稀有度高于白色**的档位权重乘以 `rarity_weight_multiplier`。
+## 白色是地板，不再削——否则高进阶会变成"全是灰牌"，那不是变难是变没得选。
+##
+## ⚠️⚠️ 判"是不是高于白色"必须比**稀有度枚举**，不能比**权重**。
+## 白色的权重（50）本来就是全表最高的，拿权重当稀有度比的话
+## `15 <= 50` 成立 → 蓝卡会被当成"已在地板上"而**完全不被削**，
+## 表现成"进阶 2 开了但奖励一点没变差"，且不报错。（第一版就是这么写的，被测试抓到。）
 func weight_of(card: CardData) -> int:
-	return int(REWARD_WEIGHTS.get(card.rarity, 0))
+	var base: int = int(REWARD_WEIGHTS.get(card.rarity, 0))
+	if not rarity_shift or base <= 0:
+		return base
+	if card.rarity <= CardData.Rarity.COMMON:
+		return base
+	# 下界是 **1**：削到 0 会让这一档永远抽不到，等于把内容删了。
+	return maxi(1, int(round(float(base) * rarity_weight_multiplier)))
 
 
 ## 卡牌价值（商店定价用）。稀有度越高越贵。

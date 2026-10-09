@@ -55,9 +55,9 @@ func _on_new_game_pressed() -> void:
 	_select_panel.closed.connect(_close_select)
 
 
-func _on_character_chosen(character: StringName) -> void:
+func _on_character_chosen(character: StringName, ascension_level: int) -> void:
 	_close_select()
-	GameState.start_new_run(character, randi())
+	GameState.start_new_run(character, randi(), ascension_level)
 	get_tree().change_scene_to_file("res://scenes/map/map.tscn")
 
 

@@ -220,6 +220,9 @@ func _start_battle() -> void:
 
 	var enemy_view := CombatActorView.new()
 	enemy_view.is_player_side = false
+	# 进阶 10：无法探知敌人意图。在**建视图时**就设好，
+	# 而不是等第一次 `_refresh_intents()`——否则开局那一帧会闪出真实意图。
+	enemy_view.hide_intent = _run.has_ascension(&"hidden_intents")
 	enemy_view.card_dropped_on_actor.connect(_on_card_dropped)
 	enemy_view.potion_dropped_on_actor.connect(_on_potion_dropped)
 	enemy_view.status_pressed.connect(_on_status_pressed)
@@ -276,7 +279,7 @@ func _build_enemy_data() -> EnemyData:
 	var enemy_id := _node_enemy_id()
 	var loaded: Variant = ContentRegistry.get_enemy(enemy_id)
 	if loaded is EnemyData:
-		return loaded as EnemyData
+		return _apply_ascension_to_enemy(loaded as EnemyData)
 
 	push_warning("BattleScene: 找不到敌人配置「%s」，使用兜底敌人" % enemy_id)
 	var data := EnemyData.new()
@@ -286,6 +289,15 @@ func _build_enemy_data() -> EnemyData:
 	var intents: Array[IntentData] = [IntentData.make_attack(7)]
 	data.intents = intents
 	return data
+
+
+## 进阶 4 / 8 / 9：按敌人类型提升生命。
+##
+## ⚠️ 换算是 [method Ascension.scale_enemy_hp] 的职责（含**必须 duplicate()**
+## 这条约束——它返回的是副本，直接改原对象会让加成写回 ContentRegistry 的缓存、
+## 每场战斗累积一次且不报错）。这里只负责把等级传进去。
+func _apply_ascension_to_enemy(base: EnemyData) -> EnemyData:
+	return Ascension.scale_enemy_hp(base, _run.ascension)
 
 
 func _node_enemy_id() -> StringName:
@@ -820,7 +832,7 @@ func _go_to_reward(gold: int) -> void:
 	bundle.gold = gold + _battle.bonus_gold
 	bundle.potion_id = _roll_potion_drop()
 	bundle.relic_id = _roll_relic_drop()
-	for card: CardData in CardPool.new(RandomNumberGenerator.new(), _run.character_class).roll():
+	for card: CardData in CardPool.for_run(RandomNumberGenerator.new(), _run).roll():
 		bundle.card_offer_ids.append(card.id)
 
 	# 奖励写进 RunState（随存档持久化）——在结算界面退出游戏也不该丢奖励
@@ -844,13 +856,18 @@ func _roll_relic_drop() -> StringName:
 
 
 func _gold_reward() -> int:
+	var base: int = 0
 	match _node_kind:
 		MapNode.Kind.ELITE:
-			return GOLD_REWARD_ELITE
+			base = GOLD_REWARD_ELITE
 		MapNode.Kind.BOSS:
-			return 0
+			base = 0
 		_:
-			return GOLD_REWARD_COMBAT
+			base = GOLD_REWARD_COMBAT
+	# 进阶 1：每场战斗金币 −10（换算与钳位都在 Ascension 里）。
+	# Boss 战基础奖励本来就是 0，所以这条对它无效，这是有意的：
+	# Boss 的奖励在转职仪式，不在金币。
+	return Ascension.gold_reward(_run.ascension, base)
 
 
 func _roll_potion_drop() -> StringName:

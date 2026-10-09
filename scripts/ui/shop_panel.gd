@@ -33,22 +33,37 @@ var _potion_offers: Array[PotionData] = []
 var _relic_offers: Array[StringName] = []
 var _confirm: ConfirmPanel = null
 
+## 进阶 5：价格倍率（1.0 = 原价）。由 MapScene 按当前进阶等级注入。
+##
+## ⚠️ **必须是面板自己的字段，不能改成让面板去读 GameState**：
+## 价格在**展示**和**成交**两处都要用到，只有收在同一个乘数上，
+## "看到 100 金币"和"真的扣 100"才不可能对不上。
+## （结算走的是信号里带过去的 price，所以这里改一处就够。）
+var _price_markup: float = 1.0
+
 
 func setup(
 	gold: int,
 	offers: Array[CardData],
 	deck: Array[CardData],
 	potion_offers: Array[PotionData] = [],
-	relic_offers: Array[StringName] = []
+	relic_offers: Array[StringName] = [],
+	price_markup: float = 1.0
 ) -> void:
 	_gold = gold
 	_offers = offers
 	_deck = deck
 	_potion_offers = potion_offers
 	_relic_offers = relic_offers
+	_price_markup = maxf(0.0, price_markup)
 	_mode = Mode.OFFERS
 	frame_min_width = 820
 	rebuild_content()
+
+
+## 把基础价按进阶倍率放大。**所有展示与成交价都必须过这个函数**。
+func _marked_price(base: int) -> int:
+	return maxi(1, int(round(float(base) * _price_markup)))
 
 
 func _build_content() -> void:
@@ -70,7 +85,7 @@ func _build_offers() -> void:
 	# ⚠️ 「删牌 / 离开」必须放**固定页脚**，不能放内容区。
 	# 用户反馈：商店内容一多（卡牌 + 药水 + 遗物）就把这两个按钮挤出屏幕，
 	# 玩家**进得去出不来**。退出路径永远不能被内容挤掉。
-	add_footer_button("删除一张牌（%d 金币）" % REMOVAL_PRICE, _on_open_removal_pressed)
+	add_footer_button("删除一张牌（%d 金币）" % _marked_price(REMOVAL_PRICE), _on_open_removal_pressed)
 	add_footer_button("离开商店", func() -> void: closed.emit(), true)
 
 
@@ -92,7 +107,7 @@ func _build_card_shelf() -> void:
 
 
 func _make_card_slot(card: CardData) -> VBoxContainer:
-	var price: int = CardPool.price_of(card)
+	var price: int = _marked_price(CardPool.price_of(card))
 	var affordable: bool = price <= _gold
 
 	var slot := VBoxContainer.new()
@@ -145,7 +160,7 @@ func _build_consumable_shelf() -> void:
 
 
 func _make_potion_slot(potion: PotionData) -> VBoxContainer:
-	var price: int = potion_price_of(potion)
+	var price: int = _marked_price(potion_price_of(potion))
 	var affordable: bool = price <= _gold
 
 	var slot := VBoxContainer.new()
@@ -171,7 +186,7 @@ func _make_relic_slot(relic_id: StringName) -> VBoxContainer:
 		return null
 
 	var relic := loaded as RelicData
-	var price: int = RelicFactory.price_of(relic_id)
+	var price: int = _marked_price(RelicFactory.price_of(relic_id))
 	var affordable: bool = price <= _gold
 
 	var slot := VBoxContainer.new()
@@ -240,7 +255,7 @@ func _make_info_block(
 # ══ 删牌页 ══════════════════════════════════════════════════
 
 func _build_removal() -> void:
-	add_title("选择要移除的牌（%d 金币）" % REMOVAL_PRICE)
+	add_title("选择要移除的牌（%d 金币）" % _marked_price(REMOVAL_PRICE))
 
 	if _deck.is_empty():
 		add_text("（牌组为空）")
@@ -290,7 +305,7 @@ func _on_buy_relic_pressed(relic_id: StringName, price: int) -> void:
 
 
 func _on_open_removal_pressed() -> void:
-	if _gold < REMOVAL_PRICE:
+	if _gold < _marked_price(REMOVAL_PRICE):
 		return
 	_mode = Mode.REMOVAL
 	rebuild_content()
@@ -306,7 +321,7 @@ func _on_back_to_offers_pressed() -> void:
 ## 删牌不可逆，而玩家常常是"随便点点看"——没有确认的话，
 ## 一次误触就永久少一张牌，而牌组是一局的核心资产。
 func _on_remove_pressed(card_id: StringName) -> void:
-	if _gold < REMOVAL_PRICE:
+	if _gold < _marked_price(REMOVAL_PRICE):
 		return
 	if _confirm != null:
 		return
@@ -325,7 +340,7 @@ func _on_remove_pressed(card_id: StringName) -> void:
 
 func _on_remove_confirmed(card_id: StringName) -> void:
 	_close_confirm()
-	removal_requested.emit(card_id, REMOVAL_PRICE)
+	removal_requested.emit(card_id, _marked_price(REMOVAL_PRICE))
 
 
 func _close_confirm() -> void:

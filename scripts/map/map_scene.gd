@@ -4,7 +4,6 @@ extends Node
 ## 把 GameState 里的单局状态 + 地图，翻译成 [MapView] 的展示与交互。
 ## 节点类型分派、商店与事件的**结算**都在这里——UI 只负责「玩家点了哪个按钮」。
 
-const REST_HEAL_RATIO: float = 0.3
 ## 把「种子 + 节点」映射成稳定的随机源，避免同一节点每次进都刷新商品
 const NODE_SEED_STRIDE: int = 7919
 
@@ -184,11 +183,22 @@ func _persist_and_refresh(result: String = "", save: bool = true) -> void:
 
 # ── 休息点 ──────────────────────────────────────────────────
 
+## 休息点回血量。**展示与结算共用这一个函数**。
+##
+## ⚠️ 之前这里和 `_on_rest_chosen()` 各写了一遍同样的算式——
+## 两处独立演算意味着改一处就会让"面板说回 9 点、实际回 6 点"，
+## 而且不报错。进阶 7 又给这条算式加了一层乘法，重复写必错。
+func _rest_heal_amount() -> int:
+	var amount: float = float(_run.max_hp) * RestChoicePanel.HEAL_RATIO
+	amount *= Ascension.rest_heal_multiplier(_run.ascension)
+	return int(ceil(amount))
+
+
 func _open_rest() -> void:
 	if _overlay != null:
 		return
 
-	var heal_amount: int = int(ceil(float(_run.max_hp) * RestChoicePanel.HEAL_RATIO))
+	var heal_amount: int = _rest_heal_amount()
 	var panel := RestChoicePanel.new()
 	_overlay = panel
 	add_child(panel)
@@ -200,7 +210,7 @@ func _open_rest() -> void:
 
 func _on_rest_chosen() -> void:
 	_close_overlay()
-	var healed: int = int(ceil(float(_run.max_hp) * RestChoicePanel.HEAL_RATIO))
+	var healed: int = _rest_heal_amount()
 	_run.heal(healed)
 	_persist_and_refresh("休息：回复 %d 点生命。" % healed, false)
 
@@ -389,6 +399,9 @@ func _use_potion_on_self(slot_index: int) -> void:
 # ── 商店 ────────────────────────────────────────────────────
 
 func _open_shop() -> void:
+	# ⚠️ 商店**不走** `CardPool.for_run()`：进阶 2 只削「战斗卡牌奖励」的稀有度。
+	# 这是有意的——战斗奖励变差、但攒钱仍能在商店买到好牌，
+	# 玩家就有了"打得丑但活得久"的应对路线。全来源一起削会让进阶变成纯粹的数值墙。
 	var pool := CardPool.new(_rng, _run.character_class)
 	_shop_offers = pool.roll(CardPool.SHOP_OFFER_COUNT)
 	_potion_offers = _roll_potion_offers(2)
@@ -427,7 +440,10 @@ func _show_shop() -> void:
 	_close_shop()
 	_shop_panel = ShopPanel.new()
 	_overlay = _shop_panel
-	_shop_panel.setup(_run.gold, _shop_offers, _run.build_deck(), _potion_offers, _relic_offers)
+	# 进阶 5：价格加成。倍率**只在这一处算**，面板拿去做展示 + 成交，
+	# 所以不可能出现"标价和扣款不一致"。
+	_shop_panel.setup(_run.gold, _shop_offers, _run.build_deck(),
+		_potion_offers, _relic_offers, Ascension.shop_price_markup(_run.ascension))
 	_shop_panel.purchase_requested.connect(_on_purchase_requested)
 	_shop_panel.removal_requested.connect(_on_removal_requested)
 	_shop_panel.potion_purchase_requested.connect(_on_potion_purchase_requested)
@@ -588,9 +604,20 @@ func _on_event_option_chosen(index: int) -> void:
 	_persist_and_refresh("", false)
 
 
+## 进阶 3：事件负面数值的放大 —— 换算在 [method EventData.ascend_value]，
+## 这里只负责把当前等级翻译成倍率。
+func _ascend_event_value(effect: EventData.Effect, value: int) -> int:
+	return EventData.ascend_value(
+		effect, value, Ascension.event_penalty_multiplier(_run.ascension))
+
+
 ## 效果结算。**必须与 [method EventData.effect_text] 的描述一致**——
 ## 玩家看到「回复 10 点生命」就必须真的回 10 点，这类撕裂最伤信任。
 func _apply_effect(effect: EventData.Effect, value: int) -> String:
+	# 进阶 3：**先缩放，再结算 + 再拼文案**。
+	# 顺序反了（先拼文案、后缩放）会变成"显示失去 5 点、实际掉 8 点"，
+	# 正是上面那句纪律要防的事。
+	value = _ascend_event_value(effect, value)
 	match effect:
 		EventData.Effect.HEAL:
 			_run.heal(value)
@@ -650,9 +677,15 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 			var curse_pool: Array[CardData] = ContentRegistry.curse_cards()
 			if curse_pool.is_empty():
 				return "没有可获得的诅咒卡"
-			var curse: CardData = curse_pool[_rng.randi_range(0, curse_pool.size() - 1)]
-			_run.add_card(curse.id)
-			return "获得诅咒「%s」" % curse.display_name
+			# `value` 是**诅咒张数**（老数据里是 0 → 视作 1 张）。
+			# 进阶 3 已经在 `_ascend_event_value` 里把它放大过了。
+			var count: int = maxi(1, value)
+			var names: Array[String] = []
+			for _i: int in count:
+				var curse: CardData = curse_pool[_rng.randi_range(0, curse_pool.size() - 1)]
+				_run.add_card(curse.id)
+				names.append(curse.display_name)
+			return "获得诅咒「%s」" % "、".join(names)
 
 		EventData.Effect.ADD_RELIC:
 			var relic_pool: Array[StringName] = RelicFactory.droppable_ids(_run.relics)

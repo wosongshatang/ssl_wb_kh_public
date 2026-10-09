@@ -135,6 +135,17 @@ func _build_intent_box() -> void:
 	_intent_box.add_child(_intent_label)
 
 
+## 进阶 10：隐藏敌人意图。
+##
+## 由战斗场景按当前进阶等级注入（UI 不自己读 GameState —— 与 ShopPanel 同款理由）。
+##
+## ⚠️⚠️ **必须连图标和颜色一起遮**，只换文字等于没做：
+## `intent.icon_text()` 是 ⚔/◈/▲/▼、`intent.color()` 是红/蓝/绿/紫，
+## 两者都**一一对应**意图类型。只把"攻击 12"改成"？"的话，
+## 玩家看颜色就知道该格挡还是该挨打——功能看起来实现了，实际泄露 100% 信息。
+var hide_intent: bool = false
+
+
 ## 更新意图显示。传 null 表示"没有意图"（玩家 / 已死亡 / 无意图敌人）。
 func set_intent(intent: IntentData) -> void:
 	if _intent_box == null:
@@ -145,12 +156,23 @@ func set_intent(intent: IntentData) -> void:
 		return
 
 	_intent_box.visible = true
+
+	if hide_intent:
+		# 中性图标 + 中性颜色：不泄露"攻击 / 防御 / 强化 / 弱化"任何一档
+		_intent_label.text = "？ 未知"
+		_intent_label.add_theme_color_override("font_color", UiPalette.TEXT_DIM)
+		_apply_intent_style(UiPalette.BORDER_DIM)
+		return
+
 	_intent_label.text = "%s %s" % [intent.icon_text(), intent.display_text()]
 	_intent_label.add_theme_color_override("font_color", intent.color())
+	_apply_intent_style(intent.color())
 
+
+func _apply_intent_style(accent: Color) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.06, 0.08, 0.92)
-	style.border_color = intent.color()
+	style.border_color = accent
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(5)
 	style.content_margin_left = 8
@@ -158,6 +180,15 @@ func set_intent(intent: IntentData) -> void:
 	style.content_margin_top = 4
 	style.content_margin_bottom = 4
 	_intent_box.add_theme_stylebox_override("panel", style)
+
+
+## 当前**实际显示**的意图文字。供测试断言"隐藏时确实没泄露"。
+##
+## 有这个访问器的理由：进阶 10 的正确性只有"渲染出来是什么"能证明，
+## 断言 `hide_intent == true` 是断言**意图**，不是断言**结果**——
+## 完全可能字段设了、标签却还是真实文字（那就等于没做）。
+func intent_text() -> String:
+	return _intent_label.text if _intent_label != null else ""
 
 
 ## 绑定战斗单位并订阅其信号

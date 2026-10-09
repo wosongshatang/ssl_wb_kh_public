@@ -23,6 +23,9 @@ extends SceneTree
 var _character: StringName = &"warrior"
 var _act: int = 1
 var _out_path: String = "user://shot.png"
+## 进阶等级（0 = 无进阶）。用来验证"进阶 10 隐藏敌人意图"这类
+## 只在界面上体现、断言测不出来的效果。
+var _ascension: int = 0
 var _frames: int = 0
 ## 初始化只在第一帧做——`_initialize()` 时场景树还没进入活动状态，
 ## 用绝对路径 `get_node("/root/...")` 会报
@@ -38,6 +41,8 @@ func _initialize() -> void:
 		_act = int(args[1])
 	if args.size() >= 3:
 		_out_path = args[2]
+	if args.size() >= 4:
+		_ascension = int(args[3])
 
 
 func _boot() -> void:
@@ -53,7 +58,7 @@ func _boot() -> void:
 		push_error("找不到 GameState Autoload")
 		quit(1)
 		return
-	game_state.call("start_new_run", _character, 12345)
+	game_state.call("start_new_run", _character, 12345, _ascension)
 	# 直接跳到目标幕——背景是按 (角色, 幕) 查表的，只测第 1 幕覆盖不到另外两张图
 	var run: Variant = game_state.get("run")
 	if run != null and _act > 1:
