@@ -70,6 +70,14 @@ func positioned_node_count() -> int:
 	return _positions.size()
 
 
+## 当前**可前往**的节点数。
+##
+## 玩家打开只读地图（战斗中 / 结算时）的唯一目的就是看这个——
+## 坐标算对了但"可前往"标记丢了的话，地图看起来是好的，实际没用。
+func available_node_count() -> int:
+	return _available.size()
+
+
 func node_position(node_id: int) -> Vector2:
 	return _positions.get(node_id, Vector2.ZERO)
 

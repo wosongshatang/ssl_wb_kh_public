@@ -24,6 +24,61 @@ func _settle() -> void:
 
 # ══ ★ 回归：内容区不能塌缩 ══════════════════════════════════
 
+func test_panel_fills_the_viewport() -> void:
+	## ★★ 回归（用户报告「战斗中无法查看地图」的根因之一）。
+	##
+	## `set_anchors_preset(PRESET_FULL_RECT)` 在**父节点是普通 `Node`**
+	## （场景根就是）时算不出可用区域 → `size` 永远停在 **(0,0)**。
+	##
+	## 后果不是"面板不见了"，而是一串更隐蔽的错位：
+	## `CenterContainer` 把 0×0 当成可居中区域 → 面板被摆到**以原点为中心**
+	## → 整体偏到左上角、**左边和顶部被切掉**。
+	##
+	## 而且**不报任何错**——只有渲染一帧才看得出来。
+	var panel := _make_panel()
+	await _settle()
+
+	assert_gt(panel.size.x, 1.0,
+		"面板宽度为 0：弹层不会居中，且会被裁在屏幕左上角")
+	assert_gt(panel.size.y, 1.0, "面板高度为 0")
+	assert_eq(panel.size, get_viewport().get_visible_rect().size,
+		"面板必须铺满视口（父节点是普通 Node，只能显式取视口尺寸）")
+
+
+func test_dimmer_fills_the_panel() -> void:
+	## 遮罩层是"弹层盖住了游戏"的**唯一视觉证据**。
+	## 它是 `ColorRect` + FULL_RECT，父面板是 0×0 时它也是 0×0 → 完全看不见，
+	## 表现成"弹层没打开"（其实框架在，只是被裁到了屏幕外）。
+	var panel := _make_panel()
+	await _settle()
+
+	var dimmer := panel.get_child(0) as Control
+	assert_ne(dimmer, null, "面板第一个子节点应该是遮罩层")
+	assert_gt(dimmer.size.x, 1.0, "遮罩层宽度为 0（看起来像弹层没打开）")
+	assert_gt(dimmer.size.y, 1.0, "遮罩层高度为 0")
+
+
+func test_content_added_after_ready_is_measured() -> void:
+	## ★★ 回归（同一个用户报告的**根因之二**）。
+	##
+	## 典型写法是「先 `add_child(panel)`，再往 `content_box` 里塞内容」——
+	## 战斗里的只读地图就是这么加的。
+	## 此时 `_ready()` 里的 `_fit_scroll()` 量到的是**空内容**，
+	## 滚动区高度停在 0 → 弹层框架与遮罩都正常，**里面什么都没有**。
+	var panel := _make_panel()
+	await _settle()
+	assert_eq(panel._scroll.custom_minimum_size.y, 0.0,
+		"前提：面板刚建好、还没内容时，内容区高度应为 0")
+
+	var block := Control.new()
+	block.custom_minimum_size = Vector2(100, 200)
+	panel.content_box.add_child(block)
+	await _settle()
+
+	assert_gt(panel._scroll.custom_minimum_size.y, 1.0,
+		"`_ready()` 之后加进来的内容也必须被重新量到，否则弹层里什么都看不见")
+
+
 func test_content_area_has_height() -> void:
 	## ⚠️ 回归：`ScrollContainer` 用 EXPAND_FILL 塞进自适应容器里会**塌缩成 0 高度**。
 	## `PanelContainer` 高度由内容撑开，而 ScrollContainer 最小高度是 0——
@@ -168,3 +223,61 @@ func _ui_scripts() -> Array[String]:
 		if file.ends_with(".gd"):
 			out.append("res://scripts/ui/%s" % file)
 	return out
+
+
+# ══ 集成：战斗中查看地图（用户报告）════════════════════════
+
+const BATTLE_SCENE_SCRIPT := preload("res://scripts/battle/battle_scene.gd")
+
+
+func test_battle_map_overlay_shows_the_upcoming_nodes() -> void:
+	## ★★ 用户报告：「战斗中无法查看地图接下来的节点」。
+	##
+	## 根因在基类（见上面三条回归），但这条从**用户视角**再钉一遍：
+	## 打开弹层 → 里面真的有一张地图 → 坐标算出来了 → 而且标出了"接下来能去哪"。
+	##
+	## 只测基类是不够的：那样"战斗场景忘了接线"仍然会漏过。
+	ContentRegistry.load_all()
+	GameState.start_new_run(&"warrior", 20261009)
+	var scene: Variant = BATTLE_SCENE_SCRIPT.new()
+	add_child_autofree(scene)
+
+	scene.call("_open_map_overlay")
+	await _settle()
+
+	var overlay: Variant = scene.get("_overlay")
+	assert_ne(overlay, null, "战斗中必须能打开地图弹层")
+
+	var map_view: MapView = _find_map_view(overlay as Node)
+	assert_ne(map_view, null, "弹层里必须真的有一张地图")
+	assert_gt(map_view.positioned_node_count(), 0,
+		"地图必须算出节点坐标——否则渲染出来是空白")
+	assert_gt(map_view.available_node_count(), 0,
+		"地图必须标出接下来可去的节点——这是玩家打开它的唯一目的")
+
+	GameState.reset_run()
+
+
+func test_battle_map_overlay_does_not_stack() -> void:
+	## 连点两次不该叠出两个弹层（第二个会被忽略）。
+	ContentRegistry.load_all()
+	GameState.start_new_run(&"warrior", 20261009)
+	var scene: Variant = BATTLE_SCENE_SCRIPT.new()
+	add_child_autofree(scene)
+
+	scene.call("_open_map_overlay")
+	var first: Variant = scene.get("_overlay")
+	scene.call("_open_map_overlay")
+	assert_same(scene.get("_overlay"), first, "重复点击不该叠出第二个弹层")
+
+	GameState.reset_run()
+
+
+func _find_map_view(node: Node) -> MapView:
+	if node is MapView:
+		return node as MapView
+	for child: Node in node.get_children():
+		var found: MapView = _find_map_view(child)
+		if found != null:
+			return found
+	return null

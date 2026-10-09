@@ -68,8 +68,10 @@ func _boot() -> void:
 	var panel: Control = script.new() as Control
 	panel.call("setup")
 	root.add_child(panel)
-	# OverlayPanel 是铺满全屏的遮罩 + 居中卡片，给足尺寸才能看到完整布局
-	panel.size = Vector2(1280, 720)
+	# ⚠️ **不要**在这里手动设 `panel.size`。
+	# 面板的尺寸由 `OverlayPanel._sync_to_viewport()` 负责；
+	# 工具替它设一次，就会把"面板尺寸算错导致不居中/被裁"这类回归**盖住**——
+	# 而工具存在的意义恰恰是抓这类"只有渲染才看得见"的问题。
 
 	# 把每个角色的选择器拨到指定等级——**这一步才是这个工具的重点**：
 	# 进阶 10 的说明文字有 10 行，卡片高度是固定的，

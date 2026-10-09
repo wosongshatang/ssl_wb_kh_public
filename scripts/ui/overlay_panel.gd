@@ -22,12 +22,33 @@ var _scroll: ScrollContainer = null
 var frame_min_width: int = CARD_MIN_WIDTH
 
 
+## ⚠️⚠️ **不能只靠 `set_anchors_preset(PRESET_FULL_RECT)` 撑满。**
+##
+## 本面板的父节点是**场景根**，而场景根是**普通 `Node`（不是 `Control`）**。
+## 普通 Node 没有"父区域"概念，锚点算出来的可用矩形是 **0×0**，
+## 于是本面板的 `size` 永远停在 (0,0)（锚点值是对的，尺寸却是 0）。
+##
+## 后果不是"面板不见了"，而是**更隐蔽的一串错位**：
+##   · `CenterContainer` 把 0×0 当成可居中区域 → 卡片以**原点为中心**摆放
+##     → 面板整体偏到左上角、**左侧和顶部被切掉**
+##   · `dimmer`（ColorRect + FULL_RECT）在 0×0 里也是 0×0 → **遮罩层完全看不见**
+##
+## 而且**不报任何错**——`battle_background.gd` 踩过同一个坑并写了注释，
+## 这里当时没照着做。
+##
+## 正解是**显式取视口尺寸**（与 `BattleBackground` / `MapView` 同一套做法），
+## 并跟随视口变化（窗口缩放时面板要跟着变大）。
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_sync_to_viewport()
+	var vp := get_viewport()
+	if vp != null and not vp.size_changed.is_connected(_sync_to_viewport):
+		vp.size_changed.connect(_sync_to_viewport)
 
 	var dimmer := ColorRect.new()
 	dimmer.color = Color(0, 0, 0, DIMMER_ALPHA)
+	# 子节点可以放心用 FULL_RECT：现在父节点（本面板）**是** Control 且有真实尺寸
 	dimmer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(dimmer)
 
@@ -85,6 +106,39 @@ func _ready() -> void:
 
 	_build_content()
 	_fit_scroll()
+
+	# ⚠️⚠️ 内容可能在 `_ready()` **之后**才被加进来。
+	#
+	# 典型写法是「先 `add_child(panel)`，再往 `content_box` 里塞内容」
+	# （战斗里那张只读地图就是这么加的）。此时 `_ready()` 里的
+	# `_fit_scroll()` 量到的是**空内容** → 滚动区高度停在 0 →
+	# 弹层框架正常、遮罩正常，**里面什么都没有**。
+	#
+	# 与其要求每个调用点都记得手动 refit（已经漏了两处），
+	# 不如让基类自己盯着 `content_box`。
+	content_box.child_entered_tree.connect(_on_content_changed)
+	content_box.child_exiting_tree.connect(_on_content_changed)
+
+
+## 内容增删后重新量高度。
+##
+## 必须**延迟一帧**：`child_entered_tree` 在容器排版**之前**发出，
+## 那时 `get_combined_minimum_size()` 还是旧值，当场量等于没量。
+func _on_content_changed(_node: Node) -> void:
+	_fit_scroll.call_deferred()
+
+
+## 把本面板铺满视口。
+##
+## ⚠️ 用**显式尺寸**而不是锚点——理由见 [method _ready] 的注释。
+## 父节点是普通 `Node` 时锚点算出的可用区域是 0×0，
+## 尺寸必须自己从视口取。
+func _sync_to_viewport() -> void:
+	var vp := get_viewport()
+	if vp == null:
+		return
+	position = Vector2.ZERO
+	size = vp.get_visible_rect().size
 
 
 ## ESC 关闭弹层（用户要求：「点击 esc 回到游戏界面」）

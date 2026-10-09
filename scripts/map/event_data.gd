@@ -61,7 +61,11 @@ static func effect_text(effect: Effect, value: int) -> String:
 		Effect.REMOVE_CARD:
 			return "移除牌组中一张牌"
 		Effect.MAX_HP:
-			return "最大生命 +%d" % value
+			# ⚠️ 负数（如「血誓」的 −6 最大生命）是**合法设计**。
+			# 写成 `"最大生命 +%d" % value` 会显示"最大生命 +-6"。
+			if value >= 0:
+				return "最大生命 +%d" % value
+			return "最大生命 −%d" % absi(value)
 		Effect.ADD_POTION:
 			return "获得一瓶随机药水"
 		Effect.ADD_DIVINE_CARD:

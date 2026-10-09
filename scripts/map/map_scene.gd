@@ -567,6 +567,11 @@ func _open_event(node: MapNode) -> void:
 ##
 ## 不清的话，快速双击会让**两个选项都触发**——玩家白拿两份收益。
 ## `queue_free()` 是延迟的，所以"面板关了"并不能保证信号只发一次。
+##
+## ⚠️ 但"置空"带来了另一个坑：`_apply_effect` 曾经去读 `_current_event.deity_id`，
+## 而那时它已经是 `null` → **空对象取值**，整个效果结算中断，
+## 表现成"选了『接受战神的赠礼』什么都没发生，卡组也没加牌"。
+## 所以事件对象必须**显式传进去**，不能靠成员变量——见 `_apply_effect`。
 func _on_event_option_chosen(index: int) -> void:
 	if _current_event == null:
 		return
@@ -587,7 +592,7 @@ func _on_event_option_chosen(index: int) -> void:
 		effect = event.option_b_effect
 		value = event.option_b_value
 
-	var result: String = _apply_effect(effect, value)
+	var result: String = _apply_effect(effect, value, event)
 	_hint_label.text = "「%s」→ %s" % [label, result]
 
 	if _event_panel != null:
@@ -613,7 +618,13 @@ func _ascend_event_value(effect: EventData.Effect, value: int) -> int:
 
 ## 效果结算。**必须与 [method EventData.effect_text] 的描述一致**——
 ## 玩家看到「回复 10 点生命」就必须真的回 10 点，这类撕裂最伤信任。
-func _apply_effect(effect: EventData.Effect, value: int) -> String:
+##
+## `event` 是**发起这次结算的事件对象**，由调用方显式传入。
+## ⚠️ 不要改回"从 `_current_event` 读"：那个字段在进入结算**之前**
+## 就已经被置空（防重复触发），读它必然拿到 `null`，
+## 而且只有**需要事件上下文的效果**（如神明赠与）才会崩——
+## 其他效果照常工作，所以这个 bug 极难从"有些事件好使"里定位。
+func _apply_effect(effect: EventData.Effect, value: int, event: EventData) -> String:
 	# 进阶 3：**先缩放，再结算 + 再拼文案**。
 	# 顺序反了（先拼文案、后缩放）会变成"显示失去 5 点、实际掉 8 点"，
 	# 正是上面那句纪律要防的事。
@@ -626,12 +637,29 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 			_run.take_damage(value)
 			return "失去 %d 点生命" % value
 		EventData.Effect.GOLD:
-			_run.add_gold(value)
+			# ⚠️ `RunState.add_gold()` **拒绝负数**（它会 push_error 并直接 return）——
+			# 所以"花钱"的事件选项必须走 `spend_gold()`。
+			#
+			# 之前这里对正负一律调 `add_gold(value)` → 负数被拒 → 扣钱静默失效。
+			# 表现成「花钱买下药水」点了没反应、金币没少、也没拿到药水。
+			# 而且它**只对负数的选项失效**，正数选项照常工作，
+			# 所以从"有些事件好使"极难定位。
+			if value >= 0:
+				_run.add_gold(value)
+				return "金币变为 %d" % _run.gold
+			var cost: int = -value
+			if not _run.spend_gold(cost):
+				return "金币不足（需要 %d，现有 %d），什么也没发生" % [cost, _run.gold]
 			return "金币变为 %d" % _run.gold
 		EventData.Effect.MAX_HP:
-			_run.max_hp += value
-			_run.heal(value)
-			return "最大生命 +%d（现为 %d）" % [value, _run.max_hp]
+			# 负数（如「血誓」的 −6 最大生命）是**合法设计**，
+			# 但文案不能写成"最大生命 +-6"——见 EventData.effect_text 的同款处理。
+			_run.max_hp = maxi(1, _run.max_hp + value)
+			# 同步当前血量：上限涨了就补、跌了就跟着跌，否则会出现 hp > max_hp
+			_run.hp = clampi(_run.hp + value, 1, _run.max_hp)
+			if value >= 0:
+				return "最大生命 +%d（现为 %d）" % [value, _run.max_hp]
+			return "最大生命 −%d（现为 %d）" % [-value, _run.max_hp]
 		EventData.Effect.ADD_RANDOM_CARD:
 			var offers: Array[CardData] = CardPool.new(_rng, _run.character_class).roll(1)
 			if offers.is_empty():
@@ -650,10 +678,13 @@ func _apply_effect(effect: EventData.Effect, value: int) -> String:
 			return "获得「%s」" % _potion_name(potion_id)
 
 		EventData.Effect.ADD_DIVINE_CARD:
-			var deity: StringName = _current_event.deity_id
+			# ⚠️ 必须从**传进来的** `event` 读神明 id。
+			# 曾经读 `_current_event`（已置空）→ 空对象取值 → 整段结算中断，
+			# 表现成"选了『接受战神的赠礼』什么都没发生，卡组也没加牌"。
+			var deity: StringName = event.deity_id if event != null else &""
 			var divine_pool: Array[CardData] = ContentRegistry.divine_cards_for(deity)
 			if divine_pool.is_empty():
-				return "没有可赠予的无色卡"
+				return "没有可赠予的无色卡（神明「%s」没有配无色卡）" % deity
 			var divine: CardData = divine_pool[_rng.randi_range(0, divine_pool.size() - 1)]
 			_run.add_card(divine.id)
 			# 神明的赠礼都有代价：拿卡的同时神性上涨
