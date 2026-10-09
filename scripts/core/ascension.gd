@@ -18,7 +18,7 @@ extends RefCounted
 ## 最高进阶等级
 const MAX_LEVEL: int = 10
 
-# ── 数值常量（改这里 = 改平衡，改动前先看 docs/balance_audit_v1.md）──
+# ── 数值常量（改这里 = 改平衡）──
 # ⚠️ 必须定义在 LEVEL_EFFECTS **之前**——表里的文案引用了它们。
 
 ## 进阶 1：每场战斗的金币奖励扣减

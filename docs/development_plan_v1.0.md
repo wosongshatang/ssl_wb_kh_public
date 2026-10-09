@@ -19,83 +19,34 @@
 
 ---
 
-# 第一章 就绪度评估
+# 第一章 技术栈
 
-## 1.1 环境体检结果（2026-09-30 实测）
-
-| 项目 | 状态 | 实测值 |
-|---|---|---|
-| 引擎 | ✅ | Godot `4.6.2.stable.mono.official.71f334935` |
-| 引擎路径 | ✅ | `D:\godot\Godot_v4.6.2-stable_mono_win64\Godot_v4.6.2-stable_mono_win64\` |
-| headless 运行 | ✅ | `--headless --quit` 可执行，退出码 0 |
-| 项目目录 | ✅ | `D:\ssl_wb_kh`（已有 `project.godot` / `icon.svg` / `.gitignore` / `.gitattributes` / `.editorconfig`） |
-| 脚本语言 | ✅ | GDScript 4.x（.NET SDK 8.0.420 也在，但本项目**不使用 C#**） |
-| Git | ✅ | 2.55.0.windows.3，全局 `user.name=***REMOVED***` / `user.email=***REMOVED***` |
-| GitHub 账号 | ✅ | 连接器已认证，登录名 **`wosongshatang`**（与仓库 owner 一致） |
-| GitHub API | ✅ | `api.github.com` 可达；连接器可读写仓库文件 |
-| 设计文档 | ✅ | v1.0 完整（世界观 / 12 终职 / 9 地图 / 神战 / 侵蚀 / 架构 / 9 阶段路线） |
-
-## 1.2 结论：**可以开始开发**
-
-地基层面没有硬阻塞——引擎、语言、账号、文档齐备。但**有 4 项必须先补齐**，1 项需要你拍板（见 1.4）。
-
-## 1.3 必须先补齐的 5 项
-
-### ① Git 仓库未初始化
-`D:\ssl_wb_kh` **不是 git 仓库**（无 `.git`、无 remote）。
-→ 阶段 0 第一件事：`git init` + 首次提交。
-
-### ② GitHub 仓库不存在
-用已认证账号 `wosongshatang` 查询 `wosongshatang/ssl_wb_kh`，API 返回 **404 Not Found**——仓库尚未创建。
-→ 需先创建仓库（建议私有），再建立本地↔远端关联。
-
-### ③ ⚠️ `github.com:443` 网络不可达（最需要注意的一项）
-实测结果：
-
-| 目标 | 结果 |
+| 项目 | 选型 |
 |---|---|
-| `https://github.com/...` | ❌ `CONNECT tunnel failed, response 502` / `Could not connect to server`（21s 超时） |
-| 关闭沙箱直连 | ❌ 仍然 `Could not connect to server` → **不是沙箱策略，是网络链路本身不通** |
-| `https://api.github.com/...` | ✅ 正常响应 |
-| `https://codeload.github.com/...` | ✅ 可达（较慢，20s 下载 638KB） |
+| 引擎 | Godot 4.6.2（mono 版安装包，但本项目**纯 GDScript，不使用 C#**） |
+| 脚本语言 | GDScript 4.x |
+| 测试框架 | GUT 9.7.1（vendored 于 `addons/gut/`，随仓库一起提交） |
+| 渲染后端 | `gl_compatibility` —— 2D 卡牌游戏够用、兼容性最好、启动快 |
+| 版本控制 | Git（SSH 推送） |
+| 数据格式 | 数值与内容一律 `.tres`，代码只读不算 |
 
-**影响**：`git push` / `git clone` / `git fetch` 走 HTTPS 到 `github.com` **会失败**。
-**对策（三选一）**：
-- **方案 A（推荐，立即可用）**：本地 git 做版本管理，**推送走 GitHub 连接器**（`push_files`，基于 api.github.com，已验证可用）。代价：推送需通过我执行，不是一条 `git push`。
-- **方案 B**：你本机配置代理/SSH 隧道后，`git push` 即可正常（需你侧操作）。
-- **方案 C**：改用 Gitee 等国内可达的托管（需你确认是否接受）。
+## 1.1 一条全局硬约束
 
-> 我倾向 **A + 后续视情况叠加 B**：先用连接器保证代码能上远端，不阻塞开发节奏。
+`gdscript/warnings/enable_all_warnings=true`，且**警告会导致脚本解析失败**。
 
-### ④ GUT 测试框架未安装
-项目无 `addons/` 目录。设计文档 §11 阶段 0 要求"GUT 接入 + 跑通 1 个空测试"。
-**风险**：GUT 的常规安装方式是 `git clone`（走 github.com，**当前不通**）。
-**对策**：
-- **方案 A**：通过 `codeload.github.com` 下载 GUT 发布包解压到 `addons/gut/`（可达，但慢，需多试几次）。
-- **方案 B（备选）**：**自研轻量测试运行器**（约 150 行 GDScript：`tools/run_tests.gd` + `tests/*_test.gd`，用 `assert` + 退出码），完全离线、零依赖、headless 可跑、可进 CI。功能少于 GUT，但覆盖设计文档要求的"管线顺序 / 身份层不可剥夺 / 格挡结算"三类断言绰绰有余。
+> 最常见的踩坑：`var x := <Variant 值>` 会触发「类型从 Variant 推断」警告。
+> 写法上显式标注 `var x: Variant = ...` 即可绕开。
 
-> 我倾向 **先试 A，失败则立刻切 B**——测试能力不能等。
+## 1.2 验收方式
 
-### ⑤ 工程骨架项缺失
-| 缺失项 | 说明 |
-|---|---|
-| 目录结构 | §10.1 的 `scripts/ data/ tests/ scenes/` 全部未建 |
-| 三大 Autoload | `GameState` / `EventBus` / `ContentRegistry` 未建未注册 |
-| 严格模式 | `gdscript/warnings/enable_all_warnings=true` 未开启 |
-| 主场景 | `application/run/main_scene` 未设置（headless 报 `no main scene defined`） |
-| 设计文档入库 | 文档还在 `D:\下载\`，未纳入工程 `docs/` |
-| `.gitignore` 补全 | 当前只有 `.godot/` 和 `/android/`，mono 工程会产生 `.csproj/.sln/.mono/` 噪音 |
+全部验收走 `tools/ci_check.sh`（六步门禁），不依赖图形编辑器：
 
-## 1.4 需要你拍板的 4 个决策
-
-| # | 决策项 | 我的建议 | 备选 |
-|---|---|---|---|
-| D1 | GitHub 仓库可见性 | **私有（private）** | 公开 |
-| D2 | 代码推送方式 | **GitHub 连接器推送**（github.com 不通） | 你配代理 / 换 Gitee |
-| D3 | 测试框架 | **先试 GUT，失败切自研轻量运行器** | 直接自研 / 只用 GUT |
-| D4 | 渲染后端 | **保持 `gl_compatibility`**（2D 卡牌游戏够用、兼容性最好、启动快） | 切 `mobile` |
-
-> 另外：`project.godot` 里存在 `[dotnet] project/assembly_name="ssl_wb_kh"` 段（mono 工程残留）。纯 GDScript 项目下**无害**，但会在编辑器里产生 C# 工程提示噪音。建议**保留引擎 mono 版不动**（你已装好），仅清理该配置段——这一项我会在阶段 0 一并处理，除非你另有考虑。
+1. 脚本解析检查
+2. 目录结构完整性
+3. 场景冒烟测试（全量编译 + 挂树）
+4. GUT 单元测试 + 用例数对账
+5. 分层铁律（`scripts/ui/` 不得依赖 `battle/` 或 `pipeline/`）
+6. 内容引用完整性
 
 ---
 

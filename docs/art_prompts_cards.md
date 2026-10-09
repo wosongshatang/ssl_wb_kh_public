@@ -3,7 +3,6 @@
 > **配套**：
 > - **`docs/art_style_base.md`** —— **唯一权威基底**（通用风格 + **明度基调** + 三种资产）
 > - `assets/cards/README.md`（接线约定）
-> - `docs/project_core_info.md` §4.3-A
 >
 > ⚠️ **本文件的基底已并入 `art_style_base.md`**。
 > 生成时请以那份为准——**尤其是 §三的明度基调，不要漏**，
